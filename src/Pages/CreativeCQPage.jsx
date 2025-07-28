@@ -98,15 +98,38 @@ function CreativeCQPage() {
     );
   });
 
+  // Dynamic heading logic
+  let headingText = 'সৃজনশীল প্রশ্ন';
+  if (!selectedSubject) {
+    headingText = 'বিষয় বাছাই করুন';
+  } else if (selectedSubject && !selectedChapter) {
+    headingText = 'অধ্যায় বাছাই করুন';
+  } else if (cognitiveType) {
+    headingText = cognitiveType;
+  }
+
+  // Heading with subject/chapter context
+  let contextText = '';
+  if (selectedSubject) {
+    contextText = selectedSubject;
+    if (selectedChapter) {
+      contextText += ` / ${selectedChapter}`;
+    }
+  }
+
   return (
     <MathJaxContext config={{
       loader: { load: ["input/tex", "output/chtml"] },
       tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] }
     }}>
       <div className="container mx-auto p-4" style={{ fontFamily: 'Hind Siliguri, sans-serif' }}>
-        <h2 className="text-xl font-bold mb-4">
-          {cognitiveType ? cognitiveType : 'সৃজনশীল প্রশ্ন'}
-        </h2>
+        <h1 className="text-2xl font-extrabold mb-2">
+          প্রশ্ন ব্যাংক
+          {contextText && (
+            <span className="ml-2 text-lg font-semibold text-blue-700">[{contextText}]</span>
+          )}
+        </h1>
+        <h2 className="text-xl font-bold mb-4">{headingText}</h2>
         <div className="flex flex-wrap gap-4 mb-6">
           <select className="select select-bordered" value={viewType} onChange={e => setViewType(e.target.value)}>
             <option value="all">প্রশ্ন ও উত্তর</option>
