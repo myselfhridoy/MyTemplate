@@ -27,7 +27,8 @@ export default class Navbar extends Component {
         <li><Link to="/example">Example CQ</Link></li>
         <li><Link to="/example-with-answer">CQ With Answer</Link></li>
         <li><Link to="/cq-filter">CQ Filter</Link></li>
-        <li><Link to="/creative-cq">সৃজনশীল</Link></li>
+        <li><Link to="/creative-cq">প্রশ্ন ব্যাংক</Link></li>
+        <li><Link to="/selftest">সেলফ টেস্ট</Link></li>
       </ul>
     </div>
   </div>

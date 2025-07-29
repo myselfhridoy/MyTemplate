@@ -6,6 +6,7 @@ import ExamplePage from './Pages/ExamplePage';
 import ExampleWithAnswer from './Pages/ExampleWithAnswer';
 import FilteredCQPage from './Pages/FilteredCQPage';
 import CreativeCQPage from './Pages/CreativeCQPage';
+import SelfTestPage from './Pages/SelfTestPage';
 
 export default class App extends Component {
   render() {
@@ -20,6 +21,7 @@ export default class App extends Component {
             <Route path="/example-with-answer" element={<ExampleWithAnswer />} />
             <Route path="/cq-filter" element={<FilteredCQPage />} />
             <Route path="/creative-cq" element={<CreativeCQPage />} />
+            <Route path="/selftest/*" element={<SelfTestPage />} />
           </Routes>
         </div>
       </>
