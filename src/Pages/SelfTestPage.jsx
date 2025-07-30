@@ -1,16 +1,16 @@
+// ...existing code...
 import React, { useState, useEffect, useRef, memo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import sha256 from 'js-sha256';
 import { MathJaxContext, MathJax } from 'better-react-mathjax';
-
 import { Routes, Route, Navigate } from 'react-router-dom';
+import SelfTestCreateForm from './SelfTestCreateForm';
+import ExamStartForm from './ExamStartForm';
+import SelfTestRegister from './SelfTestRegister';
 
 function SelfTestPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  // ...existing code...
-
-
   // Restore state from localStorage if available (for running exam)
   const getInitialState = () => {
     let initial = {
@@ -43,10 +43,10 @@ function SelfTestPage() {
   const [selfTestExamId, setSelfTestExamId] = useState(initialState.selfTestExamId);
   const [questions, setQuestions] = useState(initialState.questions);
   const [answers, setAnswers] = useState(initialState.answers);
-  // Remove step state, use route instead
   const [staringTime, setStaringTime] = useState(initialState.staring_time);
   const [endingTime, setEndingTime] = useState(initialState.ending_time);
   const [clientServerOffset, setClientServerOffset] = useState(initialState.client_server_offset);
+
   // Always calculate initial timeLeft from staringTime/endingTime/clientServerOffset if present
   const [timeLeft, setTimeLeft] = useState(() => {
     if (
@@ -54,13 +54,21 @@ function SelfTestPage() {
       initialState.staring_time && initialState.ending_time && typeof initialState.client_server_offset === 'number'
     ) {
       const end = new Date(initialState.ending_time).getTime();
-      const left = Math.max(0, Math.floor((end - (Date.now() - initialState.client_server_offset)) / 1000));
-      return left;
+      return Math.max(0, Math.floor((end - (Date.now() - initialState.client_server_offset)) / 1000));
     }
-    return null;
+    return 0;
   });
 
-  // Always recalculate timeLeft from staringTime/endingTime/clientServerOffset on mount/refresh if present
+  const handleLogout = () => {
+    setAccessToken('');
+    setLoginStatus('');
+    localStorage.removeItem('daricomma_access_token');
+    localStorage.removeItem('daricomma_exam_state');
+    setToast('লগআউট সফল!');
+    setTimeout(() => setToast(''), 2000);
+    navigate('/selftest/login');
+  };
+
   useEffect(() => {
     if (
       questions.length > 0 &&
@@ -131,7 +139,9 @@ function SelfTestPage() {
         return (
           <li key={q.id} className="bg-gray-50 dark:bg-gray-800 p-3 rounded shadow border border-gray-200 dark:border-gray-700">
             <div className="mb-2 font-semibold text-gray-900 dark:text-gray-100">
-              <MathJax>{q.question_text?.blocks?.[0]?.text || 'প্রশ্ন'}</MathJax>
+              {(q.question_text?.blocks?.[0]?.text)
+                ? <MathJax>{q.question_text.blocks[0].text}</MathJax>
+                : 'প্রশ্ন'}
             </div>
             {(q.option || []).map((opt, i) => {
               let optClass = '';
@@ -159,7 +169,13 @@ function SelfTestPage() {
                       disabled={isDisabled}
                       onChange={() => handleSelectOption(q.id, i)}
                     />
-                    <span className="text-gray-900 dark:text-gray-100"><MathJax>{typeof opt === 'string' ? opt : (opt.blocks?.[0]?.text || '')}</MathJax></span>
+                    <span className="text-gray-900 dark:text-gray-100">
+                      {typeof opt === 'string' && opt
+                        ? <MathJax>{opt}</MathJax>
+                        : (opt?.blocks?.[0]?.text
+                            ? <MathJax>{opt.blocks[0].text}</MathJax>
+                            : null)}
+                    </span>
                     {icon}
                   </label>
                 </div>
@@ -171,18 +187,30 @@ function SelfTestPage() {
             )}
             {/* উত্তর (answer_text) আলাদা করে দেখান */}
             {detail?.answer_text?.blocks?.[0]?.text && (
-              <div className="text-green-700 dark:text-green-300 text-xs mt-2 font-semibold break-words whitespace-pre-line overflow-x-auto">উত্তর: <span className="break-words"><MathJax>{detail.answer_text.blocks[0].text}</MathJax></span></div>
+              <div className="text-green-700 dark:text-green-300 text-xs mt-2 font-semibold break-words whitespace-pre-line overflow-x-auto">
+                উত্তর: <span className="break-words">
+                  {detail.answer_text.blocks[0].text
+                    ? <MathJax>{detail.answer_text.blocks[0].text}</MathJax>
+                    : null}
+                </span>
+              </div>
             )}
             {/* ব্যাখ্যা (explanation_text) */}
             {detail?.explanation_text?.blocks?.[0]?.text && (
-              <div className="text-blue-700 dark:text-blue-300 text-xs mt-1 break-words whitespace-pre-line overflow-x-auto">ব্যাখ্যা: <span className="break-words"><MathJax>{detail.explanation_text.blocks[0].text}</MathJax></span></div>
+              <div className="text-blue-700 dark:text-blue-300 text-xs mt-1 break-words whitespace-pre-line overflow-x-auto">
+                ব্যাখ্যা: <span className="break-words">
+                  {detail.explanation_text.blocks[0].text
+                    ? <MathJax>{detail.explanation_text.blocks[0].text}</MathJax>
+                    : null}
+                </span>
+              </div>
             )}
           </li>
         );
       })}
     </ol>
   ));
-  const [mobile, setMobile] = useState('01965334276');
+  const [mobile, setMobile] = useState('01xxxxxxxx');
   const [password, setPassword] = useState('');
   const [accessToken, setAccessToken] = useState(() => localStorage.getItem('daricomma_access_token') || '');
   const [loginStatus, setLoginStatus] = useState('');
@@ -281,7 +309,7 @@ function SelfTestPage() {
   };
 
   // Step 2: Create self-test exam
-  const handleCreateExam = async () => {
+  const handleCreateExam = async (examName = 'টেস্ট') => {
     setTestStatus('');
     setQuestions([]);
     setLoading(true);
@@ -292,7 +320,7 @@ function SelfTestPage() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${accessToken}`
         },
-        body: JSON.stringify({ self_test_id: selfTestId, name: 'টেস্ট' })
+        body: JSON.stringify({ self_test_id: selfTestId, name: examName || 'টেস্ট' })
       });
       const data = await res.json();
       if (data.status === 'success' && data.data?.self_test_exam_id) {
@@ -642,13 +670,47 @@ function SelfTestPage() {
   //   await handleFetchResult(exam.id);
   //   navigate('/selftest/result');
   // }}
-  // ...existing code...
+  const [deleteExamModal, setDeleteExamModal] = useState(null);
+
+  const handleDeleteExam = async (examId) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`https://api.daricomma.com/v1/self-test/self-test-exam/${examId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        setAllExams(prev => ({
+          ...prev,
+          completed: prev.completed.filter(e => e.id !== examId)
+        }));
+        setToast('পরীক্ষা ডিলেট হয়েছে');
+        setTimeout(() => setToast(''), 2000);
+      } else {
+        setToast('ডিলেট হয়নি: ' + (data.message || 'Unknown error'));
+        setTimeout(() => setToast(''), 2000);
+      }
+    } catch (err) {
+      setToast('ডিলেট ত্রুটি: ' + err.message);
+      setTimeout(() => setToast(''), 2000);
+    } finally {
+      setLoading(false);
+      setDeleteExamModal(null);
+    }
+  };
+
   return (
     <MathJaxContext config={{
       loader: { load: ["input/tex", "output/chtml"] },
       tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] }
     }}>
-      <div className="container mx-auto p-4 max-w-5xl bg-white dark:bg-gray-900 min-h-screen" style={{ fontFamily: 'Hind Siliguri, sans-serif' }}>
+      <div className="container mx-auto p-4 max-w-5xl min-h-screen" style={{ fontFamily: 'Hind Siliguri, sans-serif' }}>
+        <div className="flex justify-end mb-4">
+          {accessToken && (
+            <button className="btn btn-sm btn-outline btn-error" onClick={handleLogout}>লগআউট</button>
+          )}
+        </div>
         {/* Loading overlay */}
         {loading && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
@@ -661,28 +723,38 @@ function SelfTestPage() {
             </div>
           </div>
         )}
-        <h1 className="text-2xl font-bold mb-4 text-gray-900 dark:text-gray-100">সেলফ টেস্ট (দাঁড়িকমা)</h1>
+        <h1 className="text-2xl font-extrabold mb-2">
+          সেলফ টেস্ট (দাঁড়িকমা)
+        </h1>
+        {/* Optionally add contextText/headingText if needed, like CreativeCQPage */}
         {toast && (
           <div className="fixed top-4 left-1/2 -translate-x-1/2 bg-green-500 text-white px-4 py-2 rounded shadow z-50 animate-bounce">{toast}</div>
         )}
         <Routes>
+          <Route path="register" element={<SelfTestRegister />} />
           <Route path="login" element={
-            <form onSubmit={handleLogin} className="space-y-4 bg-white dark:bg-gray-800 p-4 rounded shadow border border-gray-200 dark:border-gray-700">
-              <div>
-                <label className="block mb-1 text-gray-900 dark:text-gray-100">মোবাইল নম্বর</label>
-                <input className="input input-bordered w-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700" value={mobile} onChange={e => setMobile(e.target.value)} required />
+            <>
+              <form onSubmit={handleLogin} className="space-y-4 bg-white dark:bg-gray-800 p-4 rounded shadow border border-gray-200 dark:border-gray-700">
+                <div>
+                  <label className="block mb-1 text-gray-900 dark:text-gray-100">মোবাইল নম্বর</label>
+                  <input className="input input-bordered w-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700" value={mobile} onChange={e => setMobile(e.target.value)} required placeholder="01xxxxxxxx" />
+                </div>
+                <div>
+                  <label className="block mb-1 text-gray-900 dark:text-gray-100">পাসওয়ার্ড</label>
+                  <input className="input input-bordered w-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700" type="password" value={password} onChange={e => setPassword(e.target.value)} required autoComplete="current-password" />
+                </div>
+                <button className="btn btn-primary w-full dark:bg-blue-700 dark:text-white dark:border-blue-700" type="submit" disabled={loading}>{loading ? 'লগইন হচ্ছে...' : 'লগইন করুন'}</button>
+                {loginStatus && <div className="mt-4 text-center text-blue-700 dark:text-blue-300">{loginStatus}</div>}
+              </form>
+              <div className="mt-4 text-center">
+                <span className="text-gray-700 dark:text-gray-200">নতুন একাউন্ট?</span>
+                <button className="ml-2 text-blue-600 dark:text-blue-400 underline" type="button" onClick={() => navigate('/selftest/register')}>রেজিস্ট্রেশন করুন</button>
               </div>
-              <div>
-                <label className="block mb-1 text-gray-900 dark:text-gray-100">পাসওয়ার্ড</label>
-                <input className="input input-bordered w-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700" type="password" value={password} onChange={e => setPassword(e.target.value)} required autoComplete="current-password" />
-              </div>
-              <button className="btn btn-primary w-full dark:bg-blue-700 dark:text-white dark:border-blue-700" type="submit" disabled={loading}>{loading ? 'লগইন হচ্ছে...' : 'লগইন করুন'}</button>
-              {loginStatus && <div className="mt-4 text-center text-blue-700 dark:text-blue-300">{loginStatus}</div>}
-            </form>
+            </>
           } />
           <Route index element={accessToken ? (
             <div className="mt-8 space-y-4">
-              <button className="btn btn-success w-full dark:bg-green-700 dark:text-white dark:border-green-700" onClick={handleCreateSelfTest} disabled={loading}>১. নতুন সেলফ টেস্ট শুরু করুন</button>
+              <SelfTestCreateForm accessToken={accessToken} onSuccess={(id) => { setSelfTestId(id); navigate('/selftest/create-exam'); }} />
               <button className="btn btn-outline w-full dark:bg-gray-800 dark:text-white dark:border-gray-700" onClick={() => { setLoading(true); setShowAllExams(true); }} disabled={loading}>সকল পরীক্ষা দেখুন</button>
               {testStatus && <div className="mt-2 text-center text-blue-700 dark:text-blue-300">{testStatus}</div>}
               {/* All Exams Modal */}
@@ -821,6 +893,10 @@ function SelfTestPage() {
                                 await handleFetchResult(exam.id);
                                 navigate('/selftest/result');
                               }}>উত্তর দেখুন</button>
+                              <button
+                                className="btn btn-xs btn-error w-full"
+                                onClick={() => setDeleteExamModal({ id: exam.id, name: exam.name })}
+                              >ডিলেট</button>
                             </div>
                           </div>
                         ))}
@@ -832,10 +908,12 @@ function SelfTestPage() {
             </div>
           ) : <Navigate to="/selftest/login" replace />} />
           <Route path="create-exam" element={accessToken ? (
-            <div className="mt-8 space-y-4">
-              <button className="btn btn-info w-full dark:bg-blue-700 dark:text-white dark:border-blue-700" onClick={handleCreateExam} disabled={loading || !selfTestId}>২. এক্সাম তৈরি করুন</button>
-              {testStatus && <div className="mt-2 text-center text-blue-700 dark:text-blue-300">{testStatus}</div>}
-            </div>
+            <ExamStartForm
+              loading={loading}
+              onStart={handleCreateExam}
+              selfTestId={selfTestId}
+              testStatus={testStatus}
+            />
           ) : <Navigate to="/selftest/login" replace />} />
           <Route path="start-exam" element={accessToken ? (
             <div className="mt-8 space-y-4">
@@ -844,7 +922,7 @@ function SelfTestPage() {
               {/* Show timer and submit if questions are loaded (for running exam started but not navigated yet) */}
               {questions.length > 0 && (
                 <>
-                  <div className="fixed top-0 left-0 w-full z-40 flex justify-center pointer-events-none">
+                  <div className="fixed top-16 left-0 w-full z-30 flex justify-center pointer-events-none">
                     <div className="flex items-center gap-4 bg-white/90 dark:bg-gray-900/90 border-b border-gray-200 dark:border-gray-800 shadow px-4 py-2 rounded-b-lg mt-0 max-w-2xl mx-auto w-full pointer-events-auto">
                       <span className="text-lg font-bold text-gray-900 dark:text-gray-100">সময় বাকি: {timeLeft !== null ? formatTime(timeLeft) : '--:--'}</span>
                       <button className="btn btn-sm btn-error ml-auto" onClick={handleGoHome}>হোমে যান</button>
@@ -875,7 +953,7 @@ function SelfTestPage() {
           <Route path="running" element={accessToken && questions.length > 0 ? (
             <>
               {/* Floating timer and submit button at the top, always visible */}
-              <div className="fixed top-0 left-0 w-full z-50 flex justify-center pointer-events-none">
+              <div className="fixed top-16 left-0 w-full z-30 flex justify-center pointer-events-none">
                 <div className="flex items-center justify-between gap-4 bg-white/90 dark:bg-gray-900/90 border-b border-gray-200 dark:border-gray-800 shadow px-4 py-2 rounded-b-lg mt-0 max-w-2xl mx-auto w-full pointer-events-auto">
                   <span className="text-lg font-bold text-gray-900 dark:text-gray-100">সময় বাকি: {timeLeft !== null ? formatTime(timeLeft) : '--:--'}</span>
                   <div className="flex gap-2 ml-auto">
@@ -943,7 +1021,22 @@ function SelfTestPage() {
             </div>
           ) : <Navigate to="/selftest" replace />} />
         </Routes>
+        {/* Delete confirmation modal */}
+        {deleteExamModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+            <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg p-6 max-w-xs w-full text-center border border-red-200 dark:border-red-700">
+              <div className="text-2xl text-red-600 dark:text-red-300 mb-2">⚠️</div>
+              <div className="font-bold text-lg mb-2 text-gray-900 dark:text-gray-100">ডিলেট কনফার্মেশন</div>
+              <div className="mb-4 text-gray-700 dark:text-gray-300">আপনি কি নিশ্চিতভাবে <span className="font-semibold text-red-600">{deleteExamModal.name || 'এই পরীক্ষা'}</span> ডিলেট করতে চান?</div>
+              <div className="flex gap-2 justify-center">
+                <button className="btn btn-sm btn-error" onClick={() => handleDeleteExam(deleteExamModal.id)}>ডিলেট করুন</button>
+                <button className="btn btn-sm btn-outline" onClick={() => setDeleteExamModal(null)}>বাতিল</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
+
     </MathJaxContext>
   );
 }
