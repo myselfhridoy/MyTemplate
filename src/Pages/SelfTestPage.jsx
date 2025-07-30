@@ -171,11 +171,11 @@ function SelfTestPage() {
             )}
             {/* উত্তর (answer_text) আলাদা করে দেখান */}
             {detail?.answer_text?.blocks?.[0]?.text && (
-              <div className="text-green-700 dark:text-green-300 text-xs mt-2 font-semibold">উত্তর: <MathJax>{detail.answer_text.blocks[0].text}</MathJax></div>
+              <div className="text-green-700 dark:text-green-300 text-xs mt-2 font-semibold break-words whitespace-pre-line overflow-x-auto">উত্তর: <span className="break-words"><MathJax>{detail.answer_text.blocks[0].text}</MathJax></span></div>
             )}
             {/* ব্যাখ্যা (explanation_text) */}
             {detail?.explanation_text?.blocks?.[0]?.text && (
-              <div className="text-blue-700 dark:text-blue-300 text-xs mt-1">ব্যাখ্যা: <MathJax>{detail.explanation_text.blocks[0].text}</MathJax></div>
+              <div className="text-blue-700 dark:text-blue-300 text-xs mt-1 break-words whitespace-pre-line overflow-x-auto">ব্যাখ্যা: <span className="break-words"><MathJax>{detail.explanation_text.blocks[0].text}</MathJax></span></div>
             )}
           </li>
         );
@@ -688,7 +688,7 @@ function SelfTestPage() {
               {/* All Exams Modal */}
               {showAllExams && (
                 <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-                  <div className="bg-white dark:bg-gray-900 p-6 rounded shadow-lg w-full relative max-h-[90vh] overflow-y-auto" style={{maxWidth:'100vw', minWidth:'0'}}>
+                  <div className="bg-white dark:bg-gray-900 p-4 sm:p-6 rounded shadow-lg w-full relative max-h-[90vh] overflow-y-auto" style={{maxWidth:'100vw', minWidth:'0', fontFamily:'Hind Siliguri, sans-serif'}}>
                     <button className="absolute top-2 right-2 text-xl" onClick={() => {
                       setShowAllExams(false);
                       setTimeout(() => setLoading(false), 0);
@@ -697,9 +697,9 @@ function SelfTestPage() {
                     <button className="btn btn-sm btn-info mb-2" onClick={fetchAllExams}>রিফ্রেশ করুন</button>
                     {allExamsLoading && <div>লোড হচ্ছে...</div>}
                     {allExamsError && <div className="text-red-500">{allExamsError}</div>}
-                    <div className="mt-2 px-2 md:px-8 lg:px-16 xl:px-32 2xl:px-48">
+                    <div className="mt-2 px-1 sm:px-2 md:px-4 lg:px-8 xl:px-16 2xl:px-32">
                       <div className="font-semibold text-gray-800 dark:text-gray-200 mb-1">চলমান পরীক্ষা</div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-3 mb-4">
+                      <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-10 gap-3 mb-4">
                         {allExams.running.length === 0 && <div className="text-gray-500 col-span-full">কোনো চলমান পরীক্ষা নেই</div>}
                         {allExams.running.map(exam => (
                           <div
@@ -762,7 +762,7 @@ function SelfTestPage() {
                         ))}
                       </div>
                       <div className="font-semibold text-gray-800 dark:text-gray-200 mb-1">সমাপ্ত পরীক্ষা</div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-3">
+                      <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-10 gap-3">
                         {allExams.completed.length === 0 && <div className="text-gray-500 col-span-full">কোনো সমাপ্ত পরীক্ষা নেই</div>}
                         {allExams.completed.map(exam => (
                           <div
@@ -904,10 +904,10 @@ function SelfTestPage() {
             </>
           ) : <Navigate to="/selftest" replace />} />
           <Route path="result" element={accessToken && questions.length > 0 ? (
-            <div className="mt-8 bg-green-50 dark:bg-green-950 p-4 rounded shadow border border-green-200 dark:border-green-900">
-              <div className="flex items-center justify-between mb-4">
+            <div className="mt-4 sm:mt-8 bg-green-50 dark:bg-green-950 p-2 sm:p-4 rounded shadow border border-green-200 dark:border-green-900" style={{fontFamily:'Hind Siliguri, sans-serif'}}>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-2">
                 <span className="text-lg font-bold text-gray-900 dark:text-gray-100">রেজাল্ট</span>
-                <button className="btn btn-sm btn-error" onClick={handleGoHome}>হোমে যান</button>
+                <button className="btn btn-sm btn-error w-full sm:w-auto" onClick={handleGoHome}>হোমে যান</button>
               </div>
               {result ? (
                 <div className="mb-4">
@@ -927,16 +927,18 @@ function SelfTestPage() {
               ) : (
                 <div className="mb-4 text-blue-700 dark:text-blue-300">রেজাল্ট লোড হচ্ছে...</div>
               )}
-              <div className="mt-6">
+              <div className="mt-4 sm:mt-6">
                 <div className="font-semibold text-gray-900 dark:text-gray-100 mb-2">উত্তর ও ব্যাখ্যা</div>
-                <MemoizedQuestions
-                  questions={questions}
-                  answers={answersForResult}
-                  handleSelectOption={() => {}}
-                  result={result}
-                  isDisabled={true}
-                  answerDetails={answerDetails}
-                />
+                <div className="overflow-x-auto">
+                  <MemoizedQuestions
+                    questions={questions}
+                    answers={answersForResult}
+                    handleSelectOption={() => {}}
+                    result={result}
+                    isDisabled={true}
+                    answerDetails={answerDetails}
+                  />
+                </div>
               </div>
             </div>
           ) : <Navigate to="/selftest" replace />} />
