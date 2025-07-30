@@ -326,13 +326,39 @@ function CreativeCQPage() {
                   {totalPages > 1 && (
                     <div className="flex justify-center gap-2 mt-8">
                       <button className="btn btn-xs" disabled={currentPage === 1} onClick={() => setCurrentPage(p => Math.max(1, p - 1))}>←</button>
-                      {Array.from({ length: totalPages }, (_, i) => (
-                        <button
-                          key={i}
-                          className={`btn btn-xs ${currentPage === i + 1 ? 'btn-primary' : ''}`}
-                          onClick={() => setCurrentPage(i + 1)}
-                        >{i + 1}</button>
-                      ))}
+                      {/* Responsive pagination with ellipsis */}
+                      {(() => {
+                        const pageButtons = [];
+                        const maxButtons = 5;
+                        let start = Math.max(1, currentPage - 2);
+                        let end = Math.min(totalPages, currentPage + 2);
+                        if (currentPage <= 3) {
+                          start = 1;
+                          end = Math.min(totalPages, maxButtons);
+                        } else if (currentPage >= totalPages - 2) {
+                          start = Math.max(1, totalPages - maxButtons + 1);
+                          end = totalPages;
+                        }
+                        if (start > 1) {
+                          pageButtons.push(
+                            <button key={1} className={`btn btn-xs ${currentPage === 1 ? 'btn-primary' : ''}`} onClick={() => setCurrentPage(1)}>1</button>
+                          );
+                          if (start > 2) pageButtons.push(<span key="start-ellipsis" className="px-1">...</span>);
+                        }
+                        for (let i = start; i <= end; i++) {
+                          if (i === 1 || i === totalPages) continue;
+                          pageButtons.push(
+                            <button key={i} className={`btn btn-xs ${currentPage === i ? 'btn-primary' : ''}`} onClick={() => setCurrentPage(i)}>{i}</button>
+                          );
+                        }
+                        if (end < totalPages) {
+                          if (end < totalPages - 1) pageButtons.push(<span key="end-ellipsis" className="px-1">...</span>);
+                          pageButtons.push(
+                            <button key={totalPages} className={`btn btn-xs ${currentPage === totalPages ? 'btn-primary' : ''}`} onClick={() => setCurrentPage(totalPages)}>{totalPages}</button>
+                          );
+                        }
+                        return pageButtons;
+                      })()}
                       <button className="btn btn-xs" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}>→</button>
                     </div>
                   )}
