@@ -22,18 +22,18 @@ export default class Navbar extends Component {
         tabIndex={0}
         className="menu menu-sm dropdown-content bg-base-100 rounded-box z-1 mt-3 w-52 p-2 shadow">
         <li><Link to="/dashboard">Dashboard</Link></li>
-        <li><Link to="/portfolio">Portfolio</Link></li>
-        <li><Link to="/about">About</Link></li>
-        <li><Link to="/example">Example CQ</Link></li>
-        <li><Link to="/example-with-answer">CQ With Answer</Link></li>
-        <li><Link to="/cq-filter">CQ Filter</Link></li>
+        {/* <li><Link to="/portfolio">Portfolio</Link></li> */}
+        {/* <li><Link to="/about">About</Link></li> */}
+        {/* <li><Link to="/example">Example CQ</Link></li> */}
+        {/* <li><Link to="/example-with-answer">CQ With Answer</Link></li> */}
+        {/* <li><Link to="/cq-filter">CQ Filter</Link></li> */}
         <li><Link to="/creative-cq">প্রশ্ন ব্যাংক</Link></li>
         <li><Link to="/selftest">সেলফ টেস্ট</Link></li>
       </ul>
     </div>
   </div>
   <div className="navbar-center">
-    <Link to="/" className="btn btn-ghost text-xl">daisyUI</Link>
+    <Link to="/" className="btn btn-ghost text-xl">H.M. Tutoring</Link>
   </div>
   <div className="navbar-end">
     {/* Theme toggle button */}

@@ -24,58 +24,91 @@ const cognitiveTypeMap = {
   'উচ্চতর দক্ষতা': 'Higher-order skills',
 };
 
+
 function CreativeCQPage() {
-  const pageSize = 15; // প্রতি পেজে ১৫টা CQ কার্ড
+  const pageSize = 15;
   const [currentPage, setCurrentPage] = useState(1);
   const [cognitiveType, setCognitiveType] = useState('');
-  const [cqData, setCqData] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [cqData, setCqData] = useState([]); // Loaded CQ data for selected chapter
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [selectedClass, setSelectedClass] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedChapter, setSelectedChapter] = useState('');
   const [source, setSource] = useState('');
   const [viewType, setViewType] = useState('all');
+  const [selectedTopic, setSelectedTopic] = useState('');
+  const [mapping, setMapping] = useState([]); // cqmapping.json
+  const [chapterUrl, setChapterUrl] = useState('');
 
+  // Fetch mapping.json on mount
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchMapping = async () => {
+      setLoading(true);
+      setError(null);
       try {
-        const response = await fetch(
-          'https://corsproxy.io/?https://raw.githubusercontent.com/myselfhridoy/hmtutoring-database/refs/heads/main/HSC/BCQ/P01.json',
-          {
-            headers: {
-              'Accept': 'application/json',
-              'Cache-Control': 'no-cache'
-            }
-          }
-        );
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        const data = await response.json();
-        setCqData(Array.isArray(data) ? data : [data]);
+        const res = await fetch('https://corsproxy.io/?https://raw.githubusercontent.com/myselfhridoy/hmtutoring-database/refs/heads/main/cqmapping.json');
+        if (!res.ok) throw new Error('Mapping fetch failed');
+        const data = await res.json();
+        setMapping(Array.isArray(data) ? data : []);
       } catch (err) {
-        setError(err?.message || 'Unknown error');
-        setCqData([]);
+        setError('Mapping fetch error: ' + (err?.message || 'Unknown error'));
       } finally {
         setLoading(false);
       }
     };
-    fetchData();
+    fetchMapping();
   }, []);
 
-  // Unique subjects
-  const subjects = Array.from(new Set(cqData.map(item => item.subject || item.chapter).filter(Boolean)));
+  // Subjects for selected class
+  const subjects = selectedClass
+    ? mapping.filter(m => m['শ্রেণি'] === selectedClass).map(m => m['বিষয়'])
+    : [];
+
   // Chapters for selected subject
-  const chapters = Array.from(new Set(
-    cqData
-      .filter(item => (selectedSubject ? (item.subject || item.chapter) === selectedSubject : true))
-      .map(item => item.chapter)
-      .filter(Boolean)
-  ));
+  const chapters = (selectedClass && selectedSubject)
+    ? Object.keys((mapping.find(m => m['শ্রেণি'] === selectedClass && m['বিষয়'] === selectedSubject)?.['অধ্যায়'] || {}))
+    : [];
+
+  // When chapter changes, fetch CQ data for that chapter
+  useEffect(() => {
+    if (selectedClass && selectedSubject && selectedChapter) {
+      const url = mapping.find(m => m['শ্রেণি'] === selectedClass && m['বিষয়'] === selectedSubject)?.['অধ্যায়']?.[selectedChapter];
+      if (url) {
+        setChapterUrl(url);
+        setLoading(true);
+        setError(null);
+        fetch('https://corsproxy.io/?' + url, {
+          headers: { 'Accept': 'application/json', 'Cache-Control': 'no-cache' }
+        })
+          .then(res => {
+            if (!res.ok) throw new Error('CQ fetch failed');
+            return res.json();
+          })
+          .then(data => {
+            setCqData(Array.isArray(data) ? data : [data]);
+          })
+          .catch(err => {
+            setError('CQ fetch error: ' + (err?.message || 'Unknown error'));
+            setCqData([]);
+          })
+          .finally(() => setLoading(false));
+      } else {
+        setCqData([]);
+        setChapterUrl('');
+      }
+    } else {
+      setCqData([]);
+      setChapterUrl('');
+    }
+    setSelectedTopic('');
+    setCurrentPage(1);
+  }, [selectedClass, selectedSubject, selectedChapter, mapping]);
+
   // Boards (sources)
   const boards = Array.from(new Set(cqData.map(item => item.source).filter(Boolean)));
 
-  // Filtered CQ: Default-সব প্রশ্ন, ধরন সিলেক্ট করলে শুধু সেই ধরন, টপিকও চাইলে ওই টপিকের ওই ধরনের প্রশ্ন
-  const [selectedTopic, setSelectedTopic] = useState('');
-  // টপিক অপশন: chapter ও cognitiveType দুটোই সিলেক্ট থাকলে শুধু ওই ধরনের প্রশ্নের টপিক দেখাবে
+  // Topics for filter
   const topics = (selectedChapter && cognitiveType)
     ? Array.from(new Set(
         cqData
@@ -90,19 +123,21 @@ function CreativeCQPage() {
       ))
     : [];
 
+  // Filtered CQ
   const filtered = cqData.filter(item => {
     return (
-      (!selectedSubject || (item.subject || item.chapter) === selectedSubject) &&
-      (!!selectedChapter && item.chapter === selectedChapter) &&
       (!source || item.source === source)
     );
   });
 
+
   // Dynamic heading logic
   let headingText = 'সৃজনশীল প্রশ্ন';
-  if (!selectedSubject) {
+  if (!selectedClass) {
+    headingText = 'শ্রেণি বাছাই করুন';
+  } else if (!selectedSubject) {
     headingText = 'বিষয় বাছাই করুন';
-  } else if (selectedSubject && !selectedChapter) {
+  } else if (!selectedChapter) {
     headingText = 'অধ্যায় বাছাই করুন';
   } else if (cognitiveType) {
     headingText = cognitiveType;
@@ -110,10 +145,13 @@ function CreativeCQPage() {
 
   // Heading with subject/chapter context
   let contextText = '';
-  if (selectedSubject) {
-    contextText = selectedSubject;
-    if (selectedChapter) {
-      contextText += ` / ${selectedChapter}`;
+  if (selectedClass) {
+    contextText = selectedClass;
+    if (selectedSubject) {
+      contextText += ` / ${selectedSubject}`;
+      if (selectedChapter) {
+        contextText += ` / ${selectedChapter}`;
+      }
     }
   }
 
@@ -131,10 +169,31 @@ function CreativeCQPage() {
         </h1>
         <h2 className="text-xl font-bold mb-4">{headingText}</h2>
         <div className="flex flex-wrap gap-4 mb-6">
+          {/* Class select */}
+          <select className="select select-bordered" value={selectedClass} onChange={e => { setSelectedClass(e.target.value); setSelectedSubject(''); setSelectedChapter(''); setCqData([]); setCurrentPage(1); }}>
+            <option value="">শ্রেণি</option>
+            {Array.from(new Set(mapping.map(m => m['শ্রেণি']))).map((cls, i) => <option key={i} value={cls}>{cls}</option>)}
+          </select>
+          {/* Subject select */}
+          {selectedClass && (
+            <select className="select select-bordered" value={selectedSubject} onChange={e => { setSelectedSubject(e.target.value); setSelectedChapter(''); setCqData([]); setCurrentPage(1); }}>
+              <option value="">বিষয়</option>
+              {subjects.map((subj, i) => <option key={i} value={subj}>{subj}</option>)}
+            </select>
+          )}
+          {/* Chapter select */}
+          {selectedClass && selectedSubject && (
+            <select className="select select-bordered" value={selectedChapter} onChange={e => { setSelectedChapter(e.target.value); setCurrentPage(1); }}>
+              <option value="">অধ্যায়</option>
+              {chapters.map((ch, i) => <option key={i} value={ch}>{ch}</option>)}
+            </select>
+          )}
+          {/* View type */}
           <select className="select select-bordered" value={viewType} onChange={e => setViewType(e.target.value)}>
             <option value="all">প্রশ্ন ও উত্তর</option>
             <option value="question">শুধু প্রশ্ন</option>
           </select>
+          {/* Cognitive type */}
           <select className="select select-bordered" value={cognitiveType} onChange={e => { setCognitiveType(e.target.value); setSelectedTopic(''); }}>
             <option value="">প্রশ্নের ধরন</option>
             {cognitiveTypes.map((type, i) => <option key={i} value={type}>{type}</option>)}
@@ -154,46 +213,29 @@ function CreativeCQPage() {
         </div>
         {loading && <div className="text-center py-8">Loading...</div>}
         {error && <div className="text-center py-8 text-error">Error: {error}</div>}
-        {/* Step 1: Show subjects as cards */}
-        {!selectedSubject && !loading && !error && (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {subjects.map((subj, idx) => (
-              <div key={idx} className="card bg-gray-200 text-gray-800 shadow hover:bg-blue-500 cursor-pointer" onClick={() => setSelectedSubject(subj)}>
-                <div className="card-body text-center">
-                  <span className="font-bold text-lg">{subj}</span>
-                </div>
-              </div>
-            ))}
-          </div>
+        {/* Step 1: Class/Subject/Chapter select only, then CQ render */}
+        {!selectedClass && !loading && !error && (
+          <div className="text-center py-8">শ্রেণি বাছাই করুন</div>
         )}
-        {/* Step 2: Show chapters for selected subject */}
-        {selectedSubject && !selectedChapter && (
-          <div>
-            <button className="btn btn-sm mb-4" onClick={() => setSelectedSubject('')}>← সাবজেক্টে ফিরে যান</button>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {chapters.map((ch, idx) => (
-                <div key={idx} className="card bg-gray-200 text-gray-800 shadow hover:bg-blue-500 cursor-pointer" onClick={() => setSelectedChapter(ch)}>
-                  <div className="card-body text-center">
-                    <span className="font-bold text-lg">{ch}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+        {selectedClass && !selectedSubject && !loading && !error && (
+          <div className="text-center py-8">বিষয় বাছাই করুন</div>
         )}
-        {/* Step 3: Show CQ for selected chapter */}
-        {selectedSubject && selectedChapter && (
+        {selectedClass && selectedSubject && !selectedChapter && !loading && !error && (
+          <div className="text-center py-8">অধ্যায় বাছাই করুন</div>
+        )}
+        {/* Step 2: Show CQ for selected chapter */}
+        {selectedClass && selectedSubject && selectedChapter && (
           <div>
             <button className="btn btn-sm mb-4" onClick={() => setSelectedChapter('')}>← অধ্যায়ে ফিরে যান</button>
             <div className="space-y-6">
               {(() => {
+                if (loading) return <div className="text-center py-8">Loading...</div>;
+                if (error) return <div className="text-center py-8 text-error">Error: {error}</div>;
                 if (filtered.length === 0) {
                   return <div className="text-center py-8">No CQ found</div>;
                 }
                 // কার্ডগুলো সাল অনুযায়ী descending (নতুন বছর আগে) sort
-                // বাংলা year extraction helper
                 const bn2en = s => s.replace(/[০-৯]/g, d => '০১২৩৪৫৬৭৮৯'.indexOf(d));
-                // বোর্ড অর্ডার
                 const boardPriority = [
                   'ঢাকা', 'চট্টগ্রাম', 'রাজশাহী', 'খুলনা', 'সিলেট', 'বরিশাল', 'দিনাজপুর', 'ময়মনসিংহ', 'ময়মনসিংহ'
                 ];
@@ -228,11 +270,7 @@ function CreativeCQPage() {
                   }
                   return 0;
                 };
-                // কার্ড ফিল্টার, sort, তারপর প্রশ্ন ফিল্টার, তারপর pagination
                 let filteredCards = filtered;
-                if (cognitiveType && selectedChapter) {
-                  filteredCards = filtered.filter(item => item.chapter === selectedChapter);
-                }
                 // কার্ড ফিল্টার ও sort
                 let sorted = [...filteredCards].sort((a, b) => {
                   const yearDiff = extractYear(b) - extractYear(a);
@@ -257,7 +295,7 @@ function CreativeCQPage() {
                   if (!filteredQuestions || filteredQuestions.length === 0) return null;
                   return { ...item, প্রশ্নাবলী: filteredQuestions };
                 }).filter(Boolean);
-                // Pagination: প্রশ্নের ধরন/চাপ্টার ফিল্টার করার পর কার্ডে paginate
+                // Pagination
                 const totalPages = Math.ceil(cardList.length / pageSize);
                 cardList = cardList.slice((currentPage - 1) * pageSize, currentPage * pageSize);
                 let cardIdx = (currentPage - 1) * pageSize;
