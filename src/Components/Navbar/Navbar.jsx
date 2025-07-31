@@ -1,14 +1,42 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 
 function Navbar() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [themeKey, setThemeKey] = useState(0); // force re-render on theme change
+  const [currentTheme, setCurrentTheme] = useState('light');
+  // Set theme from localStorage on mount
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme');
+    const html = document.documentElement;
+    if (savedTheme === 'dark') {
+      html.setAttribute('data-theme', 'dark');
+      html.classList.add('dark');
+      setCurrentTheme('dark');
+    } else {
+      html.setAttribute('data-theme', 'light');
+      html.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+      setCurrentTheme('light');
+    }
+    setThemeKey((k) => k + 1); // force re-render
+  }, []);
+
   const toggleTheme = () => {
     const html = document.documentElement;
-    html.getAttribute('data-theme') === 'dark'
-      ? html.setAttribute('data-theme', 'light')
-      : html.setAttribute('data-theme', 'dark');
+    const themeNow = html.getAttribute('data-theme');
+    const newTheme = themeNow === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', newTheme);
+    if (newTheme === 'dark') {
+      html.classList.add('dark');
+      setCurrentTheme('dark');
+    } else {
+      html.classList.remove('dark');
+      setCurrentTheme('light');
+    }
+    localStorage.setItem('theme', newTheme);
+    setThemeKey((k) => k + 1); // force re-render
   };
   const handleDropdown = (open) => setDropdownOpen(open);
   const handleMenuClick = () => setDropdownOpen(false);
@@ -41,7 +69,16 @@ function Navbar() {
           </div>
         </div>
         <div className="navbar-center">
-          <Link to="/" className="btn btn-ghost text-xl">H.M. Tutoring</Link>
+          <Link to="/" className="btn btn-ghost px-2">
+            <span className="relative block h-12" style={{width:'180px', maxWidth:'100%'}} key={themeKey}>
+              <img
+                src={currentTheme === 'dark' ? '/HMT Logo White.png' : '/HMT Logo.png'}
+                alt="HMT Logo"
+                className="absolute inset-0 h-12 object-contain"
+                style={{maxHeight:'48px', width:'180px', maxWidth:'100%'}}
+              />
+            </span>
+          </Link>
         </div>
         <div className="navbar-end">
           {/* Theme toggle button */}

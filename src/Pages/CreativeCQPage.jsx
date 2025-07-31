@@ -211,7 +211,7 @@ function CreativeCQPage() {
             {boards.map((b, i) => <option key={i} value={b}>{b}</option>)}
           </select>
         </div>
-        {loading && <div className="text-center py-8">Loading...</div>}
+        {loading && <div className="text-center py-8">লোড হচ্ছে...</div>}
         {error && <div className="text-center py-8 text-error">Error: {error}</div>}
         {/* Step 1: Class/Subject/Chapter select only, then CQ render */}
         {!selectedClass && !loading && !error && (
@@ -229,7 +229,7 @@ function CreativeCQPage() {
             <button className="btn btn-sm mb-4" onClick={() => setSelectedChapter('')}>← অধ্যায়ে ফিরে যান</button>
             <div className="space-y-6">
               {(() => {
-                if (loading) return <div className="text-center py-8">Loading...</div>;
+                if (loading) return null;
                 if (error) return <div className="text-center py-8 text-error">Error: {error}</div>;
                 if (filtered.length === 0) {
                   return <div className="text-center py-8">No CQ found</div>;

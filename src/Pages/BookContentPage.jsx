@@ -177,6 +177,15 @@ function BookContentPage() {
                       text-decoration: underline;
                       text-underline-offset: 6px;
                     }
+                    .prose, .prose p, .prose span, .prose div, .prose li, .prose td, .prose th {
+                      color: var(--fallback-bc, var(--b1));
+                    }
+                    .dark .prose, .dark .prose p, .dark .prose span, .dark .prose div, .dark .prose li, .dark .prose td, .dark .prose th {
+                      color: var(--fallback-bc, var(--bc));
+                    }
+                    .dark .prose h1, .dark .prose h2, .dark .prose h3, .dark .prose h4, .dark .prose h5, .dark .prose h6 {
+                      color: #fff !important;
+                    }
                   `}</style>
                   <span dangerouslySetInnerHTML={{ __html: divBlocks[currentPage - 1] }} />
                 </div>
