@@ -64,6 +64,7 @@ function Navbar() {
                 <li><Link to="/bookcontent" onClick={() => setTimeout(() => handleMenuClick(), 50)}>পাঠ্যবই</Link></li>
                 <li><Link to="/creative-cq" onClick={() => setTimeout(() => handleMenuClick(), 50)}>প্রশ্ন ব্যাংক</Link></li>
                 <li><Link to="/selftest" onClick={() => setTimeout(() => handleMenuClick(), 50)}>সেলফ টেস্ট</Link></li>
+                <li><Link to="/ai-assistant" onClick={() => setTimeout(() => handleMenuClick(), 50)}>AI সহকারী</Link></li>
               </ul>
             )}
           </div>
