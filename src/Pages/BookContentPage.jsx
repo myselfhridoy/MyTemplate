@@ -180,37 +180,43 @@ function BookContentPage() {
                   `}</style>
                   <span dangerouslySetInnerHTML={{ __html: divBlocks[currentPage - 1] }} />
                 </div>
+                {/* Pagination controls below content */}
                 {divBlocks.length > 1 && (
-                  <div className="flex justify-center gap-2 mt-8">
+                  <div className="flex flex-wrap justify-center gap-2 mt-8 px-1 items-center">
                     <button className="btn btn-sm" disabled={currentPage === 1} onClick={() => setCurrentPage(p => Math.max(1, p - 1))}>← আগের</button>
-                    {/* Responsive pagination with ellipsis */}
                     {(() => {
                       const totalPages = divBlocks.length;
                       const pageButtons = [];
-                      const maxButtons = 5; // Show max 5 page numbers
-                      let start = Math.max(1, currentPage - 2);
-                      let end = Math.min(totalPages, currentPage + 2);
-                      if (currentPage <= 3) {
-                        start = 1;
-                        end = Math.min(totalPages, maxButtons);
-                      } else if (currentPage >= totalPages - 2) {
-                        start = Math.max(1, totalPages - maxButtons + 1);
-                        end = totalPages;
-                      }
-                      if (start > 1) {
+                      // Always show first page
+                      if (currentPage > 2) {
                         pageButtons.push(
                           <button key={1} className={`btn btn-xs ${currentPage === 1 ? 'btn-primary' : ''}`} onClick={() => setCurrentPage(1)}>1</button>
                         );
-                        if (start > 2) pageButtons.push(<span key="start-ellipsis" className="px-1">...</span>);
+                        if (currentPage > 3) {
+                          pageButtons.push(<span key="start-ellipsis" className="px-1">...</span>);
+                        }
                       }
-                      for (let i = start; i <= end; i++) {
-                        if (i === 1 || i === totalPages) continue;
+                      // Show previous page if not first
+                      if (currentPage - 1 > 1) {
                         pageButtons.push(
-                          <button key={i} className={`btn btn-xs ${currentPage === i ? 'btn-primary' : ''}`} onClick={() => setCurrentPage(i)}>{i}</button>
+                          <button key={currentPage - 1} className="btn btn-xs" onClick={() => setCurrentPage(currentPage - 1)}>{currentPage - 1}</button>
                         );
                       }
-                      if (end < totalPages) {
-                        if (end < totalPages - 1) pageButtons.push(<span key="end-ellipsis" className="px-1">...</span>);
+                      // Show current page
+                      pageButtons.push(
+                        <button key={currentPage} className={`btn btn-xs btn-primary`}>{currentPage}</button>
+                      );
+                      // Show next page if not last
+                      if (currentPage + 1 < totalPages) {
+                        pageButtons.push(
+                          <button key={currentPage + 1} className="btn btn-xs" onClick={() => setCurrentPage(currentPage + 1)}>{currentPage + 1}</button>
+                        );
+                      }
+                      // Always show last page
+                      if (currentPage < totalPages - 1) {
+                        if (currentPage < totalPages - 2) {
+                          pageButtons.push(<span key="end-ellipsis" className="px-1">...</span>);
+                        }
                         pageButtons.push(
                           <button key={totalPages} className={`btn btn-xs ${currentPage === totalPages ? 'btn-primary' : ''}`} onClick={() => setCurrentPage(totalPages)}>{totalPages}</button>
                         );
