@@ -109,7 +109,10 @@ function AIAssistantPage() {
 
 উত্তরের structure:
 - তালিকার জন্য proper markdown formatting ব্যবহার করো
-- প্রতিটি নতুন বিষয়ের জন্য নতুন paragraph শুরু করো`;
+- প্রতিটি নতুন বিষয়ের জন্য নতুন paragraph শুরু করো
+
+**কখনোই Gemini বা কোনো AI মডেলের নাম উত্তর বা পরিচয়ে উল্লেখ করবে না।**
+**কোনো ধরনের সম্ভাষণ (নমস্কার, হ্যালো, etc.) ব্যবহার করবে না, সরাসরি উত্তর দাও।**`;
     
     switch(type) {
       case 'জ্ঞানমূলক':
@@ -197,22 +200,25 @@ function AIAssistantPage() {
 
 উত্তরের structure:
 - তালিকার জন্য proper markdown formatting ব্যবহার করো
-- প্রতিটি নতুন বিষয়ের জন্য নতুন paragraph শুরু করো`;
+- প্রতিটি নতুন বিষয়ের জন্য নতুন paragraph শুরু করো
 
-      // If both text and image are provided, mention both in the prompt
-      if (imageFile) {
-        let extraInstruction = "";
-        if (questionType === 'সৃজনশীল') {
-          extraInstruction = `\n\nছবিতে সৃজনশীল প্রশ্নের নির্দিষ্ট অংশ (যেমন 'খ অংশ', 'গ অংশ', 'ঘ অংশ') জানতে চাওয়া হয়েছে। শুধুমাত্র সেই অংশের উত্তর দাও।`; 
+**কখনোই Gemini বা কোনো AI মডেলের নাম উত্তর বা পরিচয়ে উল্লেখ করবে না।**
+**কোনো ধরনের সম্ভাষণ (নমস্কার, হ্যালো, etc.) ব্যবহার করবে না, সরাসরি উত্তর দাও।**`;
+
+        // If both text and image are provided, mention both in the prompt
+        if (imageFile) {
+          let extraInstruction = "";
+          if (questionType === 'সৃজনশীল') {
+            extraInstruction = `\n\nছবিতে সৃজনশীল প্রশ্নের নির্দিষ্ট অংশ (যেমন 'খ অংশ', 'গ অংশ', 'ঘ অংশ') জানতে চাওয়া হয়েছে। শুধুমাত্র সেই অংশের উত্তর দাও।`; 
+          } else {
+            extraInstruction = "\n\nআরো তথ্যের জন্য দেওয়া ছবিটিও দেখুন এবং প্রশ্ন ও ছবি দুইটি মিলিয়ে সম্পূর্ণ উত্তর দিন।";
+          }
+          const prompt = getPromptForQuestionType(questionType, questionText + extraInstruction, contextPrompt);
+          parts.push({ text: prompt });
         } else {
-          extraInstruction = "\n\nআরো তথ্যের জন্য দেওয়া ছবিটিও দেখুন এবং প্রশ্ন ও ছবি দুইটি মিলিয়ে সম্পূর্ণ উত্তর দিন।";
+          const prompt = getPromptForQuestionType(questionType, questionText, contextPrompt);
+          parts.push({ text: prompt });
         }
-        const prompt = getPromptForQuestionType(questionType, questionText + extraInstruction, contextPrompt);
-        parts.push({ text: prompt });
-      } else {
-        const prompt = getPromptForQuestionType(questionType, questionText, contextPrompt);
-        parts.push({ text: prompt });
-      }
       }
       
       if (imageFile) {
@@ -236,9 +242,27 @@ function AIAssistantPage() {
       if (!questionText.trim() && imageFile) {
         let contextPrompt = "";
         if (questionType === 'সৃজনশীল') {
-          contextPrompt = `আপনি H.M. Tutoring AI Assistant। আপনি ${selectedClass} ${selectedSubject} এর "${selectedChapter}" অধ্যায়ের একজন দক্ষ শিক্ষক।\n\nছবিতে সৃজনশীল প্রশ্ন আছে। ছবির সব অংশ বিশ্লেষণ করে ক, খ, গ, ঘ অংশের উত্তর বাংলায় দাও। গাণিতিক অংশ MathJax ফরম্যাটে \`$...$\` এর ভিতরে দাও। বাংলা টেক্সট এবং math expressions একই লাইনে লিখো। অনর্থক line break দিও না।`;
+          contextPrompt = `আপনি H.M. Tutoring AI Assistant। আপনি ${selectedClass} ${selectedSubject} এর "${selectedChapter}" অধ্যায়ের একজন দক্ষ শিক্ষক।
+
+ছবিতে সৃজনশীল প্রশ্ন আছে। ছবির সব অংশ বিশ্লেষণ করে ক, খ, গ, ঘ অংশের উত্তর বাংলায় দাও। গাণিতিক অংশ MathJax ফরম্যাটে \`$...$\` এর ভিতরে দাও। বাংলা টেক্সট এবং math expressions একই লাইনে লিখো। অনর্থক line break দিও না।
+
+**কখনোই Gemini বা কোনো AI মডেলের নাম উত্তর বা পরিচয়ে উল্লেখ করবে না।**
+**কোনো ধরনের সম্ভাষণ (নমস্কার, হ্যালো, etc.) ব্যবহার করবে না, সরাসরি উত্তর দাও।**`;
         } else {
-          contextPrompt = `আপনি H.M. Tutoring AI Assistant। আপনি ${selectedClass} ${selectedSubject} এর "${selectedChapter}" অধ্যায়ের একজন দক্ষ শিক্ষক।\n\nআপনার কাজ:\n- ছবির সব লেখা, চিত্র, প্রশ্ন, গাণিতিক অংশ, এবং context বিশ্লেষণ করো\n- ছবির প্রতিটি relevant অংশ বাংলায় ব্যাখ্যা করো\n- গাণিতিক অংশ MathJax ফরম্যাটে \`$...$\` এর ভিতরে দাও\n- উদাহরণ: "ছবিতে যদি গাণিতিক প্রশ্ন থাকে, তাহলে ধাপে ধাপে সমাধান দাও"\n- বাংলা টেক্সট এবং math expressions একই লাইনে লিখো\n- অনর্থক line break দিও না\n\nছবির সম্পূর্ণ বিশ্লেষণ করে উত্তর বাংলায় দাও।`;
+          contextPrompt = `আপনি H.M. Tutoring AI Assistant। আপনি ${selectedClass} ${selectedSubject} এর "${selectedChapter}" অধ্যায়ের একজন দক্ষ শিক্ষক।
+
+আপনার কাজ:
+- ছবির সব লেখা, চিত্র, প্রশ্ন, গাণিতিক অংশ, এবং context বিশ্লেষণ করো
+- ছবির প্রতিটি relevant অংশ বাংলায় ব্যাখ্যা করো
+- গাণিতিক অংশ MathJax ফরম্যাটে \`$...$\` এর ভিতরে দাও
+- উদাহরণ: "ছবিতে যদি গাণিতিক প্রশ্ন থাকে, তাহলে ধাপে ধাপে সমাধান দাও"
+- বাংলা টেক্সট এবং math expressions একই লাইনে লিখো
+- অনর্থক line break দিও না
+
+ছবির সম্পূর্ণ বিশ্লেষণ করে উত্তর বাংলায় দাও।
+
+**কখনোই Gemini বা কোনো AI মডেলের নাম উত্তর বা পরিচয়ে উল্লেখ করবে না।**
+**কোনো ধরনের সম্ভাষণ (নমস্কার, হ্যালো, etc.) ব্যবহার করবে না, সরাসরি উত্তর দাও।**`;
         }
         // Replace the first part with image-only prompt
         parts[0] = { text: contextPrompt };
