@@ -199,14 +199,20 @@ function AIAssistantPage() {
 - তালিকার জন্য proper markdown formatting ব্যবহার করো
 - প্রতিটি নতুন বিষয়ের জন্য নতুন paragraph শুরু করো`;
 
-        // If both text and image are provided, mention both in the prompt
-        if (imageFile) {
-          const prompt = getPromptForQuestionType(questionType, questionText + "\n\nআরো তথ্যের জন্য দেওয়া ছবিটিও দেখুন এবং প্রশ্ন ও ছবি দুইটি মিলিয়ে সম্পূর্ণ উত্তর দিন।", contextPrompt);
-          parts.push({ text: prompt });
+      // If both text and image are provided, mention both in the prompt
+      if (imageFile) {
+        let extraInstruction = "";
+        if (questionType === 'সৃজনশীল') {
+          extraInstruction = `\n\nছবিতে সৃজনশীল প্রশ্নের নির্দিষ্ট অংশ (যেমন 'খ অংশ', 'গ অংশ', 'ঘ অংশ') জানতে চাওয়া হয়েছে। শুধুমাত্র সেই অংশের উত্তর দাও।`; 
         } else {
-          const prompt = getPromptForQuestionType(questionType, questionText, contextPrompt);
-          parts.push({ text: prompt });
+          extraInstruction = "\n\nআরো তথ্যের জন্য দেওয়া ছবিটিও দেখুন এবং প্রশ্ন ও ছবি দুইটি মিলিয়ে সম্পূর্ণ উত্তর দিন।";
         }
+        const prompt = getPromptForQuestionType(questionType, questionText + extraInstruction, contextPrompt);
+        parts.push({ text: prompt });
+      } else {
+        const prompt = getPromptForQuestionType(questionType, questionText, contextPrompt);
+        parts.push({ text: prompt });
+      }
       }
       
       if (imageFile) {
@@ -228,7 +234,12 @@ function AIAssistantPage() {
       
       // If only image (no text), add a basic prompt with context
       if (!questionText.trim() && imageFile) {
-        let contextPrompt = `আপনি H.M. Tutoring AI Assistant। আপনি ${selectedClass} ${selectedSubject} এর "${selectedChapter}" অধ্যায়ের একজন দক্ষ শিক্ষক। সব প্রশ্নের উত্তর বাংলায় এবং শুধুমাত্র গাণিতিক অংশগুলো MathJax ফরম্যাটে \`$...$\` এর ভিতরে থাকবে। **বাংলা লেখাগুলো কখনোই $...$ এর ভিতরে থাকবে না।** বাংলা টেক্সট এবং math expressions একই লাইনে লিখো। অনর্থক line break দিও না। এই ছবিতে থাকা প্রশ্নের উত্তর দাও।`;
+        let contextPrompt = "";
+        if (questionType === 'সৃজনশীল') {
+          contextPrompt = `আপনি H.M. Tutoring AI Assistant। আপনি ${selectedClass} ${selectedSubject} এর "${selectedChapter}" অধ্যায়ের একজন দক্ষ শিক্ষক।\n\nছবিতে সৃজনশীল প্রশ্ন আছে। ছবির সব অংশ বিশ্লেষণ করে ক, খ, গ, ঘ অংশের উত্তর বাংলায় দাও। গাণিতিক অংশ MathJax ফরম্যাটে \`$...$\` এর ভিতরে দাও। বাংলা টেক্সট এবং math expressions একই লাইনে লিখো। অনর্থক line break দিও না।`;
+        } else {
+          contextPrompt = `আপনি H.M. Tutoring AI Assistant। আপনি ${selectedClass} ${selectedSubject} এর "${selectedChapter}" অধ্যায়ের একজন দক্ষ শিক্ষক।\n\nআপনার কাজ:\n- ছবির সব লেখা, চিত্র, প্রশ্ন, গাণিতিক অংশ, এবং context বিশ্লেষণ করো\n- ছবির প্রতিটি relevant অংশ বাংলায় ব্যাখ্যা করো\n- গাণিতিক অংশ MathJax ফরম্যাটে \`$...$\` এর ভিতরে দাও\n- উদাহরণ: "ছবিতে যদি গাণিতিক প্রশ্ন থাকে, তাহলে ধাপে ধাপে সমাধান দাও"\n- বাংলা টেক্সট এবং math expressions একই লাইনে লিখো\n- অনর্থক line break দিও না\n\nছবির সম্পূর্ণ বিশ্লেষণ করে উত্তর বাংলায় দাও।`;
+        }
         // Replace the first part with image-only prompt
         parts[0] = { text: contextPrompt };
       }
