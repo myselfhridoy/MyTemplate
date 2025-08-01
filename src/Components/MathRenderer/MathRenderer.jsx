@@ -73,8 +73,8 @@ const MathRenderer = ({ text }) => {
         
         // Check if paragraph contains a heading anywhere (not just at the start)
         const headingRegex = /\*\*([^*]+)\*\*([:.।]?)/g;
-        const creativeQuestionRegex = /^([ক-ঘ]\.?\s+.+?)(?:\n|$)/m;
-        const hasHeading = headingRegex.test(trimmedParagraph) || creativeQuestionRegex.test(trimmedParagraph);
+        // Remove creative question regex since we only want ** headings to be colored
+        const hasHeading = headingRegex.test(trimmedParagraph);
         
         if (hasHeading) {
           // Split the paragraph at heading boundaries
@@ -85,59 +85,37 @@ const MathRenderer = ({ text }) => {
           // Reset regex
           headingRegex.lastIndex = 0;
           
-          // First check for creative question patterns (ক. খ. গ. ঘ.)
-          const creativeMatch = trimmedParagraph.match(/^([ক-ঘ]\.?\s+.+?)(?:\n(.*))?$/s);
-          
-          if (creativeMatch && !headingRegex.test(trimmedParagraph)) {
-            // This is a creative question heading without ** markers
-            const headingText = creativeMatch[1].trim();
-            const remainingText = creativeMatch[2] ? creativeMatch[2].trim() : '';
-            
-            parts.push({
-              type: 'heading',
-              content: headingText,
-              fullMatch: headingText
-            });
-            
-            if (remainingText) {
-              parts.push({
-                type: 'text',
-                content: remainingText
-              });
-            }
-          } else {
-            // Process regular ** headings
-            while ((match = headingRegex.exec(trimmedParagraph)) !== null) {
-              // Add text before heading if any
-              if (match.index > lastIndex) {
-                const beforeText = trimmedParagraph.slice(lastIndex, match.index).trim();
-                if (beforeText) {
-                  parts.push({
-                    type: 'text',
-                    content: beforeText
-                  });
-                }
-              }
-              
-              // Add the heading
-              parts.push({
-                type: 'heading',
-                content: match[1] + (match[2] || ''),
-                fullMatch: match[0] + (match[2] || '')
-              });
-              
-              lastIndex = match.index + match[0].length;
-            }
-            
-            // Add remaining text after last heading
-            if (lastIndex < trimmedParagraph.length) {
-              const afterText = trimmedParagraph.slice(lastIndex).trim();
-              if (afterText) {
+          // Process only ** headings
+          while ((match = headingRegex.exec(trimmedParagraph)) !== null) {
+            // Add text before heading if any
+            if (match.index > lastIndex) {
+              const beforeText = trimmedParagraph.slice(lastIndex, match.index).trim();
+              if (beforeText) {
                 parts.push({
                   type: 'text',
-                  content: afterText
+                  content: beforeText
                 });
               }
+            }
+            
+            // Add the heading
+            parts.push({
+              type: 'heading',
+              content: match[1] + (match[2] || ''),
+              fullMatch: match[0] + (match[2] || '')
+            });
+            
+            lastIndex = match.index + match[0].length;
+          }
+          
+          // Add remaining text after last heading
+          if (lastIndex < trimmedParagraph.length) {
+            const afterText = trimmedParagraph.slice(lastIndex).trim();
+            if (afterText) {
+              parts.push({
+                type: 'text',
+                content: afterText
+              });
             }
           }
           
@@ -202,11 +180,10 @@ const MathRenderer = ({ text }) => {
           );
         }
         
-        // Check if this is a standalone heading at paragraph start
-        if (/^\*\*[^*]+\*\*/.test(trimmedParagraph) || /^[ক-ঘ]\.?\s+.+?$/.test(trimmedParagraph)) {
+        // Check if this is a standalone heading at paragraph start (only ** headings)
+        if (/^\*\*[^*]+\*\*/.test(trimmedParagraph)) {
           // Check if it's ONLY a heading (no content after) OR if content is minimal
           const headingMatch = trimmedParagraph.match(/^(\*\*[^*]+\*\*[:.।]?)\s*(.*)$/s);
-          const creativeHeadingMatch = trimmedParagraph.match(/^([ক-ঘ]\.?\s+.+?)(?:\n(.*))?$/s);
           
           if (headingMatch) {
             const headingPart = headingMatch[1];
@@ -233,71 +210,6 @@ const MathRenderer = ({ text }) => {
             
             // Split by math expressions and render heading
             const headingParts = headingContent.split(/(\$[^$]+\$)/g);
-            const renderedHeading = headingParts.map((part, partIdx) => {
-              if (part.startsWith('$') && part.endsWith('$')) {
-                const mathContent = part.slice(1, -1);
-                return (
-                  <MathJax 
-                    key={partIdx} 
-                    inline
-                    dynamic
-                    style={{ 
-                      display: 'inline', 
-                      margin: '0 1px',
-                      fontSize: 'clamp(0.9rem, 2.5vw, 1.1rem)',
-                      maxWidth: '100%'
-                    }}
-                  >
-                    {`$${mathContent}$`}
-                  </MathJax>
-                );
-              } else {
-                return <span key={partIdx}>{part}</span>;
-              }
-            });
-            
-            const headingElement = (
-              <h3 key={`heading-${index}`} style={{ 
-                fontWeight: 'bold', 
-                color: '#3b82f6',
-                fontSize: 'clamp(1rem, 3vw, 1.1em)',
-                marginBottom: '0.5rem',
-                marginTop: index > 0 ? '1.5rem' : '0',
-                wordWrap: 'break-word',
-                overflowWrap: 'break-word'
-              }}>
-                {renderedHeading}
-              </h3>
-            );
-            
-            // If it's a standalone heading, return just the heading
-            if (isStandaloneHeading) {
-              return headingElement;
-            } else {
-              // If there's content after the heading, process it too
-              return (
-                <div key={index}>
-                  {headingElement}
-                  <p style={{ 
-                    marginBottom: index < paragraphs.length - 1 ? '1rem' : '0',
-                    lineHeight: '1.8',
-                    wordWrap: 'break-word',
-                    overflowWrap: 'break-word'
-                  }}>
-                    {processInlineText(contentPart.trim())}
-                  </p>
-                </div>
-              );
-            }
-          } else if (creativeHeadingMatch) {
-            // Handle creative question headings (ক. খ. গ. ঘ.)
-            const headingPart = creativeHeadingMatch[1];
-            const contentPart = creativeHeadingMatch[2] ? creativeHeadingMatch[2].trim() : '';
-            
-            const isStandaloneHeading = !contentPart || contentPart === '';
-            
-            // Split by math expressions and render heading
-            const headingParts = headingPart.split(/(\$[^$]+\$)/g);
             const renderedHeading = headingParts.map((part, partIdx) => {
               if (part.startsWith('$') && part.endsWith('$')) {
                 const mathContent = part.slice(1, -1);
