@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import MathRendererWithContext from '../Components/MathRenderer/MathRenderer';
 
 function AIAssistantPage() {
@@ -8,10 +8,21 @@ function AIAssistantPage() {
   const [questionType, setQuestionType] = useState("");
   const [questionText, setQuestionText] = useState("");
   const [imageFile, setImageFile] = useState(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
   const [answer, setAnswer] = useState("");
   const [loading, setLoading] = useState(false);
   const [mapping, setMapping] = useState([]);
   const [mappingLoading, setMappingLoading] = useState(true);
+
+  // Cleanup function to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      // Cleanup image preview URL on component unmount
+      if (imagePreviewUrl) {
+        URL.revokeObjectURL(imagePreviewUrl);
+      }
+    };
+  }, [imagePreviewUrl]);
 
   // Question types
   const questionTypes = [
@@ -135,8 +146,42 @@ function AIAssistantPage() {
     }
   };
 
+  // Debounced input handler to prevent frequent re-renders
+  const handleTextChange = useCallback((e) => {
+    const value = e.target.value;
+    setQuestionText(value);
+    // Clear previous answer immediately when user starts typing to reduce lag
+    if (answer && value.length > 0) {
+      setAnswer("");
+    }
+  }, [answer]);
+
+  // Memoized answer content to prevent unnecessary re-renders
+  const memoizedAnswerContent = useMemo(() => {
+    if (!answer || !answer.trim()) return null;
+    return <MathRendererWithContext text={answer} />;
+  }, [answer]);
+
   const handleImageChange = (e) => {
-    setImageFile(e.target.files[0]);
+    // Clear previous answer when new image is selected to reduce lag
+    if (answer) {
+      setAnswer("");
+    }
+    
+    // Clean up previous image URL to prevent memory leaks
+    if (imagePreviewUrl) {
+      URL.revokeObjectURL(imagePreviewUrl);
+      setImagePreviewUrl(null);
+    }
+    
+    const file = e.target.files[0];
+    setImageFile(file);
+    
+    // Create new preview URL
+    if (file) {
+      const previewUrl = URL.createObjectURL(file);
+      setImagePreviewUrl(previewUrl);
+    }
   };
 
   const handleAsk = async (e) => {
@@ -335,14 +380,33 @@ function AIAssistantPage() {
   return (
     <div className="container mx-auto p-4 max-w-3xl" style={{ fontFamily: 'Hind Siliguri, sans-serif' }}>
         <h1 className="text-2xl font-extrabold mb-4 text-center sm:text-left">AI সহকারী</h1>
-        <form className="bg-white dark:bg-base-200 rounded shadow p-3 sm:p-8 mb-6" onSubmit={handleAsk}>
+        <form 
+          className="bg-white dark:bg-base-200 rounded shadow p-3 sm:p-8 mb-6" 
+          onSubmit={handleAsk}
+          style={{
+            // Optimize form rendering
+            contain: 'layout',
+            willChange: 'contents'
+          }}
+        >
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
-            <select className="select select-bordered w-full text-sm" value={selectedClass} onChange={e => { setSelectedClass(e.target.value); setSelectedSubject(''); setSelectedChapter(''); }} disabled={mappingLoading}>
+            <select className="select select-bordered w-full text-sm" value={selectedClass} onChange={e => { 
+              setSelectedClass(e.target.value); 
+              setSelectedSubject(''); 
+              setSelectedChapter(''); 
+              // Clear answer when class changes to reduce lag
+              if (answer) setAnswer('');
+            }} disabled={mappingLoading}>
               <option value="">{mappingLoading ? "লোড হচ্ছে..." : "শ্রেণি"}</option>
               {classes.map((cls, i) => <option key={i} value={cls}>{cls}</option>)}
             </select>
             {selectedClass && (
-              <select className="select select-bordered w-full text-sm" value={selectedSubject} onChange={e => { setSelectedSubject(e.target.value); setSelectedChapter(''); }} disabled={mappingLoading}>
+              <select className="select select-bordered w-full text-sm" value={selectedSubject} onChange={e => { 
+                setSelectedSubject(e.target.value); 
+                setSelectedChapter(''); 
+                // Clear answer when subject changes to reduce lag
+                if (answer) setAnswer('');
+              }} disabled={mappingLoading}>
                 <option value="">বিষয়</option>
                 {subjects.map((subj, i) => <option key={i} value={subj}>{subj}</option>)}
               </select>
@@ -353,7 +417,11 @@ function AIAssistantPage() {
               </select>
             )}
             {selectedClass && selectedSubject && (
-              <select className="select select-bordered w-full text-sm" value={selectedChapter} onChange={e => setSelectedChapter(e.target.value)} disabled={mappingLoading}>
+              <select className="select select-bordered w-full text-sm" value={selectedChapter} onChange={e => {
+                setSelectedChapter(e.target.value);
+                // Clear answer when chapter changes to reduce lag
+                if (answer) setAnswer('');
+              }} disabled={mappingLoading}>
                 <option value="">অধ্যায়</option>
                 {chapters.map((ch, i) => <option key={i} value={ch}>{ch}</option>)}
               </select>
@@ -363,7 +431,11 @@ function AIAssistantPage() {
                 <option value="">প্রথমে বিষয় নির্বাচন করুন</option>
               </select>
             )}
-            <select className="select select-bordered w-full text-sm" value={questionType} onChange={e => setQuestionType(e.target.value)}>
+            <select className="select select-bordered w-full text-sm" value={questionType} onChange={e => {
+              setQuestionType(e.target.value);
+              // Clear answer when question type changes to reduce lag
+              if (answer) setAnswer('');
+            }}>
               <option value="">প্রশ্নের ধরণ</option>
               {questionTypes.map((type, i) => <option key={i} value={type.value}>{type.label}</option>)}
             </select>
@@ -374,13 +446,13 @@ function AIAssistantPage() {
               rows={3}
               placeholder="প্রশ্ন লিখুন..."
               value={questionText}
-              onChange={e => setQuestionText(e.target.value)}
+              onChange={handleTextChange}
             />
           </div>
           <div className="mb-4">
             <label className="block mb-1 font-semibold text-sm">অথবা ছবি আপলোড করুন:</label>
             <input type="file" accept="image/*" className="file-input file-input-bordered w-full text-sm" onChange={handleImageChange} />
-            {imageFile && <div className="mt-2"><img src={URL.createObjectURL(imageFile)} alt="Uploaded" className="max-h-32 w-auto rounded shadow mx-auto block" /></div>}
+            {imagePreviewUrl && <div className="mt-2"><img src={imagePreviewUrl} alt="Uploaded" className="max-h-32 w-auto rounded shadow mx-auto block" /></div>}
           </div>
           <button className="btn btn-primary w-full text-sm sm:text-base" type="submit" disabled={loading || (!questionText.trim() && !imageFile)}>
             {loading ? "লোড হচ্ছে..." : "উত্তর জানুন"}
@@ -394,10 +466,14 @@ function AIAssistantPage() {
               style={{
                 lineHeight: '1.8', 
                 wordSpacing: '0.1em',
-                marginTop: '0.5rem'
+                marginTop: '0.5rem',
+                // Add CSS containment to prevent layout thrashing
+                contain: 'layout style paint',
+                willChange: 'contents'
               }}
             >
-              <MathRendererWithContext text={answer} />
+              {/* Use memoized content to prevent unnecessary re-renders */}
+              {memoizedAnswerContent}
             </div>
           </div>
         )}
