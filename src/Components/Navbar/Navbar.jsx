@@ -71,7 +71,7 @@ function Navbar() {
         </div>
         <div className="navbar-center">
           <Link to="/" className="btn btn-ghost px-2">
-            <span className="relative block h-12" style={{width:'180px', maxWidth:'100%'}} key={themeKey}>
+            <span className="relative block h-12" style={{width:'100px', maxWidth:'100%'}} key={themeKey}>
               <img
                 src={currentTheme === 'dark' ? '/HMT Logo White.png' : '/HMT Logo.png'}
                 alt="HMT Logo"
