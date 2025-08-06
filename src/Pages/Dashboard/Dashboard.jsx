@@ -80,7 +80,7 @@ function Dashboard() {
               <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" d="M12 20h9"/><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m0 0H3m9 0a9 9 0 100-18 9 9 0 000 18z"/></svg>
             </div>
             <span className="text-lg font-bold text-indigo-800 dark:text-indigo-200 tracking-tight">AI সহকারী</span>
-            <span className="text-gray-700 dark:text-gray-200 text-center text-sm font-medium">প্রশ্ন করুন (লিখে বা ছবি দিয়ে), উত্তর বাংলায় ও মুসলিম দৃষ্টিকোণ থেকে জানুন।</span>
+            <span className="text-gray-700 dark:text-gray-200 text-center text-sm font-medium">প্রশ্ন করুন (লিখে বা ছবি দিয়ে), উত্তর বাংলায় জানুন।</span>
           </div>
           <button
             className="btn btn-info mt-4 w-full group-hover:scale-105 transition-transform text-base"
