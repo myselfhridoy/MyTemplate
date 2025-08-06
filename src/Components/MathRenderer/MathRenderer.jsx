@@ -242,17 +242,14 @@ const MathRendererWithContext = ({ text }) => {
   return (
     <MathJaxContext config={{
       loader: { load: ["input/tex", "output/chtml"] },
-      tex: { 
+      tex: {
         inlineMath: [['$', '$'], ['\\(', '\\)']],
         displayMath: [['$$', '$$'], ['\\[', '\\]']]
       },
       chtml: {
         displayAlign: 'left',
         displayIndent: '0em',
-        fontURL: 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/output/chtml/fonts/woff/',
-        fontCache: 'local',
-        scale: 1.1,
-        fallback: true
+        scale: 1.1
       },
       options: {
         renderActions: {
