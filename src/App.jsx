@@ -10,6 +10,7 @@ import FilteredCQPage from './Pages/FilteredCQPage';
 import CreativeCQPage from './Pages/CreativeCQPage';
 import SelfTestPage from './Pages/SelfTestPage';
 import AIAssistantPage from './Pages/AIAssistantPage';
+import DoubtSolvePage from './Pages/DoubtSolvePage';
 
 
 export default class App extends Component {
@@ -28,6 +29,7 @@ export default class App extends Component {
             <Route path="/selftest/*" element={<SelfTestPage />} />
             <Route path="/bookcontent" element={<BookContentPage />} />
             <Route path="/ai-assistant" element={<AIAssistantPage />} />
+            <Route path="/doubt-solve" element={<DoubtSolvePage />} />
           </Routes>
         </div>
       </>
