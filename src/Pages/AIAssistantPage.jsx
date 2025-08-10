@@ -381,7 +381,7 @@ function AIAssistantPage() {
         setLoading(false);
         return;
       }
-      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:streamGenerateContent?alt=sse&key=${apiKey}`;
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse&key=${apiKey}`;
       const body = JSON.stringify({ contents: [ { parts } ] });
       const resp = await fetch(apiUrl, {
         method: "POST",
