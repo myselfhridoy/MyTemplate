@@ -4,18 +4,6 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 
-const hasBengali = (str) => /[\u0980-\u09FF]/.test(str || '');
-
-// Extract \text{...} chunks and return cleaned math + collected texts
-const extractTextCommands = (math) => {
-  const texts = [];
-  const cleaned = math.replace(/\\text\{([^}]*)\}/g, (_, p1) => {
-    if (p1) texts.push(p1.trim());
-    return '';
-  });
-  return { cleaned, texts };
-};
-
 const MathRenderer = ({ text }) => {
   if (!text) return null;
   
@@ -27,79 +15,40 @@ const MathRenderer = ({ text }) => {
     // Only fix list items that are split
     .replace(/([^\n])\n([ \t]*-[ \t]*)/g, '$1 $2'); // Fix list items only
   
-  // Render inline math ($...$) inside a string segment
-  const processInlineText = (segment) => {
-    const parts = segment.split(/(\$[^$]+\$)/g);
+  // Custom function to process text with inline math
+  const processInlineText = (text) => {
+    // Split text by math expressions but keep them
+    const parts = text.split(/(\$[^$]+\$)/g);
     return parts.map((part, index) => {
       if (part.startsWith('$') && part.endsWith('$')) {
-        let mathContent = part.slice(1, -1).trim();
-        // Pull out \text{...} Bengali to outside
-        const { cleaned, texts } = extractTextCommands(mathContent);
-        mathContent = cleaned.trim();
-
-        // If Bengali remains anywhere in math (bad), fallback to plain text
-        if (!mathContent || hasBengali(mathContent)) {
-          return (
-            <React.Fragment key={index}>
-              {mathContent}
-              {texts.length > 0 && <> {texts.join(' ')} </>}
-            </React.Fragment>
-          );
-        }
+        // This is a math expression - use MathJax component
+        const mathContent = part.slice(1, -1); // Remove the $ symbols
         return (
-          <React.Fragment key={index}>
-            <MathJax inline dynamic style={{ display: 'inline', margin: '0 1px', fontSize: 'clamp(0.8rem, 2vw, 1rem)', maxWidth: '100%' }}>
-              {`$${mathContent}$`}
-            </MathJax>
-            {texts.length > 0 && <span> {texts.join(' ')}</span>}
-          </React.Fragment>
+          <MathJax 
+            key={index} 
+            inline
+            dynamic
+            style={{ 
+              display: 'inline', 
+              margin: '0 1px',
+              fontSize: 'clamp(0.8rem, 2vw, 1rem)',
+              maxWidth: '100%',
+              overflowX: 'auto'
+            }}
+          >
+            {`$${mathContent}$`}
+          </MathJax>
         );
       } else {
-        // Regular text - preserve single newlines
+        // This is regular text - handle single newlines as line breaks
         const lines = part.split('\n');
         return lines.map((line, lineIndex) => (
-          <React.Fragment key={`${index}-${lineIndex}`}>
+          <React.Fragment key={lineIndex}>
             {lineIndex > 0 && <br />}
             {line}
           </React.Fragment>
         ));
       }
-    });
-  };
-
-  // Render text with display math ($$...$$) blocks, then inline within non-math sections
-  const renderWithBlockMath = (text) => {
-    const parts = text.split(/(\$\$[\s\S]+?\$\$)/g);
-    return parts.map((part, i) => {
-      if (part.startsWith('$$') && part.endsWith('$$')) {
-        let mathContent = part.slice(2, -2).trim();
-
-        // Extract \text{...} (often Bengali) and move outside
-        const { cleaned, texts } = extractTextCommands(mathContent);
-        mathContent = cleaned.trim();
-
-        // If math still contains Bengali or is empty, fallback to readable plain text
-        if (!mathContent || hasBengali(mathContent)) {
-          return (
-            <div key={i} style={{ margin: '0.5rem 0' }}>
-              <pre style={{ whiteSpace: 'pre-wrap', margin: 0, overflow: 'visible' }}>{(part.slice(2, -2) || '').trim()}</pre>
-            </div>
-          );
-        }
-
-        return (
-          <div key={i} style={{ margin: '0.5rem 0' }}>
-            <MathJax dynamic>{`$$${mathContent}$$`}</MathJax>
-            {texts.length > 0 && (
-              <div style={{ marginTop: '0.25rem', opacity: 0.85 }}>
-                {texts.join(' ')}
-              </div>
-            )}
-          </div>
-        );
-      }
-      // Non-block segment -> process inline math
-      return <React.Fragment key={i}>{processInlineText(part)}</React.Fragment>;
     });
   };
 
@@ -140,7 +89,7 @@ const MathRenderer = ({ text }) => {
                 tr: ({ children }) => <tr className="border-b border-base-300">{children}</tr>,
                 th: ({ children }) => (
                   <th className="px-4 py-2 font-bold bg-base-200 border border-base-300 text-base-content whitespace-nowrap">
-                    {renderWithBlockMath(
+                    {processInlineText(
                       React.Children.toArray(children)
                         .map(child => typeof child === 'string' ? child : (child.props?.children ?? ''))
                         .join('')
@@ -149,7 +98,7 @@ const MathRenderer = ({ text }) => {
                 ),
                 td: ({ children }) => (
                   <td className="px-4 py-2 border border-base-300 text-base-content whitespace-nowrap">
-                    {renderWithBlockMath(
+                    {processInlineText(
                       React.Children.toArray(children)
                         .map(child => typeof child === 'string' ? child : (child.props?.children ?? ''))
                         .join('')
@@ -188,17 +137,21 @@ const MathRenderer = ({ text }) => {
             const headingParts = headingContent.split(/(\$[^$]+\$)/g);
             const renderedHeading = headingParts.map((part, partIdx) => {
               if (part.startsWith('$') && part.endsWith('$')) {
-                let mathContent = part.slice(1, -1).trim();
-                const { cleaned, texts } = extractTextCommands(mathContent);
-                mathContent = cleaned.trim();
-                if (!mathContent || hasBengali(mathContent)) return <span key={partIdx}>{[mathContent, ...texts].join(' ').trim()}</span>;
+                const mathContent = part.slice(1, -1);
                 return (
-                  <React.Fragment key={partIdx}>
-                    <MathJax inline dynamic style={{ display: 'inline', margin: '0 1px', fontSize: 'clamp(0.9rem, 2.5vw, 1.1rem)', maxWidth: '100%' }}>
-                      {`$${mathContent}$`}
-                    </MathJax>
-                    {texts.length > 0 && <span> {texts.join(' ')}</span>}
-                  </React.Fragment>
+                  <MathJax 
+                    key={partIdx} 
+                    inline
+                    dynamic
+                    style={{ 
+                      display: 'inline', 
+                      margin: '0 1px',
+                      fontSize: 'clamp(0.9rem, 2.5vw, 1.1rem)',
+                      maxWidth: '100%'
+                    }}
+                  >
+                    {`$${mathContent}$`}
+                  </MathJax>
                 );
               }
               return <span key={partIdx}>{part}</span>;
@@ -222,8 +175,13 @@ const MathRenderer = ({ text }) => {
             return (
               <div key={index}>
                 {headingElement}
-                <p style={{ marginBottom: index < paragraphs.length - 1 ? '1rem' : '0', lineHeight: '1.8', wordWrap: 'break-word', overflowWrap: 'break-word' }}>
-                  {renderWithBlockMath(contentPart.trim())}
+                <p style={{ 
+                  marginBottom: index < paragraphs.length - 1 ? '1rem' : '0',
+                  lineHeight: '1.8',
+                  wordWrap: 'break-word',
+                  overflowWrap: 'break-word'
+                }}>
+                  {processInlineText(contentPart.trim())}
                 </p>
               </div>
             );
@@ -243,7 +201,7 @@ const MathRenderer = ({ text }) => {
                   const cleanItem = trimmedPart.replace(/^\s*[-•*]\s*/, '').trim();
                   return (
                     <div key={partIndex} style={{ marginBottom: '0.3rem', paddingLeft: '1rem', lineHeight: '1.6' }}>
-                      {renderWithBlockMath(cleanItem)}
+                      {processInlineText(cleanItem)}
                     </div>
                   );
                 } else {
@@ -252,13 +210,13 @@ const MathRenderer = ({ text }) => {
                   if (isSubheading) {
                     return (
                       <div key={partIndex} style={{ marginBottom: '0.5rem', marginTop: partIndex > 0 ? '1rem' : '0', fontWeight: 'bold', color: 'inherit' }}>
-                        {renderWithBlockMath(trimmedPart)}
+                        {processInlineText(trimmedPart)}
                       </div>
                     );
                   } else {
                     return (
                       <p key={partIndex} style={{ marginBottom: '0.5rem', lineHeight: '1.8' }}>
-                        {renderWithBlockMath(trimmedPart)}
+                        {processInlineText(trimmedPart)}
                       </p>
                     );
                   }
@@ -271,7 +229,7 @@ const MathRenderer = ({ text }) => {
         // Regular paragraph
         return (
           <div key={index} style={{ marginBottom: index < paragraphs.length - 1 ? '1rem' : '0', lineHeight: '1.8', wordWrap: 'break-word', overflowWrap: 'break-word' }}>
-            {renderWithBlockMath(paragraph.trim())}
+            {processInlineText(paragraph.trim())}
           </div>
         );
       }).filter(Boolean)}
@@ -286,17 +244,19 @@ const MathRendererWithContext = ({ text }) => {
       loader: { load: ["input/tex", "output/chtml"] },
       tex: {
         inlineMath: [['$', '$'], ['\\(', '\\)']],
-        displayMath: [['$$', '$$'], ['\\[', '\\]']],
-        packages: { '[+]': ['ams'] }
+        displayMath: [['$$', '$$'], ['\\[', '\\]']]
       },
       chtml: {
         displayAlign: 'left',
         displayIndent: '0em',
-        scale: 1.1,
-        linebreaks: { automatic: true, width: 'container' }
+        scale: 1.1
       },
       options: {
-        renderActions: { addMenu: [], checkLoading: [], addEvents: [] },
+        renderActions: {
+          addMenu: [],
+          checkLoading: [],
+          addEvents: []
+        },
         skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],
         ignoreHtmlClass: 'tex2jax_ignore',
         processHtmlClass: 'tex2jax_process'

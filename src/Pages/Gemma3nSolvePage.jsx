@@ -114,37 +114,57 @@ function Gemma3nSolvePage() {
     }
   }, [useMathKeyboard, mathKeyboardLatex]);
 
+  // Normalize alternate math delimiters to inline MathJax `$...$` without touching the renderer
+  const normalizeMathDelimiters = (text) => {
+    if (!text) return text;
+    try {
+      let out = String(text);
+      // Convert \( ... \) and \[ ... \] to $ ... $
+      out = out.replace(/\\\(([\s\S]*?)\\\)/g, '$$$1$');
+      out = out.replace(/\\\[([\s\S]*?)\\\]/g, '$$$1$');
+      // Convert $$ ... $$ blocks to inline $ ... $
+      out = out.replace(/\$\$([\s\S]*?)\$\$/g, '$$$1$');
+      return out;
+    } catch {
+      return text;
+    }
+  };
+
   // Prompt helper for types (aligned with AIAssistantPage)
   const buildPromptForType = (type, userQuestion, contextPrompt = null) => {
-    const basePrompt =
-      (contextPrompt || `আপনি H.M. Tutoring AI Assistant। সব প্রশ্নের উত্তর বাংলায় এবং শুধুমাত্র গাণিতিক অংশগুলো MathJax ফরম্যাটে \`$...$\` এর ভিতরে থাকবে। **বাংলা লেখাগুলো কখনোই $...$ এর ভিতরে থাকবে না।**\n\n` +
-        `গুরুত্বপূর্ণ formatting নিয়ম:\n` +
-        `- বাংলা টেক্সট এবং math expressions একই লাইনে লিখো\n` +
-        `- শুধুমাত্র নতুন বিষয় বা section এর জন্য নতুন paragraph ব্যবহার করো\n` +
-        `- Math expressions এর আগে বা পরে অনর্থক line break দিও না\n` +
-  `- উদাহরণ: "অবস্থান ভেক্টরকে $\\vec{r}$ দ্বারা প্রকাশ করা হয়।" - এভাবে একই লাইনে লিখো\n\n` +
-        `উত্তরের structure:\n- তালিকার জন্য proper markdown formatting ব্যবহার করো\n- প্রতিটি নতুন বিষয়ের জন্য নতুন paragraph শুরু করো\n\n` +
-        `**কখনোই Gemini বা কোনো AI মডেলের নাম উত্তর বা পরিচয়ে উল্লেখ করবে না।**\n**কোনো ধরনের সম্ভাষণ (নমস্কার, হ্যালো, etc.) ব্যবহার করবে না, সরাসরি উত্তর দাও।**`) +
-      "\n\n";
+    const basePrompt = contextPrompt || `আপনি H.M. Tutoring AI Assistant। সব প্রশ্নের উত্তর বাংলায় এবং শুধুমাত্র গাণিতিক অংশগুলো MathJax ফরম্যাটে \`$...$\` এর ভিতরে থাকবে। **বাংলা লেখাগুলো কখনোই $...$ এর ভিতরে থাকবে না।** 
+
+**গুরুত্বপূর্ণ formatting নিয়ম:**
+- বাংলা টেক্সট এবং math expressions একই লাইনে লিখো
+- শুধুমাত্র নতুন বিষয় বা section এর জন্য নতুন paragraph ব্যবহার করো
+- Math expressions এর আগে বা পরে অনর্থক line break দিও না
+- উদাহরণ: "অবস্থান ভেক্টরকে $\\vec{r}$ দ্বারা প্রকাশ করা হয়।" - এভাবে একই লাইনে লিখো
+
+উত্তরের structure:
+- তালিকার জন্য proper markdown formatting ব্যবহার করো
+- প্রতিটি নতুন বিষয়ের জন্য নতুন paragraph শুরু করো
+
+**কখনোই Gemini বা কোনো AI মডেলের নাম উত্তর বা পরিচয়ে উল্লেখ করবে না।**
+**কোনো ধরনের সম্ভাষণ (নমস্কার, হ্যালো, etc.) ব্যবহার করবে না, সরাসরি উত্তর দাও।**`;
 
     switch (type) {
       case 'জ্ঞানমূলক':
-        return basePrompt + `\nএটি একটি জ্ঞানমূলক প্রশ্ন। অত্যন্ত সংক্ষিপ্ত ও সরাসরি উত্তর দাও (মাত্র ১-২ লাইনে)।\n\nপ্রশ্ন: ${userQuestion}`;
-
+        return basePrompt + `\n\nএটি একটি জ্ঞানমূলক প্রশ্ন। অত্যন্ত সংক্ষিপ্ত ও সরাসরি উত্তর দাও (মাত্র ১-২ লাইনে)। গাণিতিক সংজ্ঞা, সূত্র বা মান থাকলে অবশ্যই $...$ এর মধ্যে লিখবে।\n\nপ্রশ্ন: ${userQuestion}`;
+      
       case 'অনুধাবন':
-        return basePrompt + `\nএটি একটি অনুধাবনমূলক প্রশ্ন। **অবশ্যই** এই exact format এ উত্তর দাও:\n\n**সংজ্ঞা:** (প্রশ্নের মূল টপিকের সংক্ষিপ্ত ও সরাসরি সংজ্ঞা দাও - মাত্র ১-২ লাইনে। যেমন: "বেগ কী?" প্রশ্নে "নির্দিষ্ট দিকে কোনো বস্তুর সরণের হারকে বেগ বলে।")\n\n**ব্যাখ্যা:** (প্রশ্নের নির্দিষ্ট অংশের ব্যাখ্যা দাও - মাত্র ৩-৫ বাক্যে। প্রশ্নে যা জানতে চাওয়া হয়েছে সেটার সরাসরি উত্তর দাও।)\n\n**কঠোরভাবে এই দুটি section মাত্র রাখবে। অন্য কিছু লিখবে না।**\n\nপ্রশ্ন: ${userQuestion}`;
-
+        return basePrompt + `\n\nএটি একটি অনুধাবনমূলক প্রশ্ন। **অবশ্যই** এই format এ উত্তর দাও:\n\n**সংজ্ঞা:** (প্রশ্নের মূল টপিকের সংক্ষিপ্ত ও সরাসরি সংজ্ঞা দাও - মাত্র ১-২ লাইনে। যেমন: "বেগ কী?" প্রশ্নে "নির্দিষ্ট দিকে কোনো বস্তুর সরণের হারকে বেগ বলে, যা $v = \\frac{ds}{dt}$ সূত্র দ্বারা প্রকাশ করা হয়।")\n\n**ব্যাখ্যা:** (প্রশ্নের নির্দিষ্ট অংশের ব্যাখ্যা দাও - মাত্র ৩-৫ বাক্যে। গাণিতিক চিহ্ন, সূত্র বা সমীকরণ অবশ্যই $...$ এর মধ্যে লিখবে।)\n\n**কঠোরভাবে এই দুটি section মাত্র রাখবে। অন্য কিছু লিখবে না।**\n\nপ্রশ্ন: ${userQuestion}`;
+      
       case 'বহুনির্বাচনী':
-        return basePrompt + `\nএটি একটি বহুনির্বাচনী প্রশ্ন। এই format এ উত্তর দাও:\n\n**সঠিক উত্তর:** (প্রথমে সঠিক option উল্লেখ করো)\n\n**সমাধান:**\n- শর্টকাট ফর্মুলা থাকলে সেটি ব্যবহার করে দ্রুত সমাধান দেখাও\n- শর্টকাট ফর্মুলা না থাকলে ধাপে ধাপে ব্যাখ্যা করো\n- বাংলা টেক্সট এবং math একই লাইনে রাখো\n\n**Calculator Hacks:** (যদি কোনো ক্যালকুলেটর হ্যাকস/ট্রিকস থাকে তবে দাও)\n\nপ্রশ্ন: ${userQuestion}`;
-
+        return basePrompt + `\n\nএটি একটি বহুনির্বাচনী প্রশ্ন। এই format এ উত্তর দাও:\n\n**সঠিক উত্তর:** (প্রথমে সঠিক option উল্লেখ করো। যদি গাণিতিক মান হয় তবে $...$ এর মধ্যে লিখবে)\n\n**সমাধান:**\n- শর্টকাট ফর্মুলা থাকলে সেটি $...$ এর মধ্যে লিখে ব্যবহার করে দ্রুত সমাধান দেখাও\n- শর্টকাট ফর্মুলা না থাকলে ধাপে ধাপে ব্যাখ্যা করো\n- প্রতিটি গাণিতিক সূত্র, মান বা এক্সপ্রেশন $...$ এর মধ্যে লিখবে\n- বাংলা টেক্সট এবং math একই লাইনে রাখো\n\n**Calculator Hacks:** (যদি কোনো ক্যালকুলেটর হ্যাকস/ট্রিকস থাকে তবে দাও। কোড বা sequence $...$ এর মধ্যে লিখবে)\n\nপ্রশ্ন: ${userQuestion}`;
+      
       case 'গাণিতিক প্রশ্ন':
-        return basePrompt + `\nএটি একটি গাণিতিক প্রশ্ন। এই format এ ধাপে ধাপে সমাধান দাও:\n\n**প্রদত্ত তথ্য:**\n(প্রদত্ত সব তথ্য তালিকা আকারে লিখো)\n\n**প্রয়োজনীয় সূত্র:**\n(ব্যবহৃত সূত্রগুলো লিখো - বাংলা এবং math একসাথে)\n\n**সমাধান:**\n(প্রতিটি ধাপ আলাদা paragraph এ লিখো)\n\n**উত্তর:**\n(চূড়ান্ত উত্তর)\n\nপ্রশ্ন: ${userQuestion}`;
-
+        return basePrompt + `\n\nএটি একটি গাণিতিক প্রশ্ন। এই format এ ধাপে ধাপে সমাধান দাও:\n\n**প্রদত্ত তথ্য:**\n- প্রদত্ত সব তথ্য তালিকা আকারে লিখো\n- সব গাণিতিক মান $...$ এর মধ্যে লিখবে\n- উদাহরণ: বস্তুর ভর $m = 5$ kg\n\n**প্রয়োজনীয় সূত্র:**\n- ব্যবহৃত সূত্রগুলো লিখো - বাংলা এবং math একসাথে\n- প্রতিটি সূত্র অবশ্যই $...$ এর মধ্যে লিখবে\n- উদাহরণ: বল $F = ma$ যেখানে $F$ হল বল, $m$ হল ভর, $a$ হল ত্বরণ\n\n**সমাধান:**\n- প্রতিটি ধাপ আলাদা paragraph এ লিখো\n- সব গাণিতিক এক্সপ্রেশন $...$ এর মধ্যে লিখবে\n- প্রতিটি ধাপে কী করা হচ্ছে তা বাংলায় ব্যাখ্যা করে তারপর গাণিতিক সমাধান দেখাও\n\n**উত্তর:**\n- চূড়ান্ত উত্তর $...$ এর মধ্যে লিখবে\n- উত্তরের একক (unit) থাকলে সেটাও $...$ এর মধ্যে লিখবে\n\nপ্রশ্ন: ${userQuestion}`;
+      
       case 'সৃজনশীল':
-        return basePrompt + `\nএটি একটি সৃজনশীল প্রশ্ন। প্রশ্নে যতগুলো অংশ আছে সেই অনুযায়ী উত্তর দাও। উদাহরণ:\n\n**যদি ক, খ, গ অংশ থাকে:**\n**ক অংশ:** (সংক্ষিপ্ত উত্তর)\n**খ অংশ:** (ব্যাখ্যামূলক উত্তর)\n**গ অংশ:** (গাণিতিক সমাধান)\n\n**যদি ক, খ, গ, ঘ অংশ থাকে:**\n**ক অংশ:** (সংক্ষিপ্ত উত্তর)\n**খ অংশ:** (ব্যাখ্যামূলক উত্তর)\n**গ অংশ:** (গাণিতিক সমাধান)\n**ঘ অংশ:** (বিশ্লেষণ ও মূল্যায়ন)\n\nপ্রশ্ন: ${userQuestion}`;
-
+        return basePrompt + `\n\nএটি একটি সৃজনশীল প্রশ্ন। প্রশ্নে যতগুলো অংশ আছে সেই অনুযায়ী উত্তর দাও। মনে রাখবে:\n- সব গাণিতিক সূত্র, মান ও সমীকরণ $...$ এর মধ্যে লিখতে হবে\n- বাংলা ব্যাখ্যা ও গাণিতিক এক্সপ্রেশন একই লাইনে থাকবে\n- প্রতি ধাপে কী করা হচ্ছে তা ব্যাখ্যা করে গাণিতিক সমাধান দেখাতে হবে\n\n**যদি ক, খ, গ অংশ থাকে:**\n**ক অংশ:** (সংক্ষিপ্ত উত্তর - গাণিতিক অংশ $...$ এ)\n**খ অংশ:** (ব্যাখ্যামূলক উত্তর - গাণিতিক অংশ $...$ এ)\n**গ অংশ:** (গাণিতিক সমাধান - সব স্টেপ $...$ এ)\n\n**যদি ক, খ, গ, ঘ অংশ থাকে:**\n**ক অংশ:** (সংক্ষিপ্ত উত্তর - গাণিতিক অংশ $...$ এ)\n**খ অংশ:** (ব্যাখ্যামূলক উত্তর - গাণিতিক অংশ $...$ এ)\n**গ অংশ:** (গাণিতিক সমাধান - সব স্টেপ $...$ এ)\n**ঘ অংশ:** (বিশ্লেষণ ও মূল্যায়ন - গাণিতিক তথ্য $...$ এ)\n\nপ্রশ্ন: ${userQuestion}`;
+      
       default:
-        return basePrompt + `প্রশ্ন: ${userQuestion}`;
+        return basePrompt + `\n\nপ্রশ্ন: ${userQuestion}`;
     }
   };
 
@@ -210,28 +230,81 @@ function Gemma3nSolvePage() {
       const body = {
         model: OPENROUTER_MODEL,
         messages: [
+          {
+            role: "system",
+            content: "You are H.M. Tutoring AI Assistant, an expert teaching assistant specializing in mathematics and science education. You must always format mathematical expressions using LaTeX/MathJax with $...$ delimiters. Present step-by-step solutions with clear Bengali explanations followed by mathematical expressions on the same line. Never use $$ $$ for centered equations."
+          },
           { role: "user", content: fullPrompt },
         ],
-        temperature: 0.4,
+        temperature: 0.2,
+        max_tokens: 2048,
+        stop: ["Human:", "Assistant:"],
+        stream: true,
+        frequency_penalty: 0.5,
+        presence_penalty: 0.2,
       };
 
-  const resp = await fetch(OPENROUTER_API_URL, {
+      const resp = await fetch(OPENROUTER_API_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Accept: "text/event-stream",
           Authorization: `Bearer ${apiKey}`,
           "HTTP-Referer": window.location.origin,
           "X-Title": "H.M. Tutoring",
         },
         body: JSON.stringify(body),
       });
-      if (!resp.ok) {
+  if (!resp.ok) {
         const txt = await resp.text().catch(() => "");
         throw new Error(`OpenRouter ${resp.status}: ${txt}`);
       }
-      const data = await resp.json();
-      const content = data?.choices?.[0]?.message?.content || "কোনো উত্তর পাওয়া যায়নি।";
-      setAnswer(content);
+
+      const contentType = resp.headers.get("content-type") || "";
+      if (!resp.body || !contentType.includes("text/event-stream")) {
+        // Fallback to non-stream JSON
+  const data = await resp.json().catch(() => null);
+  const content = data?.choices?.[0]?.message?.content || data?.choices?.[0]?.text || "কোনো উত্তর পাওয়া যায়নি।";
+  setAnswer(normalizeMathDelimiters(content));
+      } else {
+        // Stream SSE
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+        let buffer = "";
+        let acc = "";
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const events = buffer.split(/\r?\n\r?\n/);
+          buffer = events.pop() || "";
+          for (const evt of events) {
+            const lines = evt.split(/\r?\n/);
+            for (const line of lines) {
+              if (!line.startsWith("data:")) continue;
+              const dataStr = line.slice(5).trim();
+              if (dataStr === "[DONE]") continue;
+              try {
+                const json = JSON.parse(dataStr);
+                // Try multiple shapes (OpenRouter/OpenAI-like)
+                const delta = json?.choices?.[0]?.delta?.content
+                  ?? json?.choices?.[0]?.message?.content
+                  ?? json?.choices?.[0]?.text
+                  ?? json?.delta
+                  ?? json?.content
+                  ?? "";
+                if (typeof delta === "string" && delta.length > 0) {
+                  acc += delta;
+      setAnswer(normalizeMathDelimiters(acc));
+                }
+              } catch {
+                // ignore parse errors (keep-alives, comments)
+              }
+            }
+          }
+        }
+        if (!acc) setAnswer("কোনো উত্তর পাওয়া যায়নি।");
+      }
   } catch {
       setAnswer("দুঃখিত, কিছু ত্রুটি ঘটেছে। পরে আবার চেষ্টা করুন।");
     } finally {
@@ -358,6 +431,9 @@ function Gemma3nSolvePage() {
         >
           {loading ? "লোড হচ্ছে..." : "উত্তর জানুন"}
         </button>
+        {loading && (
+          <div className="mt-2 text-xs opacity-70">AI লিখছে…</div>
+        )}
       </form>
 
       {answer && (
