@@ -252,7 +252,7 @@ function Gemma3nSolvePage() {
 
   return (
     <div className="container mx-auto max-w-3xl p-3 sm:p-4" style={{ fontFamily: 'Hind Siliguri, sans-serif' }}>
-      <h1 className="text-xl sm:text-2xl font-bold mb-3">Gemma 3n DoubtSolve</h1>
+  <h1 className="text-xl sm:text-2xl font-bold mb-3">ডাউট সলভ</h1>
       <form onSubmit={handleAsk} className="bg-base-100 rounded shadow p-3 sm:p-4 space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
           <select className="select select-bordered w-full text-sm" value={selectedClass} onChange={(e) => { setSelectedClass(e.target.value); setSelectedSubject(''); setSelectedChapter(''); if (answer) setAnswer(''); }} disabled={mappingLoading}>
