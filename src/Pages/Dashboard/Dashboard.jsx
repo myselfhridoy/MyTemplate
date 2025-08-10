@@ -87,11 +87,11 @@ function Dashboard() {
             onClick={e => { e.stopPropagation(); navigate('/ai-assistant'); }}
           >AI সহকারী ব্যবহার করুন</button>
         </div>
-        {/* ডাউট সলভ ফিচার কার্ড */}
+        {/* ডাউট সলভ ফিচার কার্ড (now routes to /doubtsolve) */}
         <div
           className="group relative bg-gradient-to-br from-rose-100 via-rose-50 to-white dark:from-rose-900 dark:via-rose-950 dark:to-gray-900 rounded-xl shadow-lg border border-rose-200 dark:border-rose-800 p-4 flex flex-col items-center justify-between transition-transform hover:-translate-y-1 hover:shadow-2xl cursor-pointer overflow-hidden min-h-[220px]"
           style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
-          onClick={() => navigate('/doubt-solve')}
+          onClick={() => navigate('/doubtsolve')}
         >
           <div className="absolute top-0 right-0 opacity-10 text-[5rem] pointer-events-none select-none">❓</div>
           <div className="flex flex-col items-center gap-2 z-10">
@@ -104,9 +104,14 @@ function Dashboard() {
           <button
             className="btn btn-error mt-4 w-full group-hover:scale-105 transition-transform text-base"
             style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
-            onClick={e => { e.stopPropagation(); navigate('/doubt-solve'); }}
+      onClick={e => { e.stopPropagation(); navigate('/doubtsolve'); }}
           >ডাউট সলভ খুলুন</button>
         </div>
+    {/** Old Gemma cards commented by request */}
+    {/**
+    <div ...>Gemma 3 27B DoubtSolve</div>
+    <div ...>Gemma 3n 2B DoubtSolve</div>
+    */}
       </div>
     </div>
   );
