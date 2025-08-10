@@ -67,7 +67,7 @@ function Navbar() {
                 {/** <li><Link to="/doubt-solve" onClick={() => setTimeout(() => handleMenuClick(), 50)}>ডাউট সলভ</Link></li> */}
                 {/** <li><Link to="/gemma-solve" onClick={() => setTimeout(() => handleMenuClick(), 50)}>Gemma DoubtSolve</Link></li> */}
                 {/** <li><Link to="/gemma3n-solve" onClick={() => setTimeout(() => handleMenuClick(), 50)}>Gemma 3n 2B DoubtSolve</Link></li> */}
-                <li><Link to="/doubtsolve" onClick={() => setTimeout(() => handleMenuClick(), 50)}>ডাউট সলভ</Link></li>
+                {/** <li><Link to="/doubtsolve" onClick={() => setTimeout(() => handleMenuClick(), 50)}>ডাউট সলভ</Link></li> */}
               </ul>
             )}
           </div>

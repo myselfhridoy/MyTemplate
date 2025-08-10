@@ -28,7 +28,7 @@ export default class App extends Component {
             <Route path="/example-with-answer" element={<ExampleWithAnswer />} />
             {/** <Route path="/gemma-solve" element={<GemmaSolvePage />} /> */}
             {/** <Route path="/gemma3n-solve" element={<Gemma3nSolvePage />} /> */}
-            <Route path="/doubtsolve" element={<Gemma3nSolvePage />} />
+            {/** <Route path="/doubtsolve" element={<Gemma3nSolvePage />} /> */}
             <Route path="/cq-filter" element={<FilteredCQPage />} />
             <Route path="/creative-cq" element={<CreativeCQPage />} />
             <Route path="/selftest/*" element={<SelfTestPage />} />
