@@ -248,7 +248,7 @@ function AIAssistantPage() {
 - প্রতিটি নতুন বিষয়ের জন্য নতুন paragraph শুরু করো
 
 **কখনোই Gemini বা কোনো AI মডেলের নাম উত্তর বা পরিচয়ে উল্লেখ করবে না।**
-**কোনো ধরনের সম্ভাষণ (নমস্কার, হ্যালো, etc.) ব্যবহার করবে না, সরাসরি উত্তর দাও।**`;
+**কোনো ধরনের সম্ভাষণ (নমস্কার, হ্যালো, etc.) ব্যবহার করবে না, সরাসরি উত্তর দাও।`;
 
         // If both text and image are provided, mention both in the prompt
         if (imageFile) {
@@ -373,18 +373,75 @@ function AIAssistantPage() {
         setLoading(false);
         return;
       }
-      
-      const apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=AIzaSyANzU0ppDAFbXSVvwssbEAjJVpU_GPFSM4";
-      const res = await fetch(apiUrl, {
+
+      // Use Gemini streamGenerateContent endpoint with SSE
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      if (!apiKey) {
+        setAnswer("Gemini API key সেট করা নেই।");
+        setLoading(false);
+        return;
+      }
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse&key=${apiKey}`;
+      const body = JSON.stringify({ contents: [ { parts } ] });
+      const resp = await fetch(apiUrl, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contents: [ { parts } ] })
+        headers: { "Content-Type": "application/json", "Accept": "text/event-stream" },
+        body
       });
-      const data = await res.json();
-      setAnswer(
-        data?.candidates?.[0]?.content?.parts?.[0]?.text ||
-        "কোনো উত্তর পাওয়া যায়নি।"
-      );
+      if (!resp.ok) {
+        const errorText = await resp.text().catch(() => '');
+        throw new Error(`Gemini API error ${resp.status}: ${errorText}`);
+      }
+      // Stream SSE response
+      const reader = resp.body?.getReader();
+      if (!reader) {
+        setAnswer("স্ট্রিমিং সাপোর্ট করছে না।");
+        setLoading(false);
+        return;
+      }
+      const decoder = new TextDecoder('utf-8');
+      let buffer = '';
+      let answerText = "";
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        // Split SSE events on blank line (supports \n\n or \r\n\r\n)
+        const events = buffer.split(/\r?\n\r?\n/);
+        buffer = events.pop() || '';
+        for (const evt of events) {
+          // Each event can have multiple data: lines; join them
+          const lines = evt.split(/\r?\n/);
+          let dataPayload = '';
+          for (const line of lines) {
+            if (line.startsWith('data:')) {
+              dataPayload += line.slice(5).trim() + '\n';
+            }
+          }
+          dataPayload = dataPayload.trim();
+          if (!dataPayload) continue;
+          if (dataPayload === '[DONE]') continue;
+          try {
+            const json = JSON.parse(dataPayload);
+            const partsArr = json?.candidates?.[0]?.content?.parts;
+            if (Array.isArray(partsArr)) {
+              let appended = false;
+              for (const p of partsArr) {
+                if (p && typeof p.text === 'string' && p.text.length > 0) {
+                  answerText += p.text;
+                  appended = true;
+                }
+              }
+              if (appended) setAnswer(answerText);
+            }
+          } catch {
+            // Ignore parse errors for keep-alive/ping lines
+          }
+        }
+      }
+      if (!answerText || !answerText.trim()) {
+        setAnswer('কোনো উত্তর পাওয়া যায়নি।');
+      }
     } catch (error) {
       console.error('API Error:', error);
       setAnswer("উত্তর আনতে সমস্যা হয়েছে।");
@@ -482,7 +539,6 @@ function AIAssistantPage() {
                 lineHeight: '1.8', 
                 wordSpacing: '0.1em',
                 marginTop: '0.5rem',
-                // Add CSS containment to prevent layout thrashing
                 contain: 'layout style paint',
                 willChange: 'contents'
               }}
