@@ -1,7 +1,7 @@
 // Simple local dev proxy (Node >=18) if you are not using netlify dev
 // Run: npm run dev:proxy (port 8888) then in another terminal `npm run dev` (Vite proxy maps /api/gemini)
 /* eslint-env node */
-/* global process */
+/* global process, Buffer */
 import http from 'http';
 import fs from 'fs';
 import path from 'path';
@@ -50,11 +50,24 @@ const server = http.createServer(async (req, res) => {
   if (req.url === '/api/gemini' && req.method === 'POST') {
     if (!API_KEY) return json(res, 500, { error: 'GEMINI_API_KEY not set' });
     let body = '';
-    req.on('data', c => { body += c; if (body.length > 100000) req.destroy(); });
+    const MAX_BODY = parseInt(process.env.DEV_PROXY_MAX_BODY || '3000000', 10); // ~3MB default
+    req.on('data', c => { 
+      body += c; 
+      if (body.length > MAX_BODY) { 
+        console.warn('[devProxy] Body exceeded limit', body.length, '>', MAX_BODY); 
+        req.destroy(); 
+      } 
+    });
     req.on('end', async () => {
+      if (!body) return json(res, 413, { error: 'Empty or too large request (truncated)' });
       let parsed; try { parsed = JSON.parse(body || '{}'); } catch { return json(res, 400, { error: 'Invalid JSON' }); }
       const { parts = [], model = MODEL } = parsed;
       if (!Array.isArray(parts) || !parts.length) return json(res, 400, { error: 'parts array required' });
+      // Basic size diagnostics
+      try {
+        const sizeBytes = Buffer.byteLength(JSON.stringify(parts), 'utf8');
+        if (sizeBytes > MAX_BODY) return json(res, 413, { error: 'Parts exceed dev limit', sizeBytes, limit: MAX_BODY });
+  } catch { /* ignore size calc errors */ }
       try {
         const upstream = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${API_KEY}`, {
           method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },

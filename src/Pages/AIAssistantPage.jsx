@@ -267,21 +267,48 @@ function AIAssistantPage() {
       }
       
       if (imageFile) {
-        // Convert image to base64
-        const toBase64 = file => new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result.split(",")[1]);
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
-        const base64 = await toBase64(imageFile);
-        parts.push({
-          inlineData: {
-            mimeType: imageFile.type,
-            data: base64
-          }
-        });
-      }
+        // Compress & convert image to base64 to keep request size under server limits
+        async function compressToBase64(file, { maxWidth = 1280, maxHeight = 1280, quality = 0.75 } = {}) {
+          if (!file.type.startsWith('image/')) throw new Error('Not an image');
+            const dataUrl = await new Promise((resolve, reject) => {
+              const r = new FileReader();
+              r.onload = () => resolve(r.result);
+              r.onerror = reject;
+              r.readAsDataURL(file);
+            });
+            const img = await new Promise((resolve, reject) => {
+              const i = new Image();
+              i.onload = () => resolve(i);
+              i.onerror = reject;
+              i.src = dataUrl;
+            });
+            let { width, height } = img;
+            const scale = Math.min(1, maxWidth / width, maxHeight / height);
+            if (scale < 1) { width = Math.round(width * scale); height = Math.round(height * scale); }
+            const canvas = document.createElement('canvas');
+            canvas.width = width; canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            // Prefer JPEG for better compression unless original is png and has transparency
+            const mime = (file.type === 'image/png' && ctx.getImageData(0,0,1,1).data[3] === 255) ? 'image/jpeg' : (file.type === 'image/png' ? 'image/png' : 'image/jpeg');
+            const compressedDataUrl = canvas.toDataURL(mime, quality);
+            return compressedDataUrl.split(',')[1];
+        }
+        let base64;
+        try {
+          base64 = await compressToBase64(imageFile);
+        } catch (e) {
+          console.warn('Compression failed, sending original:', e);
+          const fallback = await new Promise((resolve, reject) => { const fr = new FileReader(); fr.onload = () => resolve(fr.result.split(',')[1]); fr.onerror = reject; fr.readAsDataURL(imageFile); });
+          base64 = fallback;
+        }
+         parts.push({
+           inlineData: {
+             mimeType: imageFile.type,
+             data: base64
+           }
+         });
+       }
       
       // If only image (no text), add a basic prompt with context
       if (!questionText.trim() && imageFile) {
