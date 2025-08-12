@@ -1,5 +1,5 @@
 /* eslint-env node */
-/* global process */
+/* global process, Buffer */
 // Netlify Function to proxy Gemini API
 // Deploy: ensure directory structure netlify/functions/gemini.js
 // Set GEMINI_API_KEY in Netlify site environment variables.
@@ -31,9 +31,24 @@ export async function handler(event) {
     if (!Array.isArray(parts) || parts.length === 0) {
       return { statusCode: 400, headers: baseHeaders, body: JSON.stringify({ error: 'parts array required' }) };
     }
-    if (JSON.stringify(parts).length > 25000) {
-      return { statusCode: 413, headers: baseHeaders, body: JSON.stringify({ error: 'Request too large' }) };
-    }
+    // Dynamically size‑limit request (default 800kB JSON for parts). Allows reasonable inlineData image.
+    try {
+      const serialized = JSON.stringify(parts);
+      const partsSize = Buffer.byteLength(serialized, 'utf8');
+      const MAX_PARTS_BYTES = parseInt(process.env.GEMINI_MAX_PARTS_BYTES || '800000', 10); // ~0.8MB
+      if (partsSize > MAX_PARTS_BYTES) {
+        return { 
+          statusCode: 413, 
+            headers: baseHeaders, 
+            body: JSON.stringify({ 
+              error: 'Request too large', 
+              sizeBytes: partsSize, 
+              limitBytes: MAX_PARTS_BYTES, 
+              hint: 'Resize/compress image or increase GEMINI_MAX_PARTS_BYTES (Netlify env var).' 
+            }) 
+        };
+      }
+    } catch { /* ignore size calc errors */ }
     const upstream = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
