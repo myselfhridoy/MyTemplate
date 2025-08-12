@@ -374,23 +374,18 @@ function AIAssistantPage() {
         return;
       }
 
-      // Use Gemini streamGenerateContent endpoint with SSE
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-      if (!apiKey) {
-        setAnswer("Gemini API key সেট করা নেই।");
-        setLoading(false);
-        return;
+      // Call internal proxy endpoint so API key is never exposed in browser
+      const body = JSON.stringify({ parts, model: 'gemini-2.5-flash' });
+      async function callProxy(url) {
+        return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' }, body });
       }
-      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse&key=${apiKey}`;
-      const body = JSON.stringify({ contents: [ { parts } ] });
-      const resp = await fetch(apiUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Accept": "text/event-stream" },
-        body
-      });
+      let resp = await callProxy('/api/gemini');
+      if (resp.status === 404) {
+        resp = await callProxy('/.netlify/functions/gemini');
+      }
       if (!resp.ok) {
         const errorText = await resp.text().catch(() => '');
-        throw new Error(`Gemini API error ${resp.status}: ${errorText}`);
+        throw new Error(`Gemini proxy error ${resp.status}: ${errorText}`);
       }
       // Stream SSE response
       const reader = resp.body?.getReader();
