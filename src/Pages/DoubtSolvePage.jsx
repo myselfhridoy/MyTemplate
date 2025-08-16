@@ -2,7 +2,11 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import MathRendererWithContext from '../Components/MathRenderer/MathRenderer';
 
 // Use local proxy for Gemma API requests during development
-const LOCAL_GEMMA_PROXY_URL = "http://localhost:5001/api/gemma";
+//const LOCAL_GEMMA_PROXY_URL = "http://localhost:5001/api/gemma";
+const GEMMA_PROXY_URL =
+  process.env.NODE_ENV === "development"
+    ? "http://localhost:5001/api/gemma"  // লোকালি চলবে
+    : "/api/gemma"; // Netlify-তে ডিপ্লয় হলে এই রুট ধরবে
 const MAPPING_URL = "https://raw.githubusercontent.com/myselfhridoy/hmtutoring-database/refs/heads/main/bookcontentmapping.json";
 
 function DoubtSolvePage() {
