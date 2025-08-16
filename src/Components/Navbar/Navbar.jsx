@@ -64,6 +64,7 @@ function Navbar() {
                 <li><Link to="/creative-cq" onClick={() => setTimeout(() => handleMenuClick(), 50)}>প্রশ্ন ব্যাংক</Link></li>
                 <li><Link to="/selftest" onClick={() => setTimeout(() => handleMenuClick(), 50)}>সেলফ টেস্ট</Link></li>
                 <li><Link to="/ai-assistant" onClick={() => setTimeout(() => handleMenuClick(), 50)}>AI সহকারী</Link></li>
+                 <li><Link to="/doubt-solve" onClick={() => setTimeout(() => handleMenuClick(), 50)}>ডাউট সলভ</Link></li>
                 {/** <li><Link to="/doubt-solve" onClick={() => setTimeout(() => handleMenuClick(), 50)}>ডাউট সলভ</Link></li> */}
                 {/** <li><Link to="/gemma-solve" onClick={() => setTimeout(() => handleMenuClick(), 50)}>Gemma DoubtSolve</Link></li> */}
                 {/** <li><Link to="/gemma3n-solve" onClick={() => setTimeout(() => handleMenuClick(), 50)}>Gemma 3n 2B DoubtSolve</Link></li> */}
