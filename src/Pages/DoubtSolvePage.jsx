@@ -171,7 +171,7 @@ function DoubtSolvePage() {
         ];
       }
       const response = await fetch(
-        LOCAL_GEMMA_PROXY_URL,
+        GEMMA_PROXY_URL,
         {
           headers: { "Content-Type": "application/json" },
           method: "POST",
