@@ -23,18 +23,14 @@ export async function handler(event) {
     });
 
     if (response.headers.get('content-type')?.includes('text/event-stream')) {
-      // Netlify Functions require returning the full body, so we must buffer the stream
+      // Buffer the stream manually in Node.js
       let body = '';
       if (response.body) {
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let done = false;
-        while (!done) {
-          const { value, done: streamDone } = await reader.read();
-          done = streamDone;
-          if (value) body += decoder.decode(value);
+        for await (const chunk of response.body) {
+          body += chunk.toString();
         }
       }
+
       return {
         statusCode: response.status,
         headers: {
