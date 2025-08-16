@@ -127,9 +127,19 @@ function DoubtSolvePage() {
     canvas.width = width; canvas.height = height;
     const ctx = canvas.getContext('2d');
     ctx.drawImage(img, 0, 0, width, height);
-    const mime = (file.type === 'image/png' ? 'image/png' : 'image/jpeg');
+    // Grayscale conversion for better OCR
+    const imageData = ctx.getImageData(0, 0, width, height);
+    for (let i = 0; i < imageData.data.length; i += 4) {
+      const avg = (imageData.data[i] + imageData.data[i+1] + imageData.data[i+2]) / 3;
+      imageData.data[i] = avg;
+      imageData.data[i+1] = avg;
+      imageData.data[i+2] = avg;
+    }
+    ctx.putImageData(imageData, 0, 0);
+    // Prefer JPEG unless PNG with transparency
+    const mime = (file.type === 'image/png' && ctx.getImageData(0,0,1,1).data[3] === 255) ? 'image/jpeg' : (file.type === 'image/png' ? 'image/png' : 'image/jpeg');
     const compressedDataUrl = canvas.toDataURL(mime, quality);
-    return compressedDataUrl;
+    return compressedDataUrl.split(',')[1];
   }
 
   const handleAsk = async (e) => {
@@ -160,14 +170,26 @@ function DoubtSolvePage() {
           prompt = contextPrompt + `\n\nপ্রশ্ন: ${questionText}`;
       }
       let messages = [
-        { role: "system", content: "You are a friendly assistant" },
+        { role: "system", content: "আপনি H.M. Tutoring AI Assistant। সব প্রশ্নের উত্তর বাংলায় এবং শুধুমাত্র গাণিতিক অংশগুলো MathJax ফরম্যাটে \`$...$\` এর ভিতরে থাকবে। **বাংলা লেখাগুলো কখনোই $...$ এর ভিতরে থাকবে না।** **প্রশ্নটি ভালোমতো পর্যবেক্ষণ করে শতভাগ সঠিক উত্তর দিবে।** **গাণিতিক সমাধানগুলোর উত্তর শতভাগ সঠিক হতে হবে।**" },
         { role: "user", content: prompt }
       ];
       if (imageFile) {
-        const base64DataUrl = await compressToBase64(imageFile);
+        let base64;
+        try {
+          base64 = await compressToBase64(imageFile);
+        } catch (e) {
+          console.warn('Compression failed, sending original:', e);
+          const fallback = await new Promise((resolve, reject) => {
+            const fr = new FileReader();
+            fr.onload = () => resolve(fr.result.split(',')[1]);
+            fr.onerror = reject;
+            fr.readAsDataURL(imageFile);
+          });
+          base64 = fallback;
+        }
         messages[1].content = [
           { type: "text", text: prompt },
-          { type: "image_url", image_url: { url: base64DataUrl } }
+          { type: "image_url", image_url: { url: `data:${imageFile.type};base64,${base64}` } }
         ];
       }
       const response = await fetch(
@@ -175,7 +197,7 @@ function DoubtSolvePage() {
         {
           headers: { "Content-Type": "application/json" },
           method: "POST",
-          body: JSON.stringify({ messages, stream: true, max_tokens: 79000, temperature: 0.6 })
+          body: JSON.stringify({ messages, stream: true, max_tokens: 40000, temperature: 0.6, top_p: 0.95 })
         }
       );
       if (!response.body) {
