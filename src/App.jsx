@@ -1,4 +1,3 @@
-import Gemma3nSolvePage from './Pages/Gemma3nSolvePage';
 import React, { Component } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import Navbar from './Components/Navbar/Navbar';
@@ -7,12 +6,11 @@ import Dashboard from './Pages/Dashboard/Dashboard';
 import BookContentPage from './Pages/BookContentPage';
 import ExamplePage from './Pages/ExamplePage';
 import ExampleWithAnswer from './Pages/ExampleWithAnswer';
-// import GemmaSolvePage from './Pages/GemmaSolvePage'; // commented per request
 import FilteredCQPage from './Pages/FilteredCQPage';
 import CreativeCQPage from './Pages/CreativeCQPage';
 import SelfTestPage from './Pages/SelfTestPage';
 import AIAssistantPage from './Pages/AIAssistantPage';
-// import DoubtSolvePage from './Pages/DoubtSolvePage'; // commented per request
+import DoubtSolvePage from './Pages/DoubtSolvePage';
 
 
 export default class App extends Component {
@@ -26,15 +24,12 @@ export default class App extends Component {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/example" element={<ExamplePage />} />
             <Route path="/example-with-answer" element={<ExampleWithAnswer />} />
-            {/** <Route path="/gemma-solve" element={<GemmaSolvePage />} /> */}
-            {/** <Route path="/gemma3n-solve" element={<Gemma3nSolvePage />} /> */}
-            {/** <Route path="/doubtsolve" element={<Gemma3nSolvePage />} /> */}
             <Route path="/cq-filter" element={<FilteredCQPage />} />
             <Route path="/creative-cq" element={<CreativeCQPage />} />
             <Route path="/selftest/*" element={<SelfTestPage />} />
             <Route path="/bookcontent" element={<BookContentPage />} />
             <Route path="/ai-assistant" element={<AIAssistantPage />} />
-            {/** <Route path="/doubt-solve" element={<DoubtSolvePage />} /> */}
+            <Route path="/doubt-solve" element={<DoubtSolvePage />} />
           </Routes>
         </div>
       </>
