@@ -175,7 +175,7 @@ function DoubtSolvePage() {
         {
           headers: { "Content-Type": "application/json" },
           method: "POST",
-          body: JSON.stringify({ messages, stream: true, max_tokens: 79000, temperature: 0.6 })
+          body: JSON.stringify({ messages, stream: true, max_tokens: 79000, temperature: 0 })
         }
       );
       if (!response.body) {
