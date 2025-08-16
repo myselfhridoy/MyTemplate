@@ -6,7 +6,7 @@ import MathRendererWithContext from '../Components/MathRenderer/MathRenderer';
 const GEMMA_PROXY_URL =
   process.env.NODE_ENV === "development"
     ? "http://localhost:5001/api/gemma"  // লোকালি চলবে
-    : "/.netlify/functions/gemma"; // Netlify-তে ডিপ্লয় হলে এই রুট ধরবে
+    : "/.netlify/functions/cloudflareGemmaProxy"; // Netlify-তে ডিপ্লয় হলে এই রুট ধরবে
 const MAPPING_URL = "https://raw.githubusercontent.com/myselfhridoy/hmtutoring-database/refs/heads/main/bookcontentmapping.json";
 
 function DoubtSolvePage() {
