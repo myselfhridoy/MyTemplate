@@ -81,7 +81,26 @@ export async function handler(event) {
         if (total > limit) break;
       }
     }
-    return { statusCode: 200, headers: { ...baseHeaders, 'Content-Type': 'text/event-stream' }, body: aggregated };
+    // Parse SSE lines, extract JSON, join answer texts
+    const lines = aggregated.split(/\r?\n/);
+    let answer = '';
+    for (const line of lines) {
+      if (line.startsWith('data:')) {
+        const jsonStr = line.slice(5).trim();
+        if (jsonStr) {
+          try {
+            const obj = JSON.parse(jsonStr);
+            const text = obj?.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (typeof text === 'string') answer += text;
+          } catch {}
+        }
+      }
+    }
+    return {
+      statusCode: 200,
+      headers: { ...baseHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ answer })
+    };
   } catch (err) {
     console.error('Netlify Gemini proxy error', err);
     return { statusCode: 500, headers: baseHeaders, body: JSON.stringify({ error: 'Gemini proxy failure', message: err.message }) };
