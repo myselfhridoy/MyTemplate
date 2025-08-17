@@ -407,7 +407,7 @@ function DoubtSolvePage() {
       const chosenModel = isImagePresent ? 'gemma-3-27b-it' : 'gemma-3-12b-it';
       const body = JSON.stringify({ parts, model: chosenModel });
       async function callProxy(url) {
-        return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' }, body });
+        return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream,application/json' }, body });
       }
       let resp = await callProxy('/api/gemma');
       if (resp.status === 404) {
@@ -417,55 +417,68 @@ function DoubtSolvePage() {
         const errorText = await resp.text().catch(() => '');
         throw new Error(`Gemini proxy error ${resp.status}: ${errorText}`);
       }
-      // Stream SSE response
-      const reader = resp.body?.getReader();
-      if (!reader) {
-        setAnswer("স্ট্রিমিং সাপোর্ট করছে না।");
-        setLoading(false);
-        return;
-      }
-      const decoder = new TextDecoder('utf-8');
-      let buffer = '';
+      // Detect response type
+      const contentType = resp.headers.get('Content-Type') || '';
       let answerText = "";
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        // Split SSE events on blank line (supports \n\n or \r\n\r\n)
-        const events = buffer.split(/\r?\n\r?\n/);
-        buffer = events.pop() || '';
-        for (const evt of events) {
-          // Each event can have multiple data: lines; join them
-          const lines = evt.split(/\r?\n/);
-          let dataPayload = '';
-          for (const line of lines) {
-            if (line.startsWith('data:')) {
-              dataPayload += line.slice(5).trim() + '\n';
+      if (contentType.includes('application/json')) {
+        // Non-streaming: parse full JSON
+        const data = await resp.json();
+        const partsArr = data?.candidates?.[0]?.content?.parts;
+        if (Array.isArray(partsArr)) {
+          for (const p of partsArr) {
+            if (p && typeof p.text === 'string' && p.text.length > 0) {
+              answerText += p.text;
             }
-          }
-          dataPayload = dataPayload.trim();
-          if (!dataPayload) continue;
-          if (dataPayload === '[DONE]') continue;
-          try {
-            const json = JSON.parse(dataPayload);
-            const partsArr = json?.candidates?.[0]?.content?.parts;
-            if (Array.isArray(partsArr)) {
-              let appended = false;
-              for (const p of partsArr) {
-                if (p && typeof p.text === 'string' && p.text.length > 0) {
-                  answerText += p.text;
-                  appended = true;
-                }
-              }
-              if (appended) setAnswer(answerText);
-            }
-          } catch {
-            // Ignore parse errors for keep-alive/ping lines
           }
         }
-      }
-      if (!answerText || !answerText.trim()) {
-        setAnswer('কোনো উত্তর পাওয়া যায়নি।');
+        setAnswer(answerText || 'কোনো উত্তর পাওয়া যায়নি।');
+      } else if (resp.body) {
+        // Streaming SSE response
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+        let buffer = '';
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          // Split SSE events on blank line (supports \n\n or \r\n\r\n)
+          const events = buffer.split(/\r?\n\r?\n/);
+          buffer = events.pop() || '';
+          for (const evt of events) {
+            // Each event can have multiple data: lines; join them
+            const lines = evt.split(/\r?\n/);
+            let dataPayload = '';
+            for (const line of lines) {
+              if (line.startsWith('data:')) {
+                dataPayload += line.slice(5).trim() + '\n';
+              }
+            }
+            dataPayload = dataPayload.trim();
+            if (!dataPayload) continue;
+            if (dataPayload === '[DONE]') continue;
+            try {
+              const json = JSON.parse(dataPayload);
+              const partsArr = json?.candidates?.[0]?.content?.parts;
+              if (Array.isArray(partsArr)) {
+                let appended = false;
+                for (const p of partsArr) {
+                  if (p && typeof p.text === 'string' && p.text.length > 0) {
+                    answerText += p.text;
+                    appended = true;
+                  }
+                }
+                if (appended) setAnswer(answerText);
+              }
+            } catch {
+              // Ignore parse errors for keep-alive/ping lines
+            }
+          }
+        }
+        if (!answerText || !answerText.trim()) {
+          setAnswer('কোনো উত্তর পাওয়া যায়নি।');
+        }
+      } else {
+        setAnswer('স্ট্রিমিং সাপোর্ট করছে না।');
       }
     } catch (error) {
       console.error('API Error:', error);
