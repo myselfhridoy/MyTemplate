@@ -26,7 +26,7 @@ try {
   console.warn('[devProxy] Failed loading .env:', e.message);
 }
 
-const PORT = parseInt(process.env.GEMMA_PROXY_PORT, 10) || 8889;
+const PORT = 8888;
 const MODEL = 'gemma-3-27b-it';
 const API_KEY = process.env.GEMINI_API_KEY;
 if (!API_KEY) {
@@ -47,7 +47,7 @@ const server = http.createServer(async (req, res) => {
     });
     return res.end();
   }
-  if ((req.url === '/api/gemini' || req.url === '/api/gemma' || req.url === '/api/gemmaProxy') && req.method === 'POST') {
+  if (req.url === '/api/gemma' && req.method === 'POST') {
     if (!API_KEY) return json(res, 500, { error: 'GEMMA_API_KEY not set' });
     let body = '';
     const MAX_BODY = parseInt(process.env.DEV_PROXY_MAX_BODY || '3000000', 10); // ~3MB default
@@ -89,4 +89,4 @@ const server = http.createServer(async (req, res) => {
   json(res, 404, { error: 'Not found' });
 });
 
-server.listen(PORT, () => console.log(`[gemmaProxy] Listening on http://localhost:${PORT}`));
+server.listen(PORT, () => console.log(`[devProxy] Listening on http://localhost:${PORT}`));
