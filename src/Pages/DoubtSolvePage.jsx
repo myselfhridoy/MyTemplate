@@ -404,14 +404,14 @@ function DoubtSolvePage() {
       // Call internal proxy endpoint so API key is never exposed in browser
       const isImagePresent = !!imageFile;
       // If only text (no image) use lighter model for cost & speed; if image present use multimodal capable model
-      const chosenModel = isImagePresent ? 'gemini-2.5-flash' : 'gemini-2.5-flash-lite';
+      const chosenModel = isImagePresent ? 'gemma-3-27b-it' : 'gemma-3-12b-it';
       const body = JSON.stringify({ parts, model: chosenModel });
       async function callProxy(url) {
         return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' }, body });
       }
-      let resp = await callProxy('/api/gemini');
+      let resp = await callProxy('/api/gemma');
       if (resp.status === 404) {
-        resp = await callProxy('/.netlify/functions/gemini');
+        resp = await callProxy('/.netlify/functions/gemma');
       }
       if (!resp.ok) {
         const errorText = await resp.text().catch(() => '');
@@ -476,7 +476,7 @@ function DoubtSolvePage() {
 
   return (
     <div className="container mx-auto p-4 max-w-3xl" style={{ fontFamily: 'Hind Siliguri, sans-serif' }}>
-        <h1 className="text-2xl font-extrabold mb-4 text-center sm:text-left">AI সহকারী</h1>
+        <h1 className="text-2xl font-extrabold mb-4 text-center sm:text-left">ডাউট সলভ</h1>
         <form 
           className="bg-white dark:bg-base-200 rounded shadow p-3 sm:p-8 mb-6" 
           onSubmit={handleAsk}
