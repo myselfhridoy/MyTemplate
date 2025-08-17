@@ -417,7 +417,7 @@ function DoubtSolvePage() {
         const errorText = await resp.text().catch(() => '');
         throw new Error(`Gemini proxy error ${resp.status}: ${errorText}`);
       }
-      // Stream SSE response
+      // Stream SSE response (robust parser)
       const reader = resp.body?.getReader();
       if (!reader) {
         setAnswer("স্ট্রিমিং সাপোর্ট করছে না।");
@@ -440,12 +440,12 @@ function DoubtSolvePage() {
           let dataPayload = '';
           for (const line of lines) {
             if (line.startsWith('data:')) {
-              dataPayload += line.slice(5).trim() + '\n';
+              dataPayload += line.slice(5).trim();
             }
           }
           dataPayload = dataPayload.trim();
-          if (!dataPayload) continue;
-          if (dataPayload === '[DONE]') continue;
+          if (!dataPayload || dataPayload === '[DONE]') continue;
+          // Try to parse JSON, handle chunked/partial JSON
           try {
             const json = JSON.parse(dataPayload);
             const partsArr = json?.candidates?.[0]?.content?.parts;
@@ -459,8 +459,8 @@ function DoubtSolvePage() {
               }
               if (appended) setAnswer(answerText);
             }
-          } catch {
-            // Ignore parse errors for keep-alive/ping lines
+          } catch (err) {
+            // Ignore parse errors for keep-alive/ping lines or chunked JSON
           }
         }
       }
