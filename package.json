@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:proxy": "node server/devProxy.js",
+  "dev:proxy": "node server/startProxies.js",
     "dev:netlify": "netlify dev",
     "build": "vite build",
     "lint": "eslint .",
