@@ -409,7 +409,7 @@ function DoubtSolvePage() {
       async function callProxy(url) {
         return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream,application/json' }, body });
       }
-      let resp = await callProxy('/api/gemma');
+      let resp = await callProxy('/api/gemini');
       if (resp.status === 404) {
         resp = await callProxy('/.netlify/functions/gemma');
       }
