@@ -61,7 +61,7 @@ const server = http.createServer(async (req, res) => {
     req.on('end', async () => {
       if (!body) return json(res, 413, { error: 'Empty or too large request (truncated)' });
       let parsed; try { parsed = JSON.parse(body || '{}'); } catch { return json(res, 400, { error: 'Invalid JSON' }); }
-  const { parts = [], model = MODEL, generationConfig = {} } = parsed;
+      const { parts = [], model = MODEL } = parsed;
       if (!Array.isArray(parts) || !parts.length) return json(res, 400, { error: 'parts array required' });
       // Basic size diagnostics
       try {
@@ -71,14 +71,7 @@ const server = http.createServer(async (req, res) => {
       try {
         const upstream = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${API_KEY}`, {
           method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
-          body: JSON.stringify({
-            contents: [{ parts }],
-            generationConfig: {
-              maxOutputTokens: generationConfig.maxOutputTokens ?? 2048,
-              temperature: generationConfig.temperature ?? 0.7,
-              topP: generationConfig.topP ?? 0.95
-            }
-          })
+          body: JSON.stringify({ contents: [{ parts }] })
         });
         if (!upstream.ok || !upstream.body) {
           const t = await upstream.text().catch(()=> '');

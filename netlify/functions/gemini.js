@@ -27,7 +27,7 @@ export async function handler(event) {
     } catch (e) {
       return { statusCode: 400, headers: baseHeaders, body: JSON.stringify({ error: 'Invalid JSON body' }) };
     }
-    const { parts = [], model = 'gemini-2.5-flash', generationConfig = {} } = parsed;
+    const { parts = [], model = 'gemini-2.5-flash' } = parsed;
     if (!Array.isArray(parts) || parts.length === 0) {
       return { statusCode: 400, headers: baseHeaders, body: JSON.stringify({ error: 'parts array required' }) };
     }
@@ -49,16 +49,10 @@ export async function handler(event) {
         };
       }
     } catch { /* ignore size calc errors */ }
-    // Build generationConfig with sensible defaults
-    const genConfig = {
-      maxOutputTokens: generationConfig.maxOutputTokens ?? 2048,
-      temperature: generationConfig.temperature ?? 0.7,
-      topP: generationConfig.topP ?? 0.95
-    };
     const upstream = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
-      body: JSON.stringify({ contents: [{ parts }], generationConfig: genConfig })
+      body: JSON.stringify({ contents: [{ parts }] })
     });
     if (!upstream.ok || !upstream.body) {
       const text = await upstream.text().catch(() => '');
