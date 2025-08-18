@@ -127,9 +127,8 @@ export async function handler(event) {
               // Keep last partial line in buffer
               lineBuffer = lines.pop();
               for (const line of lines) {
-                if (line.trim()) {
-                  sseBody += `data: ${JSON.stringify({ text: line })}\n\n`;
-                }
+                // Stream every line, even if blank, to match Gemini style
+                sseBody += `data: ${JSON.stringify({ text: line })}\n\n`;
               }
             } catch { /* ignore parse errors */ }
           }
@@ -137,10 +136,8 @@ export async function handler(event) {
       }
     })();
     await Promise.race([readPromise, timeoutPromise]);
-    // Send any remaining buffered line
-    if (lineBuffer && lineBuffer.trim()) {
-      sseBody += `data: ${JSON.stringify({ text: lineBuffer })}\n\n`;
-    }
+    // Send any remaining buffered line (even if blank)
+    sseBody += `data: ${JSON.stringify({ text: lineBuffer })}\n\n`;
     return {
       statusCode: 200,
       headers: { ...baseHeaders, 'Content-Type': 'text/event-stream' },
