@@ -91,15 +91,11 @@ export async function handler(event) {
       };
     }
 
-    // Netlify streaming API: aggregate SSE chunks to at least 5 words per chunk
+    // Netlify streaming API: stream each line as a separate SSE chunk
     const reader = upstream.body.getReader();
     const decoder = new TextDecoder('utf-8');
     let sseBody = '';
     let buffer = '';
-    let chunk = '';
-    let chunkWords = 0;
-    const MIN_WORDS = 5;
-    // Add a hard timeout to avoid Netlify 28s function limit
     const TIMEOUT_MS = 25000;
     let timedOut = false;
     const timeoutPromise = new Promise(resolve => {
@@ -125,24 +121,19 @@ export async function handler(event) {
             try {
               const obj = JSON.parse(match[1]);
               const text = obj?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-              chunk += text;
-              chunkWords += (text.match(/\S+/g) || []).length;
+              // Split text by newline and stream each line
+              const lines = text.split(/\r?\n/);
+              for (const line of lines) {
+                if (line.trim()) {
+                  sseBody += `data: ${JSON.stringify({ text: line })}\n\n`;
+                }
+              }
             } catch { /* ignore parse errors */ }
-          }
-          // If chunk has enough words, send SSE event
-          if (chunkWords >= MIN_WORDS) {
-            sseBody += `data: ${JSON.stringify({ text: chunk })}\n\n`;
-            chunk = '';
-            chunkWords = 0;
           }
         }
       }
     })();
     await Promise.race([readPromise, timeoutPromise]);
-    // Send any remaining chunk
-    if (chunkWords > 0 && chunk.trim()) {
-      sseBody += `data: ${JSON.stringify({ text: chunk })}\n\n`;
-    }
     return {
       statusCode: 200,
       headers: { ...baseHeaders, 'Content-Type': 'text/event-stream' },
