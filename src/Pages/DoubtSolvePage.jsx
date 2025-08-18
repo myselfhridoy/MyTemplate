@@ -79,14 +79,33 @@ function DoubtSolvePage() {
     }
   }, []);
 
-  // When loading becomes true (after clicking উত্তর জানুন), request an ad render
+  // When loading becomes true (after clicking উত্তর জানুন), request an ad render.
+  // Retry until the <ins class="adsbygoogle"> exists and the script is ready.
   useEffect(() => {
     if (!loading) return;
-    try {
-      (window.adsbygoogle = window.adsbygoogle || []).push({});
-    } catch {
-      // ignore
-    }
+    let mounted = true;
+    let attempts = 0;
+    const maxAttempts = 12; // ~6 seconds max
+
+    const tryPush = () => {
+      if (!mounted) return;
+      attempts += 1;
+      const ins = document.querySelector('.adsbygoogle');
+      if (!ins) {
+        if (attempts < maxAttempts) setTimeout(tryPush, 500);
+        return;
+      }
+
+      try {
+        (window.adsbygoogle = window.adsbygoogle || []).push({});
+      } catch {
+        // If push fails (script not parsed yet), retry a few times
+        if (attempts < maxAttempts) setTimeout(tryPush, 500);
+      }
+    };
+
+    tryPush();
+    return () => { mounted = false; };
   }, [loading]);
   
   // Try alternative approach for subjects
