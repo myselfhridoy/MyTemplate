@@ -72,12 +72,12 @@ export async function handler(event) {
       }
     } catch { /* ignore size calc errors */ }
 
-    // ✅ Non-streaming request for full Gemini-style response
+    // Streaming SSE response for Gemma 3
     const upstream = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
         body: JSON.stringify({ contents: [{ parts }] })
       }
     );
@@ -91,12 +91,12 @@ export async function handler(event) {
       };
     }
 
-    const data = await upstream.json();
-
+    // Netlify streaming API: send SSE chunks as they arrive
     return {
       statusCode: 200,
-      headers: { ...baseHeaders, 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
+      headers: { ...baseHeaders, 'Content-Type': 'text/event-stream' },
+      body: upstream.body,
+      isBase64Encoded: false
     };
 
   } catch (err) {
