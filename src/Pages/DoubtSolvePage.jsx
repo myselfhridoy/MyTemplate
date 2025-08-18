@@ -450,7 +450,7 @@ function DoubtSolvePage() {
       // Call internal proxy endpoint so API key is never exposed in browser
       const isImagePresent = !!imageFile;
       // If only text (no image) use lighter model for cost & speed; if image present use multimodal capable model
-      const chosenModel = isImagePresent ? 'gemma-3-27b-it' : 'gemma-3-270m-it';
+      const chosenModel = isImagePresent ? 'gemma-3-27b-it' : 'gemma-3-27b-it';
       const body = JSON.stringify({ parts, model: chosenModel });
       // Use Vercel Edge API endpoint for Gemma
       const GEMMA_API_URL = 'https://geminiai-xi.vercel.app/api/gemma';
