@@ -91,11 +91,19 @@ export async function handler(event) {
       };
     }
 
-    // Netlify streaming API: send SSE chunks as they arrive
+    // Netlify streaming API: read upstream response as text and stream SSE chunks
+    const reader = upstream.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let sseBody = '';
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      sseBody += decoder.decode(value, { stream: true });
+    }
     return {
       statusCode: 200,
       headers: { ...baseHeaders, 'Content-Type': 'text/event-stream' },
-      body: upstream.body,
+      body: sseBody,
       isBase64Encoded: false
     };
 
