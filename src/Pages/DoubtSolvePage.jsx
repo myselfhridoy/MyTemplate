@@ -64,6 +64,30 @@ function DoubtSolvePage() {
 
   // Dynamic options (same logic as BookContentPage)
   const classes = Array.from(new Set(mapping.map(m => m['শ্রেণি']).filter(Boolean)));
+
+  // Inject AdSense script once on mount
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    // avoid duplicate script
+    if (!document.querySelector('script[data-adsense-client]')) {
+      const s = document.createElement('script');
+      s.async = true;
+      s.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3101803953274937';
+      s.crossOrigin = 'anonymous';
+      s.setAttribute('data-adsense-client', 'ca-pub-3101803953274937');
+      document.head.appendChild(s);
+    }
+  }, []);
+
+  // When loading becomes true (after clicking উত্তর জানুন), request an ad render
+  useEffect(() => {
+    if (!loading) return;
+    try {
+      (window.adsbygoogle = window.adsbygoogle || []).push({});
+    } catch {
+      // ignore
+    }
+  }, [loading]);
   
   // Try alternative approach for subjects
   let subjects = [];
@@ -186,14 +210,17 @@ function DoubtSolvePage() {
 
   const handleAsk = async (e) => {
     e.preventDefault();
-    
+
+    // Show ad immediately
+    setLoading(true);
+
     // Validation: Check if all required fields are selected
     if (!selectedClass || !selectedSubject || !selectedChapter || !questionType) {
       setAnswer("অনুগ্রহ করে শ্রেণি, বিষয়, অধ্যায় এবং প্রশ্নের ধরণ সিলেক্ট করুন।");
+      setLoading(false);
       return;
     }
-    
-    setLoading(true);
+
     setAnswer("");
     try {
       let parts = [];
@@ -567,6 +594,18 @@ function DoubtSolvePage() {
             <input type="file" accept="image/*" className="file-input file-input-bordered w-full text-sm" onChange={handleImageChange} />
             {imagePreviewUrl && <div className="mt-2"><img src={imagePreviewUrl} alt="Uploaded" className="max-h-32 w-auto rounded shadow mx-auto block" /></div>}
           </div>
+          {/* Show AdSense ad while loading */}
+          {loading && (
+            <div className="mb-4 flex justify-center">
+              <ins className="adsbygoogle"
+                style={{ display: 'block' }}
+                data-ad-client="ca-pub-3101803953274937"
+                data-ad-slot="1237871459"
+                data-ad-format="auto"
+                data-full-width-responsive="true"
+              ></ins>
+            </div>
+          )}
           <button className="btn btn-primary w-full text-sm sm:text-base" type="submit" disabled={loading || (!questionText.trim() && !imageFile)}>
             {loading ? "লোড হচ্ছে..." : "উত্তর জানুন"}
           </button>
