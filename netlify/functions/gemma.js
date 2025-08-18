@@ -96,6 +96,7 @@ export async function handler(event) {
     const decoder = new TextDecoder('utf-8');
     let sseBody = '';
     let buffer = '';
+    let lineBuffer = '';
     const TIMEOUT_MS = 25000;
     let timedOut = false;
     const timeoutPromise = new Promise(resolve => {
@@ -121,8 +122,10 @@ export async function handler(event) {
             try {
               const obj = JSON.parse(match[1]);
               const text = obj?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-              // Split text by newline and stream each line
-              const lines = text.split(/\r?\n/);
+              lineBuffer += text;
+              let lines = lineBuffer.split(/\r?\n/);
+              // Keep last partial line in buffer
+              lineBuffer = lines.pop();
               for (const line of lines) {
                 if (line.trim()) {
                   sseBody += `data: ${JSON.stringify({ text: line })}\n\n`;
@@ -134,6 +137,10 @@ export async function handler(event) {
       }
     })();
     await Promise.race([readPromise, timeoutPromise]);
+    // Send any remaining buffered line
+    if (lineBuffer && lineBuffer.trim()) {
+      sseBody += `data: ${JSON.stringify({ text: lineBuffer })}\n\n`;
+    }
     return {
       statusCode: 200,
       headers: { ...baseHeaders, 'Content-Type': 'text/event-stream' },
