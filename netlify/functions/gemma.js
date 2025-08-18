@@ -99,34 +99,46 @@ export async function handler(event) {
     let chunk = '';
     let chunkWords = 0;
     const MIN_WORDS = 5;
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      // Split into SSE events
-      const events = buffer.split(/(?<=\n)\s*(?=data: )/);
-      buffer = '';
-      for (let i = 0; i < events.length; i++) {
-        const event = events[i];
-        if (!event.trim()) continue;
-        // Extract text from JSON
-        const match = event.match(/data: (.*)/);
-        if (match) {
-          try {
-            const obj = JSON.parse(match[1]);
-            const text = obj?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-            chunk += text;
-            chunkWords += (text.match(/\S+/g) || []).length;
-          } catch { /* ignore parse errors */ }
-        }
-        // If chunk has enough words, send SSE event
-        if (chunkWords >= MIN_WORDS) {
-          sseBody += `data: ${JSON.stringify({ text: chunk })}\n\n`;
-          chunk = '';
-          chunkWords = 0;
+    // Add a hard timeout to avoid Netlify 28s function limit
+    const TIMEOUT_MS = 25000;
+    let timedOut = false;
+    const timeoutPromise = new Promise(resolve => {
+      setTimeout(() => {
+        timedOut = true;
+        resolve();
+      }, TIMEOUT_MS);
+    });
+    let readPromise = (async () => {
+      while (!timedOut) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        // Split into SSE events
+        const events = buffer.split(/(?<=\n)\s*(?=data: )/);
+        buffer = '';
+        for (let i = 0; i < events.length; i++) {
+          const event = events[i];
+          if (!event.trim()) continue;
+          // Extract text from JSON
+          const match = event.match(/data: (.*)/);
+          if (match) {
+            try {
+              const obj = JSON.parse(match[1]);
+              const text = obj?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+              chunk += text;
+              chunkWords += (text.match(/\S+/g) || []).length;
+            } catch { /* ignore parse errors */ }
+          }
+          // If chunk has enough words, send SSE event
+          if (chunkWords >= MIN_WORDS) {
+            sseBody += `data: ${JSON.stringify({ text: chunk })}\n\n`;
+            chunk = '';
+            chunkWords = 0;
+          }
         }
       }
-    }
+    })();
+    await Promise.race([readPromise, timeoutPromise]);
     // Send any remaining chunk
     if (chunkWords > 0 && chunk.trim()) {
       sseBody += `data: ${JSON.stringify({ text: chunk })}\n\n`;
