@@ -268,7 +268,7 @@ function DoubtSolvePage() {
       
       if (imageFile) {
         // Compress & convert image to base64 to keep request size under server limits
-  async function compressToBase64(file, { maxWidth = 800, maxHeight = 800, quality = 0.5 } = {}) {
+        async function compressToBase64(file, { maxWidth = 1280, maxHeight = 1280, quality = 0.75 } = {}) {
           if (!file.type.startsWith('image/')) throw new Error('Not an image');
             const dataUrl = await new Promise((resolve, reject) => {
               const r = new FileReader();

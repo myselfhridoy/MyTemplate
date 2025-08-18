@@ -5,19 +5,6 @@ import process from 'process';
 const app = express();
 app.use(express.json());
 
-// Serve static files from Vite build
-import path from 'path';
-import { fileURLToPath } from 'url';
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const distPath = path.join(__dirname, '../dist');
-app.use(express.static(distPath));
-
-// Fallback: serve index.html for any non-API route
-app.get('*', (req, res, next) => {
-  if (req.path.startsWith('/api/')) return next();
-  res.sendFile(path.join(distPath, 'index.html'));
-});
-
 // Gemini endpoint
 app.post('/api/gemini', async (req, res) => {
   const { parts = [], model = 'gemini-2.5-flash', generationConfig = {} } = req.body;
