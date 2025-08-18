@@ -406,13 +406,13 @@ function DoubtSolvePage() {
       // If only text (no image) use lighter model for cost & speed; if image present use multimodal capable model
       const chosenModel = isImagePresent ? 'gemma-3-27b-it' : 'gemma-3-12b-it';
       const body = JSON.stringify({ parts, model: chosenModel });
-      async function callProxy(url) {
-        return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream,application/json' }, body });
-      }
-      let resp = await callProxy('/api/gemini');
-      if (resp.status === 404) {
-        resp = await callProxy('/.netlify/functions/gemma');
-      }
+      // Use Vercel Edge API endpoint for Gemma
+      const GEMMA_API_URL = 'https://geminiai-xi.vercel.app/api/gemma';
+      let resp = await fetch(GEMMA_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream,application/json' },
+        body
+      });
       if (!resp.ok) {
         const errorText = await resp.text().catch(() => '');
         throw new Error(`Gemini proxy error ${resp.status}: ${errorText}`);
@@ -456,21 +456,24 @@ function DoubtSolvePage() {
             dataPayload = dataPayload.trim();
             if (!dataPayload) continue;
             if (dataPayload === '[DONE]') continue;
-            try {
-              const json = JSON.parse(dataPayload);
-              const partsArr = json?.candidates?.[0]?.content?.parts;
-              if (Array.isArray(partsArr)) {
-                let appended = false;
-                for (const p of partsArr) {
-                  if (p && typeof p.text === 'string' && p.text.length > 0) {
-                    answerText += p.text;
-                    appended = true;
+            // Only parse if looks like complete JSON
+            if (dataPayload.startsWith('{') && dataPayload.endsWith('}')) {
+              try {
+                const json = JSON.parse(dataPayload);
+                const partsArr = json?.candidates?.[0]?.content?.parts;
+                if (Array.isArray(partsArr)) {
+                  let appended = false;
+                  for (const p of partsArr) {
+                    if (p && typeof p.text === 'string' && p.text.length > 0) {
+                      answerText += p.text;
+                      appended = true;
+                    }
                   }
+                  if (appended) setAnswer(answerText);
                 }
-                if (appended) setAnswer(answerText);
+              } catch {
+                // Ignore parse errors for keep-alive/ping lines
               }
-            } catch {
-              // Ignore parse errors for keep-alive/ping lines
             }
           }
         }
