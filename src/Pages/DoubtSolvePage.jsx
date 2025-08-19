@@ -7,8 +7,9 @@ function DoubtSolvePage() {
   const [selectedChapter, setSelectedChapter] = useState("");
   const [questionType, setQuestionType] = useState("");
   const [questionText, setQuestionText] = useState("");
-  const [imageFile, setImageFile] = useState(null);
-  const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
+  // image input disabled for now
+  // const [imageFile, setImageFile] = useState(null);
+  // const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
   const [answer, setAnswer] = useState("");
   const [loading, setLoading] = useState(false);
   const [mapping, setMapping] = useState([]);
@@ -17,12 +18,9 @@ function DoubtSolvePage() {
   // Cleanup function to prevent memory leaks
   useEffect(() => {
     return () => {
-      // Cleanup image preview URL on component unmount
-      if (imagePreviewUrl) {
-        URL.revokeObjectURL(imagePreviewUrl);
-      }
+    // Cleanup image preview URL on component unmount (image support disabled)
     };
-  }, [imagePreviewUrl]);
+  }, []);
 
   // Question types
   const questionTypes = [
@@ -189,6 +187,31 @@ function DoubtSolvePage() {
     }
   };
 
+  // Condense very long user questions into a compact, relevant summary using simple heuristics.
+  const condenseQuestion = (text, maxChars = 800) => {
+    if (!text) return text;
+    if (text.length <= maxChars) return text;
+    try {
+      const sentences = text.split(/(?<=[।!?\n])/g).map(s => s.trim()).filter(Boolean);
+      const keywords = ['কেন', 'কীভাবে', 'কী', 'কি', 'কোন', 'কত', 'হবে', 'হলে', 'দাও', 'প্রমাণ', 'পাওয়া', 'প্রশ্ন', 'সমাধান'];
+      const important = [];
+      for (const s of sentences) {
+        const lower = s.toLowerCase();
+        if (keywords.some(k => lower.includes(k)) || /\d/.test(s)) important.push(s);
+        if (important.join(' ').length > maxChars * 0.9) break;
+      }
+      if (important.length > 0) {
+        const out = important.join(' ');
+        return out.length > maxChars ? out.substring(0, maxChars) + '...' : out;
+      }
+      const head = text.substring(0, Math.floor(maxChars * 0.6));
+      const tail = text.substring(Math.max(0, text.length - Math.floor(maxChars * 0.35)));
+      return head + '\n...\n' + tail;
+    } catch {
+      return text.substring(0, maxChars) + '...';
+    }
+  };
+
   // Debounced input handler to prevent frequent re-renders
   const handleTextChange = useCallback((e) => {
     const value = e.target.value;
@@ -205,27 +228,13 @@ function DoubtSolvePage() {
     return <MathRendererWithContext text={answer} />;
   }, [answer]);
 
-  const handleImageChange = (e) => {
-    // Clear previous answer when new image is selected to reduce lag
-    if (answer) {
-      setAnswer("");
-    }
-    
-    // Clean up previous image URL to prevent memory leaks
-    if (imagePreviewUrl) {
-      URL.revokeObjectURL(imagePreviewUrl);
-      setImagePreviewUrl(null);
-    }
-    
-    const file = e.target.files[0];
-    setImageFile(file);
-    
-    // Create new preview URL
-    if (file) {
-      const previewUrl = URL.createObjectURL(file);
-      setImagePreviewUrl(previewUrl);
-    }
-  };
+  // image handler disabled because image UI is commented out
+  // const handleImageChange = (e) => {
+  //   if (answer) setAnswer("");
+  //   if (imagePreviewUrl) { URL.revokeObjectURL(imagePreviewUrl); setImagePreviewUrl(null); }
+  //   const file = e.target.files[0]; setImageFile(file);
+  //   if (file) { const previewUrl = URL.createObjectURL(file); setImagePreviewUrl(previewUrl); }
+  // };
 
   const handleAsk = async (e) => {
     e.preventDefault();
@@ -296,68 +305,18 @@ function DoubtSolvePage() {
 **কখনোই Gemini বা কোনো AI মডেলের নাম উত্তর বা পরিচয়ে উল্লেখ করবে না।**
 **কোনো ধরনের সম্ভাষণ (নমস্কার, হ্যালো, etc.) ব্যবহার করবে না, সরাসরি উত্তর দাও।`;
 
-        // If both text and image are provided, mention both in the prompt
-        if (imageFile) {
-          let extraInstruction = "";
-          if (questionType === 'সৃজনশীল') {
-            extraInstruction = `\n\nছবিতে সৃজনশীল প্রশ্নের নির্দিষ্ট অংশ (যেমন 'খ অংশ', 'গ অংশ', 'ঘ অংশ') জানতে চাওয়া হয়েছে। শুধুমাত্র সেই অংশের উত্তর দাও।`; 
-          } else {
-            extraInstruction = "\n\nআরো তথ্যের জন্য দেওয়া ছবিটিও দেখুন এবং প্রশ্ন ও ছবি দুইটি মিলিয়ে সম্পূর্ণ উত্তর দিন।";
-          }
-          const prompt = getPromptForQuestionType(questionType, questionText + extraInstruction, contextPrompt);
-          parts.push({ text: prompt });
-        } else {
-          const prompt = getPromptForQuestionType(questionType, questionText, contextPrompt);
-          parts.push({ text: prompt });
-        }
+  // Image support disabled: always build prompt from condensed text only
+  // (To re-enable, restore imageFile checks and include extraInstruction for images)
+  const usedQuestion = condenseQuestion(questionText, 1200);
+  const prompt = getPromptForQuestionType(questionType, usedQuestion, contextPrompt);
+  parts.push({ text: prompt });
       }
       
-      if (imageFile) {
-        // Compress & convert image to base64 to keep request size under server limits
-        async function compressToBase64(file, { maxWidth = 1280, maxHeight = 1280, quality = 0.75 } = {}) {
-          if (!file.type.startsWith('image/')) throw new Error('Not an image');
-            const dataUrl = await new Promise((resolve, reject) => {
-              const r = new FileReader();
-              r.onload = () => resolve(r.result);
-              r.onerror = reject;
-              r.readAsDataURL(file);
-            });
-            const img = await new Promise((resolve, reject) => {
-              const i = new Image();
-              i.onload = () => resolve(i);
-              i.onerror = reject;
-              i.src = dataUrl;
-            });
-            let { width, height } = img;
-            const scale = Math.min(1, maxWidth / width, maxHeight / height);
-            if (scale < 1) { width = Math.round(width * scale); height = Math.round(height * scale); }
-            const canvas = document.createElement('canvas');
-            canvas.width = width; canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, width, height);
-            // Prefer JPEG for better compression unless original is png and has transparency
-            const mime = (file.type === 'image/png' && ctx.getImageData(0,0,1,1).data[3] === 255) ? 'image/jpeg' : (file.type === 'image/png' ? 'image/png' : 'image/jpeg');
-            const compressedDataUrl = canvas.toDataURL(mime, quality);
-            return compressedDataUrl.split(',')[1];
-        }
-        let base64;
-        try {
-          base64 = await compressToBase64(imageFile);
-        } catch (e) {
-          console.warn('Compression failed, sending original:', e);
-          const fallback = await new Promise((resolve, reject) => { const fr = new FileReader(); fr.onload = () => resolve(fr.result.split(',')[1]); fr.onerror = reject; fr.readAsDataURL(imageFile); });
-          base64 = fallback;
-        }
-         parts.push({
-           inlineData: {
-             mimeType: imageFile.type,
-             data: base64
-           }
-         });
-       }
+  // Image processing disabled (image UI removed).
+  // To re-enable, restore the compression routine and push inlineData into parts.
       
-      // If only image (no text), add a basic prompt with context
-      if (!questionText.trim() && imageFile) {
+  // If only image (no text), add a basic prompt with context (image support disabled)
+  if (!questionText.trim() /* && imageFile */) {
         let contextPrompt = "";
         if (questionType === 'সৃজনশীল') {
           contextPrompt = `আপনি H.M. Tutoring AI Assistant। আপনি ${selectedClass} ${selectedSubject} এর "${selectedChapter}" অধ্যায়ের একজন দক্ষ শিক্ষক।
@@ -436,8 +395,10 @@ function DoubtSolvePage() {
 **কখনোই Gemini বা কোনো AI মডেলের নাম উত্তর বা পরিচয়ে উল্লেখ করবে না।**
 **কোনো ধরনের সম্ভাষণ (নমস্কার, হ্যালো, etc.) ব্যবহার করবে না, সরাসরি উত্তর দাও।**`;
         }
-        // Add text prompt to parts array for image-only scenario  
-        parts.push({ text: contextPrompt });
+  // Add text prompt to parts array for image-only scenario (image disabled)
+  const condensed = condenseQuestion(questionText || '', 1200);
+  const finalContext = condensed ? contextPrompt + '\n\nUser question summary: ' + condensed : contextPrompt;
+  parts.push({ text: finalContext });
       }
       
       // Check if we have content to process
@@ -447,10 +408,9 @@ function DoubtSolvePage() {
         return;
       }
 
-      // Call internal proxy endpoint so API key is never exposed in browser
-      const isImagePresent = !!imageFile;
-      // If only text (no image) use lighter model for cost & speed; if image present use multimodal capable model
-      const chosenModel = isImagePresent ? 'gemma-3-27b-it' : 'gemma-3-27b-it';
+  // Call internal proxy endpoint so API key is never exposed in browser
+  // Image support disabled; use text model
+  const chosenModel = 'gemma-3-27b-it';
       const body = JSON.stringify({ parts, model: chosenModel });
       // Use Vercel Edge API endpoint for Gemma
       const GEMMA_API_URL = 'https://geminiai-xi.vercel.app/api/gemma';
@@ -608,11 +568,13 @@ function DoubtSolvePage() {
               onChange={handleTextChange}
             />
           </div>
+          {/*
           <div className="mb-4">
             <label className="block mb-1 font-semibold text-sm">অথবা ছবি আপলোড করুন:</label>
             <input type="file" accept="image/*" className="file-input file-input-bordered w-full text-sm" onChange={handleImageChange} />
             {imagePreviewUrl && <div className="mt-2"><img src={imagePreviewUrl} alt="Uploaded" className="max-h-32 w-auto rounded shadow mx-auto block" /></div>}
           </div>
+          */}
           {/* Show AdSense ad while loading */}
           {loading && (
             <div className="mb-4 flex justify-center">
@@ -625,7 +587,7 @@ function DoubtSolvePage() {
               ></ins>
             </div>
           )}
-          <button className="btn btn-primary w-full text-sm sm:text-base" type="submit" disabled={loading || (!questionText.trim() && !imageFile)}>
+          <button className="btn btn-primary w-full text-sm sm:text-base" type="submit" disabled={loading || !questionText.trim()}>
             {loading ? "লোড হচ্ছে..." : "উত্তর জানুন"}
           </button>
         </form>
