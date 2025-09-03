@@ -90,9 +90,9 @@ const CQWithAnswer = ({ data, showUddipak = true }) => {
                       {openIdx === index ? 'উত্তর লুকান' : 'উত্তর দেখুন'}
                     </button>
                     {openIdx === index && (
-                      <div className="p-3 bg-gray-50 rounded border border-gray-200 animate-fade-in" style={{maxWidth: '100vw', wordBreak: 'break-word', overflowX: 'auto'}}>
+                      <div className="p-3 bg-gray-50 rounded border border-gray-200 animate-fade-in" style={{maxWidth: '100vw', wordBreak: 'break-word', overflowX: 'auto', whiteSpace: 'pre-line'}}>
                         <span className="font-semibold text-success">উত্তর:</span>
-                        <div className="mt-1 text-gray-700" style={{overflow: 'visible'}}>
+                        <div className="mt-1 text-gray-700" style={{overflow: 'visible', whiteSpace: 'pre-line'}}>
                           {renderWithMathJax(question.উত্তর)}
                         </div>
                       </div>
