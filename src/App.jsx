@@ -9,9 +9,11 @@ import ExampleWithAnswer from './Pages/ExampleWithAnswer';
 import FilteredCQPage from './Pages/FilteredCQPage';
 import CreativeCQPage from './Pages/CreativeCQPage';
 import SelfTestPage from './Pages/SelfTestPage';
+
 import AIAssistantPage from './Pages/AIAssistantPage';
 import AIChatPage from './Pages/AIChatPage';
 import DoubtSolvePage from './Pages/DoubtSolvePage';
+import UnlimitedAIQAPage from './Pages/UnlimitedAIQAPage';
 
 
 export default class App extends Component {
@@ -32,6 +34,7 @@ export default class App extends Component {
             <Route path="/ai-assistant" element={<AIAssistantPage />} />
             <Route path="/ai-chat" element={<AIChatPage />} />
             <Route path="/doubt-solve" element={<DoubtSolvePage />} />
+            <Route path="/unlimited-ai-qa" element={<UnlimitedAIQAPage />} />
           </Routes>
         </div>
       </>
