@@ -89,6 +89,48 @@ function Dashboard() {
           >AI সহকারী ব্যবহার করুন</button>
         </div>
 
+        {/* আনলিমিটেড AI প্রশ্ন-উত্তর ফিচার কার্ড */}
+        <div
+          className="group relative bg-gradient-to-br from-purple-100 via-purple-50 to-white dark:from-purple-900 dark:via-purple-950 dark:to-gray-900 rounded-xl shadow-lg border border-purple-200 dark:border-purple-800 p-4 flex flex-col items-center justify-between transition-transform hover:-translate-y-1 hover:shadow-2xl cursor-pointer overflow-hidden min-h-[220px]"
+          style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
+          onClick={() => navigate('/unlimited-ai-qa')}
+        >
+          <div className="absolute top-0 right-0 opacity-10 text-[5rem] pointer-events-none select-none">🤖</div>
+          <div className="flex flex-col items-center gap-2 z-10">
+            <div className="bg-purple-600/90 dark:bg-purple-700/80 rounded-full p-2 mb-1 shadow-lg">
+              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" d="M12 20h9"/><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m0 0H3m9 0a9 9 0 100-18 9 9 0 000 18z"/></svg>
+            </div>
+            <span className="text-lg font-bold text-purple-800 dark:text-purple-200 tracking-tight">আনলিমিটেড AI প্রশ্ন-উত্তর</span>
+            <span className="text-gray-700 dark:text-gray-200 text-center text-sm font-medium">AI দিয়ে যেকোনো প্রশ্নের উত্তর, ছবি বা টেক্সট দিয়ে!</span>
+          </div>
+          <button
+            className="btn btn-secondary mt-4 w-full group-hover:scale-105 transition-transform text-base"
+            style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
+            onClick={e => { e.stopPropagation(); navigate('/unlimited-ai-qa'); }}
+          >AI প্রশ্ন-উত্তর করুন</button>
+        </div>
+
+        {/* AI Chat ফিচার কার্ড */}
+        <div
+          className="group relative bg-gradient-to-br from-purple-100 via-purple-50 to-white dark:from-purple-900 dark:via-purple-950 dark:to-gray-900 rounded-xl shadow-lg border border-purple-200 dark:border-purple-800 p-4 flex flex-col items-center justify-between transition-transform hover:-translate-y-1 hover:shadow-2xl cursor-pointer overflow-hidden min-h-[220px]"
+          style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
+          onClick={() => navigate('/ai-chat')}
+        >
+          <div className="absolute top-0 right-0 opacity-10 text-[5rem] pointer-events-none select-none">💬</div>
+          <div className="flex flex-col items-center gap-2 z-10">
+            <div className="bg-purple-600/90 dark:bg-purple-700/80 rounded-full p-2 mb-1 shadow-lg">
+              <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" d="M12 20h9"></path><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m0 0H3m9 0a9 9 0 100-18 9 9 0 000 18z"></path></svg>
+            </div>
+            <span className="text-lg font-bold text-purple-800 dark:text-purple-200 tracking-tight">AI Chat</span>
+            <span className="text-gray-700 dark:text-gray-200 text-center text-sm font-medium">AI দিয়ে প্রশ্ন করুন, উত্তর পান।</span>
+          </div>
+          <button
+            className="btn btn-secondary mt-4 w-full group-hover:scale-105 transition-transform text-base"
+            style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
+            onClick={e => { e.stopPropagation(); navigate('/ai-chat'); }}
+          >AI Chat ব্যবহার করুন</button>
+        </div>
+
                 {/* Doubt Solve feature card */}
         <div
           className="group relative bg-gradient-to-br from-rose-100 via-rose-50 to-white dark:from-rose-900 dark:via-rose-950 dark:to-gray-900 rounded-xl shadow-lg border border-rose-200 dark:border-rose-800 p-4 flex flex-col items-center justify-between transition-transform hover:-translate-y-1 hover:shadow-2xl cursor-pointer overflow-hidden min-h-[220px]"
@@ -108,27 +150,6 @@ function Dashboard() {
             style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
             onClick={e => { e.stopPropagation(); navigate('/doubt-solve'); }}
           >ডাউট সলভ খুলুন</button>
-        </div>
-
-        {/* AI Chat ফিচার কার্ড */}
-        <div
-          className="group relative bg-gradient-to-br from-purple-100 via-purple-50 to-white dark:from-purple-900 dark:via-purple-950 dark:to-gray-900 rounded-xl shadow-lg border border-purple-200 dark:border-purple-800 p-4 flex flex-col items-center justify-between transition-transform hover:-translate-y-1 hover:shadow-2xl cursor-pointer overflow-hidden min-h-[220px]"
-          style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
-          onClick={() => navigate('/ai-chat')}
-        >
-          <div className="absolute top-0 right-0 opacity-10 text-[5rem] pointer-events-none select-none">💬</div>
-          <div className="flex flex-col items-center gap-2 z-10">
-            <div className="bg-purple-600/90 dark:bg-purple-700/80 rounded-full p-2 mb-1 shadow-lg">
-              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
-            </div>
-            <span className="text-lg font-bold text-purple-800 dark:text-purple-200 tracking-tight">AI Chat</span>
-            <span className="text-gray-700 dark:text-gray-200 text-center text-sm font-medium">EaseMate AI দিয়ে প্রশ্ন করুন, উন্নত উত্তর পান।</span>
-          </div>
-          <button
-            className="btn btn-secondary mt-4 w-full group-hover:scale-105 transition-transform text-base"
-            style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
-            onClick={e => { e.stopPropagation(); navigate('/ai-chat'); }}
-          >AI Chat ব্যবহার করুন</button>
         </div>
         {/* ডাউট সলভ ফিচার কার্ড (now routes to /doubtsolve) */}
         {/**
