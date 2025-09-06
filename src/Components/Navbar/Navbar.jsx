@@ -57,15 +57,11 @@ function Navbar() {
             </button>
             {dropdownOpen && (
               <ul className="menu menu-sm dropdown-content bg-base-100 rounded-box z-1 mt-3 w-52 p-2 shadow">
-                <li>
-                  <Link to="/unlimited-ai-qa" onClick={handleMenuClick} className="font-semibold text-purple-700">
-                    <span role="img" aria-label="ai">🤖</span> আনলিমিটেড AI প্রশ্ন-উত্তর
-                  </Link>
-                </li>
                 <li><Link to="/bookcontent" onClick={() => setTimeout(() => handleMenuClick(), 50)}>পাঠ্যবই</Link></li>
                 <li><Link to="/creative-cq" onClick={() => setTimeout(() => handleMenuClick(), 50)}>প্রশ্ন ব্যাংক</Link></li>
                 <li><Link to="/selftest" onClick={() => setTimeout(() => handleMenuClick(), 50)}>সেলফ টেস্ট</Link></li>
                 <li><Link to="/ai-assistant" onClick={() => setTimeout(() => handleMenuClick(), 50)}>AI সহকারী</Link></li>
+                <li><Link to="/unlimited-ai-qa" onClick={() => setTimeout(() => handleMenuClick(), 50)}>আনলিমিটেড AI প্রশ্ন-উত্তর</Link></li>
                 <li><Link to="/ai-chat" onClick={() => setTimeout(() => handleMenuClick(), 50)}>AI Chat</Link></li>
                 <li><Link to="/doubt-solve" onClick={() => setTimeout(() => handleMenuClick(), 50)}>ডাউট সলভ</Link></li>
               </ul>
