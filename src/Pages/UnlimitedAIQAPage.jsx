@@ -148,6 +148,9 @@ const UnlimitedAIQAPage = () => {
         method: "POST",
         headers: {
           "authorization": `Bearer ${token}`,
+          "accept": "*/*",
+          "origin": "https://www.aidocmaker.com",
+          "referer": "https://www.aidocmaker.com/"
         },
         body: formData,
       });
@@ -162,8 +165,8 @@ const UnlimitedAIQAPage = () => {
         const { done, value } = await reader.read();
         if (done) break;
         result += decoder.decode(value);
+        setAnswer(result); // Show partial result as it streams
       }
-      setAnswer(result);
     } catch (err) {
       setError(err.message);
     } finally {
