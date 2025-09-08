@@ -68,29 +68,51 @@ function Dashboard() {
             onClick={e => { e.stopPropagation(); navigate('/selftest'); }}
           >সেলফ টেস্ট দিন</button>
         </div>
-        {/* AI সহকারী ফিচার কার্ড */}
+
+        {/* AI টিউটর ফিচার কার্ড */}
         <div
           className="group relative bg-gradient-to-br from-indigo-100 via-indigo-50 to-white dark:from-indigo-900 dark:via-indigo-950 dark:to-gray-900 rounded-xl shadow-lg border border-indigo-200 dark:border-indigo-800 p-4 flex flex-col items-center justify-between transition-transform hover:-translate-y-1 hover:shadow-2xl cursor-pointer overflow-hidden min-h-[220px]"
           style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
-          onClick={() => navigate('/ai-assistant')}
+          onClick={() => navigate('/ai-aggregator')}
         >
-          <div className="absolute top-0 right-0 opacity-10 text-[5rem] pointer-events-none select-none">🤖</div>
+          <div className="absolute top-0 right-0 opacity-10 text-[5rem] pointer-events-none select-none">🎓</div>
           <div className="flex flex-col items-center gap-2 z-10">
             <div className="bg-indigo-600/90 dark:bg-indigo-700/80 rounded-full p-2 mb-1 shadow-lg">
               <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" d="M12 20h9"/><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m0 0H3m9 0a9 9 0 100-18 9 9 0 000 18z"/></svg>
             </div>
-            <span className="text-lg font-bold text-indigo-800 dark:text-indigo-200 tracking-tight">AI সহকারী</span>
-            <span className="text-gray-700 dark:text-gray-200 text-center text-sm font-medium">প্রশ্ন করুন (লিখে বা ছবি দিয়ে), উত্তর বাংলায় জানুন।</span>
+            <span className="text-lg font-bold text-indigo-800 dark:text-indigo-200 tracking-tight">AI টিউটর</span>
+            <span className="text-gray-700 dark:text-gray-200 text-center text-sm font-medium">বিষয়ভিত্তিক AI টিউটর, শ্রেণি ও বিষয় সিলেক্ট করে পড়ুন।</span>
+          </div>
+          <button
+            className="btn btn-primary mt-4 w-full group-hover:scale-105 transition-transform text-base"
+            style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
+            onClick={e => { e.stopPropagation(); navigate('/ai-aggregator'); }}
+          >AI টিউটর খুলুন</button>
+        </div>
+
+        {/* AI টিউটর (সকল শ্রেণি) ফিচার কার্ড */}
+        <div
+          className="group relative bg-gradient-to-br from-cyan-100 via-cyan-50 to-white dark:from-cyan-900 dark:via-cyan-950 dark:to-gray-900 rounded-xl shadow-lg border border-cyan-200 dark:border-cyan-800 p-4 flex flex-col items-center justify-between transition-transform hover:-translate-y-1 hover:shadow-2xl cursor-pointer overflow-hidden min-h-[220px]"
+          style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
+          onClick={() => navigate('/ai-aggregator-2')}
+        >
+          <div className="absolute top-0 right-0 opacity-10 text-[5rem] pointer-events-none select-none">🎓</div>
+          <div className="flex flex-col items-center gap-2 z-10">
+            <div className="bg-cyan-600/90 dark:bg-cyan-700/80 rounded-full p-2 mb-1 shadow-lg">
+              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" d="M12 20h9"/><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m0 0H3m9 0a9 9 0 100-18 9 9 0 000 18z"/></svg>
+            </div>
+            <span className="text-lg font-bold text-cyan-800 dark:text-cyan-200 tracking-tight">AI টিউটর (সকল শ্রেণি)</span>
+            <span className="text-gray-700 dark:text-gray-200 text-center text-sm font-medium">সব ক্লাসের জন্য AI টিউটর, ফ্রি ফরম ইনপুট সহ।</span>
           </div>
           <button
             className="btn btn-info mt-4 w-full group-hover:scale-105 transition-transform text-base"
             style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
-            onClick={e => { e.stopPropagation(); navigate('/ai-assistant'); }}
-          >AI সহকারী ব্যবহার করুন</button>
+            onClick={e => { e.stopPropagation(); navigate('/ai-aggregator-2'); }}
+          >AI টিউটর (সকল শ্রেণি) খুলুন</button>
         </div>
 
         {/* আনলিমিটেড AI প্রশ্ন-উত্তর ফিচার কার্ড */}
-        <div
+        {/* <div
           className="group relative bg-gradient-to-br from-purple-100 via-purple-50 to-white dark:from-purple-900 dark:via-purple-950 dark:to-gray-900 rounded-xl shadow-lg border border-purple-200 dark:border-purple-800 p-4 flex flex-col items-center justify-between transition-transform hover:-translate-y-1 hover:shadow-2xl cursor-pointer overflow-hidden min-h-[220px]"
           style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
           onClick={() => navigate('/unlimited-ai-qa')}
@@ -108,10 +130,10 @@ function Dashboard() {
             style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
             onClick={e => { e.stopPropagation(); navigate('/unlimited-ai-qa'); }}
           >AI প্রশ্ন-উত্তর করুন</button>
-        </div>
+        </div> */}
 
         {/* AI Chat ফিচার কার্ড */}
-        <div
+        {/* <div
           className="group relative bg-gradient-to-br from-purple-100 via-purple-50 to-white dark:from-purple-900 dark:via-purple-950 dark:to-gray-900 rounded-xl shadow-lg border border-purple-200 dark:border-purple-800 p-4 flex flex-col items-center justify-between transition-transform hover:-translate-y-1 hover:shadow-2xl cursor-pointer overflow-hidden min-h-[220px]"
           style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
           onClick={() => navigate('/ai-chat')}
@@ -129,10 +151,10 @@ function Dashboard() {
             style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
             onClick={e => { e.stopPropagation(); navigate('/ai-chat'); }}
           >AI Chat ব্যবহার করুন</button>
-        </div>
+        </div> */}
 
                 {/* Doubt Solve feature card */}
-        <div
+        {/* <div
           className="group relative bg-gradient-to-br from-rose-100 via-rose-50 to-white dark:from-rose-900 dark:via-rose-950 dark:to-gray-900 rounded-xl shadow-lg border border-rose-200 dark:border-rose-800 p-4 flex flex-col items-center justify-between transition-transform hover:-translate-y-1 hover:shadow-2xl cursor-pointer overflow-hidden min-h-[220px]"
           style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
           onClick={() => navigate('/doubt-solve')}
@@ -150,34 +172,8 @@ function Dashboard() {
             style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
             onClick={e => { e.stopPropagation(); navigate('/doubt-solve'); }}
           >ডাউট সলভ খুলুন</button>
-        </div>
-        {/* ডাউট সলভ ফিচার কার্ড (now routes to /doubtsolve) */}
-        {/**
-        <div
-          className="group relative bg-gradient-to-br from-rose-100 via-rose-50 to-white dark:from-rose-900 dark:via-rose-950 dark:to-gray-900 rounded-xl shadow-lg border border-rose-200 dark:border-rose-800 p-4 flex flex-col items-center justify-between transition-transform hover:-translate-y-1 hover:shadow-2xl cursor-pointer overflow-hidden min-h-[220px]"
-          style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
-          onClick={() => navigate('/doubtsolve')}
-        >
-          <div className="absolute top-0 right-0 opacity-10 text-[5rem] pointer-events-none select-none">❓</div>
-          <div className="flex flex-col items-center gap-2 z-10">
-            <div className="bg-rose-600/90 dark:bg-rose-700/80 rounded-full p-2 mb-1 shadow-lg">
-              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" d="M12 20h9"/><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m0 0H3m9 0a9 9 0 100-18 9 9 0 000 18z"/></svg>
-            </div>
-            <span className="text-lg font-bold text-rose-800 dark:text-rose-200 tracking-tight">ডাউট সলভ</span>
-            <span className="text-gray-700 dark:text-gray-200 text-center text-sm font-medium">আপনার ডাউট লিখুন/ছবি দিন, উত্তর পান।</span>
-          </div>
-          <button
-            className="btn btn-error mt-4 w-full group-hover:scale-105 transition-transform text-base"
-            style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
-      onClick={e => { e.stopPropagation(); navigate('/doubtsolve'); }}
-          >ডাউট সলভ খুলুন</button>
-        </div>
-        */}
-  {/** Old Gemma cards commented by request */}
-  {/**
-  <div ...>Gemma 3 27B DoubtSolve</div>
-  <div ...>Gemma 3n 2B DoubtSolve</div>
-  */}
+        </div> */}
+        
       </div>
     </div>
   );

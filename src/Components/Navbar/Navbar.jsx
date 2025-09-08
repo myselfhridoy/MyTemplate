@@ -60,10 +60,12 @@ function Navbar() {
                 <li><Link to="/bookcontent" onClick={() => setTimeout(() => handleMenuClick(), 50)}>পাঠ্যবই</Link></li>
                 <li><Link to="/creative-cq" onClick={() => setTimeout(() => handleMenuClick(), 50)}>প্রশ্ন ব্যাংক</Link></li>
                 <li><Link to="/selftest" onClick={() => setTimeout(() => handleMenuClick(), 50)}>সেলফ টেস্ট</Link></li>
-                <li><Link to="/ai-assistant" onClick={() => setTimeout(() => handleMenuClick(), 50)}>AI সহকারী</Link></li>
-                <li><Link to="/unlimited-ai-qa" onClick={() => setTimeout(() => handleMenuClick(), 50)}>আনলিমিটেড AI প্রশ্ন-উত্তর</Link></li>
-                <li><Link to="/ai-chat" onClick={() => setTimeout(() => handleMenuClick(), 50)}>AI Chat</Link></li>
-                <li><Link to="/doubt-solve" onClick={() => setTimeout(() => handleMenuClick(), 50)}>ডাউট সলভ</Link></li>
+                {/* <li><Link to="/ai-assistant" onClick={() => setTimeout(() => handleMenuClick(), 50)}>AI সহকারী</Link></li> */}
+                {/* <li><Link to="/unlimited-ai-qa" onClick={() => setTimeout(() => handleMenuClick(), 50)}>আনলিমিটেড AI প্রশ্ন-উত্তর</Link></li> */}
+                {/* <li><Link to="/ai-chat" onClick={() => setTimeout(() => handleMenuClick(), 50)}>AI Chat</Link></li> */}
+                {/* <li><Link to="/doubt-solve" onClick={() => setTimeout(() => handleMenuClick(), 50)}>ডাউট সলভ</Link></li> */}
+                <li><Link to="/ai-aggregator" onClick={() => setTimeout(() => handleMenuClick(), 50)}>AI টিউটর</Link></li>
+                <li><Link to="/ai-aggregator-2" onClick={() => setTimeout(() => handleMenuClick(), 50)}>AI টিউটর (সকল শ্রেণি)</Link></li>
               </ul>
             )}
           </div>

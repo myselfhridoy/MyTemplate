@@ -2,7 +2,8 @@
   const getPromptForQuestionType = (type, userQuestion, contextPrompt = null) => {
     // Always send a non-empty question: if userQuestion is empty, use a fallback
     const safeQuestion = userQuestion && userQuestion.trim() ? userQuestion : "ছবিতে দেওয়া প্রশ্নটি দেখুন।";
-    const basePrompt = contextPrompt || `আপনি H.M. Tutoring AI Assistant। সব প্রশ্নের উত্তর বাংলায় এবং শুধুমাত্র গাণিতিক অংশগুলো MathJax ফরম্যাটে \`$...$\` এর ভিতরে থাকবে। **বাংলা লেখাগুলো কখনোই $...$ এর ভিতরে থাকবে না।** \n\n**গুরুত্বপূর্ণ formatting নিয়ম:**\n- বাংলা টেক্সট এবং math expressions একই লাইনে লিখো\n- শুধুমাত্র নতুন বিষয় বা section এর জন্য নতুন paragraph ব্যবহার করো\n- Math expressions এর আগে বা পরে অনর্থক line break দিও না\n- উদাহরণ: "অবস্থান ভেক্টরকে $\\vec{r}$ দ্বারা প্রকাশ করা হয়।" - এভাবে একই লাইনে লিখো\n\nউত্তরের structure:\n- তালিকার জন্য proper markdown formatting ব্যবহার করো\n- প্রতিটি নতুন বিষয়ের জন্য নতুন paragraph শুরু করো\n\n**কখনোই Gemini বা কোনো AI মডেলের নাম উত্তর বা পরিচয়ে উল্লেখ করবে না।**\n**কোনো ধরনের সম্ভাষণ (নমস্কার, হ্যালো, etc.) ব্যবহার করবে না, সরাসরি উত্তর দাও।**`;
+  const formattingBlock = `আপনি H.M. Tutoring AI Assistant। সব প্রশ্নের উত্তর বাংলায় এবং শুধুমাত্র গাণিতিক অংশগুলো MathJax ফরম্যাটে \`$...$\` এর ভিতরে থাকবে। **বাংলা লেখাগুলো কখনোই $...$ এর ভিতরে থাকবে না।** \n\n**গুরুত্বপূর্ণ formatting নিয়ম:**\n- বাংলা টেক্সট এবং math expressions একই লাইনে লিখো\n- শুধুমাত্র নতুন বিষয় বা section এর জন্য নতুন paragraph ব্যবহার করো\n- Math expressions এর আগে বা পরে অনর্থক line break দিও না\n- উদাহরণ: "অবস্থান ভেক্টরকে $\\vec{r}$ দ্বারা প্রকাশ করা হয়।" - এভাবে একই লাইনে লিখো\n\nউত্তরের structure:\n- তালিকার জন্য proper markdown formatting ব্যবহার করো\n- প্রতিটি নতুন বিষয়ের জন্য নতুন paragraph শুরু করো\n\n**কখনোই Gemini বা কোনো AI মডেলের নাম উত্তর বা পরিচয়ে উল্লেখ করবে না।**\n**কোনো ধরনের সম্ভাষণ (নমস্কার, হ্যালো, etc.) ব্যবহার করবে না, সরাসরি উত্তর দাও।**`;
+  const basePrompt = formattingBlock + (contextPrompt ? ("\n\n" + contextPrompt) : "");
     switch(type) {
       case 'জ্ঞানমূলক':
         return basePrompt + `\n\nএটি একটি জ্ঞানমূলক প্রশ্ন। অত্যন্ত সংক্ষিপ্ত ও সরাসরি উত্তর দাও (মাত্র ১-২ লাইনে)।\n\nপ্রশ্ন: ${safeQuestion}`;
@@ -27,13 +28,24 @@ import MathRenderer from "../Components/MathRenderer/MathRenderer";
 // Use a server-side proxy to avoid exposing token or token-source URL to the client.
 // Deploy a Netlify function (e.g. netlify/functions/proxy_borno) that fetches the
 // real token server-side and forwards the request to the real API with Authorization.
-const API_URL = "https://geminiai-xi.vercel.app/api/proxy_aidocmaker";
+const API_URL = "https://hmtutoring-backend.onrender.com/api/proxy_aidocmaker";
 
-const UnlimitedAIQAPage = () => {
-  const [selectedClass, setSelectedClass] = useState("");
-  const [selectedSubject, setSelectedSubject] = useState("");
-  const [selectedChapter, setSelectedChapter] = useState("");
-  const [questionType, setQuestionType] = useState("");
+const UnlimitedAIQAPage = ({
+  classOverride = undefined,
+  subjectOverride = undefined,
+  chapterOverride = undefined,
+  questionTypeOverride = undefined,
+  hideSelectors = false
+}) => {
+  const [selectedClass, setSelectedClass] = useState(classOverride ?? "");
+  const [selectedSubject, setSelectedSubject] = useState(subjectOverride ?? "");
+  const [selectedChapter, setSelectedChapter] = useState(chapterOverride ?? "");
+  const [questionType, setQuestionType] = useState(questionTypeOverride ?? "");
+  // Sync override props to state if they change
+  useEffect(() => { if (classOverride !== undefined) setSelectedClass(classOverride); }, [classOverride]);
+  useEffect(() => { if (subjectOverride !== undefined) setSelectedSubject(subjectOverride); }, [subjectOverride]);
+  useEffect(() => { if (chapterOverride !== undefined) setSelectedChapter(chapterOverride); }, [chapterOverride]);
+  useEffect(() => { if (questionTypeOverride !== undefined) setQuestionType(questionTypeOverride); }, [questionTypeOverride]);
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
   const [loading, setLoading] = useState(false);
@@ -180,53 +192,88 @@ const UnlimitedAIQAPage = () => {
         onSubmit={handleSubmit}
         style={{ contain: 'layout', willChange: 'contents' }}
       >
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
-          <select className="select select-bordered w-full text-sm" value={selectedClass} onChange={e => { 
-            setSelectedClass(e.target.value); 
-            setSelectedSubject(''); 
-            setSelectedChapter(''); 
-            if (answer) setAnswer('');
-          }} disabled={mappingLoading}>
-            <option value="">{mappingLoading ? "লোড হচ্ছে..." : "শ্রেণি"}</option>
-            {classes.map((cls, i) => <option key={i} value={cls}>{cls}</option>)}
-          </select>
-          {selectedClass && (
-            <select className="select select-bordered w-full text-sm" value={selectedSubject} onChange={e => { 
-              setSelectedSubject(e.target.value); 
+        {!hideSelectors ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
+            <select className="select select-bordered w-full text-sm" value={selectedClass} onChange={e => { 
+              setSelectedClass(e.target.value); 
+              setSelectedSubject(''); 
               setSelectedChapter(''); 
               if (answer) setAnswer('');
             }} disabled={mappingLoading}>
-              <option value="">বিষয়</option>
-              {subjects.map((subj, i) => <option key={i} value={subj}>{subj}</option>)}
+              <option value="">{mappingLoading ? "লোড হচ্ছে..." : "শ্রেণি"}</option>
+              {classes.map((cls, i) => <option key={i} value={cls}>{cls}</option>)}
             </select>
-          )}
-          {!selectedClass && (
-            <select className="select select-bordered w-full text-sm" disabled>
-              <option value="">প্রথমে শ্রেণি নির্বাচন করুন</option>
-            </select>
-          )}
-          {selectedClass && selectedSubject && (
-            <select className="select select-bordered w-full text-sm" value={selectedChapter} onChange={e => {
-              setSelectedChapter(e.target.value);
+            {selectedClass && (
+              <select className="select select-bordered w-full text-sm" value={selectedSubject} onChange={e => { 
+                setSelectedSubject(e.target.value); 
+                setSelectedChapter(''); 
+                if (answer) setAnswer('');
+              }} disabled={mappingLoading}>
+                <option value="">বিষয়</option>
+                {subjects.map((subj, i) => <option key={i} value={subj}>{subj}</option>)}
+              </select>
+            )}
+            {!selectedClass && (
+              <select className="select select-bordered w-full text-sm" disabled>
+                <option value="">প্রথমে শ্রেণি নির্বাচন করুন</option>
+              </select>
+            )}
+            {selectedClass && selectedSubject && (
+              <select className="select select-bordered w-full text-sm" value={selectedChapter} onChange={e => {
+                setSelectedChapter(e.target.value);
+                if (answer) setAnswer('');
+              }} disabled={mappingLoading}>
+                <option value="">অধ্যায়</option>
+                {chapters.map((ch, i) => <option key={i} value={ch}>{ch}</option>)}
+              </select>
+            )}
+            {(!selectedClass || !selectedSubject) && (
+              <select className="select select-bordered w-full text-sm" disabled>
+                <option value="">প্রথমে বিষয় নির্বাচন করুন</option>
+              </select>
+            )}
+            <select className="select select-bordered w-full text-sm" value={questionType} onChange={e => {
+              setQuestionType(e.target.value);
               if (answer) setAnswer('');
-            }} disabled={mappingLoading}>
-              <option value="">অধ্যায়</option>
-              {chapters.map((ch, i) => <option key={i} value={ch}>{ch}</option>)}
+            }}>
+              <option value="">প্রশ্নের ধরণ</option>
+              {questionTypes.map((type, i) => <option key={i} value={type.value}>{type.label}</option>)}
             </select>
-          )}
-          {(!selectedClass || !selectedSubject) && (
-            <select className="select select-bordered w-full text-sm" disabled>
-              <option value="">প্রথমে বিষয় নির্বাচন করুন</option>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
+            <input
+              className="input input-bordered w-full text-sm"
+              style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
+              placeholder="শ্রেণি"
+              value={selectedClass}
+              onChange={e => setSelectedClass(e.target.value)}
+            />
+            <input
+              className="input input-bordered w-full text-sm"
+              style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
+              placeholder="বিষয়"
+              value={selectedSubject}
+              onChange={e => setSelectedSubject(e.target.value)}
+            />
+            <input
+              className="input input-bordered w-full text-sm"
+              style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
+              placeholder="অধ্যায়"
+              value={selectedChapter}
+              onChange={e => setSelectedChapter(e.target.value)}
+            />
+            <select
+              className="select select-bordered w-full text-sm"
+              style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
+              value={questionType}
+              onChange={e => setQuestionType(e.target.value)}
+            >
+              <option value="">প্রশ্নের ধরণ</option>
+              {questionTypes.map((type, i) => <option key={i} value={type.value}>{type.label}</option>)}
             </select>
-          )}
-          <select className="select select-bordered w-full text-sm" value={questionType} onChange={e => {
-            setQuestionType(e.target.value);
-            if (answer) setAnswer('');
-          }}>
-            <option value="">প্রশ্নের ধরণ</option>
-            {questionTypes.map((type, i) => <option key={i} value={type.value}>{type.label}</option>)}
-          </select>
-        </div>
+          </div>
+        )}
         <div className="mb-4">
           <textarea
             className="textarea textarea-bordered w-full text-sm"

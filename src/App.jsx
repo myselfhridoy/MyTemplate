@@ -10,10 +10,13 @@ import FilteredCQPage from './Pages/FilteredCQPage';
 import CreativeCQPage from './Pages/CreativeCQPage';
 import SelfTestPage from './Pages/SelfTestPage';
 
+
 import AIAssistantPage from './Pages/AIAssistantPage';
 import AIChatPage from './Pages/AIChatPage';
 import DoubtSolvePage from './Pages/DoubtSolvePage';
 import UnlimitedAIQAPage from './Pages/UnlimitedAIQAPage';
+import AIAggregatorPage from './Pages/AIAggregatorPage';
+import AIAggregatorPage2 from './Pages/AIAggregatorPage2';
 
 
 export default class App extends Component {
@@ -35,6 +38,8 @@ export default class App extends Component {
             <Route path="/ai-chat" element={<AIChatPage />} />
             <Route path="/doubt-solve" element={<DoubtSolvePage />} />
             <Route path="/unlimited-ai-qa" element={<UnlimitedAIQAPage />} />
+            <Route path="/ai-aggregator" element={<AIAggregatorPage />} />
+            <Route path="/ai-aggregator-2" element={<AIAggregatorPage2 />} />
           </Routes>
         </div>
       </>
