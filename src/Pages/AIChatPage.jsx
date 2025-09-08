@@ -454,15 +454,17 @@ function AIChatPage({
               </select>
             </div>
           )}
+          
           <div className="mb-4">
             <textarea
               className="textarea textarea-bordered w-full text-sm"
-              style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
+              rows={3}
               placeholder="প্রশ্ন লিখুন..."
               value={questionText}
-              onChange={e => setQuestionText(e.target.value)}
-              rows={3}
+              onChange={handleTextChange}
             />
+          </div>
+          <div className="mb-4">
             <label className="block mb-1 font-semibold text-sm">অথবা ছবি আপলোড করুন:</label>
             <input type="file" accept="image/*" className="file-input file-input-bordered w-full text-sm" onChange={handleImageChange} />
             {imagePreviewUrl && <div className="mt-2"><img src={imagePreviewUrl} alt="Uploaded" className="max-h-32 w-auto rounded shadow mx-auto block" /></div>}
