@@ -108,6 +108,10 @@ class EaseMate {
     const url = s3Upload ? path : `${baseUrl}${path}`;
     try {
       let headers = {};
+      let contentType = null;
+      if (arguments.length > 7) {
+        contentType = arguments[7];
+      }
       if (!s3Upload && !path.startsWith(this.MAIL_API)) {
         const { sign, timestamp } = this._getSigns(body);
         headers = {
@@ -147,7 +151,7 @@ class EaseMate {
           Accept: "application/json, text/plain, */*",
           "Accept-Language": "id-ID,id;q=0.9",
           Connection: "keep-alive",
-          "Content-Type": "image/jpeg",
+          "Content-Type": contentType || "image/jpeg",
           Origin: "https://www.easemate.ai",
           Referer: "https://www.easemate.ai/",
           "Sec-Fetch-Dest": "empty",
@@ -218,17 +222,17 @@ class EaseMate {
       const objectInfo = [];
       if (imageUrl) {
         console.log("📷 Processing image...");
-        
-        // Check if imageUrl is a data URL (base64)
         if (imageUrl.startsWith('data:')) {
-          // Convert base64 to buffer
-          const base64Data = imageUrl.split(',')[1];
-          const imageBuffer = Buffer.from(base64Data, 'base64'); // Buffer is global in Node.js
-          
-          // Upload to S3
+          // Extract mime-type and base64 data
+          const matches = imageUrl.match(/^data:(image\/\w+);base64,(.+)$/);
+          if (!matches) throw new Error('Invalid base64 image data');
+          const mimeType = matches[1]; // e.g. image/png, image/jpeg
+          const base64Data = matches[2];
+          const ext = mimeType.split('/')[1]; // e.g. png, jpeg
+          const imageBuffer = Buffer.from(base64Data, 'base64');
           const timestamp = new Date().getTime();
           const uniqueId = crypto.randomBytes(16).toString("hex");
-          const s3Name = `${uniqueId}_${timestamp}.jpg`;
+          const s3Name = `${uniqueId}_${timestamp}.${ext}`;
           const s3Path = `pro/${this.DEVICE_UUID}/${s3Name}`;
           const uploadUrlPayload = {
             key: s3Path,
@@ -236,23 +240,33 @@ class EaseMate {
           };
           const uploadResponse = await this._apiCall("/task/query_upload_url", "POST", uploadUrlPayload);
           const { upload_url, download_url } = uploadResponse;
-          
-          await this._apiCall(upload_url, "PUT", imageBuffer, true);
+          await this._apiCall(upload_url, "PUT", imageBuffer, true, false, false, null, mimeType);
           console.log(`✅ Gambar berhasil diunggah ke S3: ${download_url}`);
-          
           objectInfo.push({
             img_info: {
               s3_name: s3Name,
               s3_url: download_url,
               size: imageBuffer.length,
-              origin_name: "input_image.jpg"
+              origin_name: `input_image.${ext}`
             }
           });
         } else {
           // If it's already a URL, try to fetch and upload
           const timestamp = new Date().getTime();
           const uniqueId = crypto.randomBytes(16).toString("hex");
-          const s3Name = `${uniqueId}_${timestamp}.jpg`;
+          // Try to get extension from URL (fallback to jpg)
+          let ext = 'jpg';
+          let mimeType = 'image/jpeg';
+          const urlMatch = imageUrl.match(/\.([a-zA-Z0-9]+)(\?|$)/);
+          if (urlMatch) {
+            ext = urlMatch[1];
+            if (ext === 'png') mimeType = 'image/png';
+            else if (ext === 'webp') mimeType = 'image/webp';
+            else if (ext === 'gif') mimeType = 'image/gif';
+            else if (ext === 'bmp') mimeType = 'image/bmp';
+            else if (ext === 'jpeg' || ext === 'jpg') mimeType = 'image/jpeg';
+          }
+          const s3Name = `${uniqueId}_${timestamp}.${ext}`;
           const s3Path = `pro/${this.DEVICE_UUID}/${s3Name}`;
           const uploadUrlPayload = {
             key: s3Path,
@@ -260,23 +274,20 @@ class EaseMate {
           };
           const uploadResponse = await this._apiCall("/task/query_upload_url", "POST", uploadUrlPayload);
           const { upload_url, download_url } = uploadResponse;
-          
           const imageFetchResponse = await fetch(imageUrl);
           if (!imageFetchResponse.ok) {
             throw new Error(`Gagal mengambil gambar dari URL: ${imageUrl}`);
           }
           const imageArrayBuffer = await imageFetchResponse.arrayBuffer();
-          const imageBuffer = Buffer.from(imageArrayBuffer); // Buffer is global in Node.js
-          
-          await this._apiCall(upload_url, "PUT", imageBuffer, true);
+          const imageBuffer = Buffer.from(imageArrayBuffer);
+          await this._apiCall(upload_url, "PUT", imageBuffer, true, false, false, null, mimeType);
           console.log(`✅ Gambar berhasil diunggah ke S3: ${download_url}`);
-          
           objectInfo.push({
             img_info: {
               s3_name: s3Name,
               s3_url: download_url,
               size: imageBuffer.length,
-              origin_name: "input_image.jpg"
+              origin_name: `input_image.${ext}`
             }
           });
         }
@@ -312,22 +323,22 @@ router.post("/", cors(), async (req, res) => {
     const { action, ...params } = req.body || {};
     const ai = new EaseMate();
     if (!action) {
-      return res.status(400).json({ error: "Parameter 'action' diperlukan." });
+      return res.status(400).json({ error: "'action' প্যারামিটারটি আবশ্যক।" });
     }
     switch (action) {
       case "chat": {
         if (!params.prompt) {
-          return res.status(400).json({ error: "Parameter 'prompt' harus ada untuk aksi 'chat'." });
+          return res.status(400).json({ error: "'প্রশ্ন' (prompt) প্যারামিটারটি আবশ্যক।" });
         }
         const answer = await ai.chat(params);
-        return res.status(200).json({ answer });
+        return res.status(200).json({ result: { answer } });
       }
       default:
-        return res.status(400).json({ error: `Aksi tidak valid. Aksi yang didukung: 'chat'.` });
+        return res.status(400).json({ error: `ভুল action। শুধুমাত্র 'chat' action সমর্থিত।` });
     }
   } catch (error) {
-    console.error("❌ Kesalahan pada handler API:", error);
-    return res.status(500).json({ error: error.message || "Kesalahan Server Internal." });
+    console.error("❌ সার্ভার ত্রুটি:", error);
+    return res.status(500).json({ error: error.message || "সার্ভার ত্রুটি।" });
   }
 });
 
