@@ -5,21 +5,21 @@ import AIChatPage from "./AIChatPage";
 import DoubtSolvePage from "./DoubtSolvePage";
 
 const pageOptions = [
-  { label: "AI সহকারী", value: "assistant" },
-  { label: "Unlimited AI Q&A", value: "qa" },
-  { label: "AI Chat", value: "chat" },
-  { label: "Doubt Solve", value: "doubt" },
+  { label: "Study Buddy", value: "qa" },
+  { label: "Knowledge Master", value: "assistant" },
+  { label: "Problem Solver", value: "chat" },
+  { label: "Concept Builder", value: "doubt" },
 ];
 
 const pageMap = {
-  assistant: <AIAssistantPage />,
   qa: <UnlimitedAIQAPage />,
+  assistant: <AIAssistantPage />,
   chat: <AIChatPage />,
   doubt: <DoubtSolvePage />,
 };
 
 export default function AIAggregatorPage() {
-  const [selected, setSelected] = useState("assistant");
+  const [selected, setSelected] = useState("qa"); // এখানে "qa" ডিফল্ট করে দেওয়া হয়েছে
   return (
     <div className="container mx-auto max-w-3xl p-4">
       <div className="mb-4">

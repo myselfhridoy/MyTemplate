@@ -5,15 +5,15 @@ import AIChatPage from "./AIChatPage";
 import DoubtSolvePage from "./DoubtSolvePage";
 
 const pageOptions = [
-  { label: "AI সহকারী", value: "assistant", Comp: AIAssistantPage },
-  { label: "Unlimited AI Q&A", value: "qa", Comp: UnlimitedAIQAPage },
-  { label: "AI Chat", value: "chat", Comp: AIChatPage },
-  { label: "Doubt Solve", value: "doubt", Comp: DoubtSolvePage },
+  { label: "Study Buddy", value: "qa", Comp: UnlimitedAIQAPage },
+  { label: "Knowledge Master", value: "assistant", Comp: AIAssistantPage },
+  { label: "Problem Solver", value: "chat", Comp: AIChatPage },
+  { label: "Concept Builder", value: "doubt", Comp: DoubtSolvePage },
 ];
 
 
 export default function AIAggregatorPage2() {
-  const [selected, setSelected] = useState("assistant");
+  const [selected, setSelected] = useState("qa"); // এখানে "qa" ডিফল্ট করে দেওয়া হয়েছে
   const [classOverride, setClassOverride] = useState("");
   const [subjectOverride, setSubjectOverride] = useState("");
   const [chapterOverride, setChapterOverride] = useState("");
