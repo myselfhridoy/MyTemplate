@@ -15,7 +15,7 @@ const pageOptions = [
 
 
 export default function AIAggregatorPage2() {
-  const [selected, setSelected] = useState("qa"); // এখানে "qa" ডিফল্ট করে দেওয়া হয়েছে
+  const [selected, setSelected] = useState("hmtai"); // এখানে "hmtai" ডিফল্ট করে দেওয়া হয়েছে
   const [classOverride, setClassOverride] = useState("");
   const [subjectOverride, setSubjectOverride] = useState("");
   const [chapterOverride, setChapterOverride] = useState("");
