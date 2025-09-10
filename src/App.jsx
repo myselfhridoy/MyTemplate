@@ -15,6 +15,7 @@ import AIAssistantPage from './Pages/AIAssistantPage';
 import AIChatPage from './Pages/AIChatPage';
 import DoubtSolvePage from './Pages/DoubtSolvePage';
 import UnlimitedAIQAPage from './Pages/UnlimitedAIQAPage';
+import HMTAIPage from './Pages/HMTAI';
 import AIAggregatorPage from './Pages/AIAggregatorPage';
 import AIAggregatorPage2 from './Pages/AIAggregatorPage2';
 
@@ -38,6 +39,7 @@ export default class App extends Component {
             <Route path="/ai-chat" element={<AIChatPage />} />
             <Route path="/doubt-solve" element={<DoubtSolvePage />} />
             <Route path="/unlimited-ai-qa" element={<UnlimitedAIQAPage />} />
+            <Route path="/hmt-ai" element={<HMTAIPage />} />
             <Route path="/ai-aggregator" element={<AIAggregatorPage />} />
             <Route path="/ai-aggregator-2" element={<AIAggregatorPage2 />} />
           </Routes>

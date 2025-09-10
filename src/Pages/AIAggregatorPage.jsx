@@ -1,10 +1,12 @@
 import React, { useState } from "react";
 import AIAssistantPage from "./AIAssistantPage";
 import UnlimitedAIQAPage from "./UnlimitedAIQAPage";
+import HMTAIPage from "./HMTAI";
 import AIChatPage from "./AIChatPage";
 import DoubtSolvePage from "./DoubtSolvePage";
 
 const pageOptions = [
+  { label: "H.M. Tutoring AI", value: "hmtai" },
   { label: "Study Buddy", value: "qa" },
   { label: "Knowledge Master", value: "assistant" },
   { label: "Problem Solver", value: "chat" },
@@ -12,6 +14,7 @@ const pageOptions = [
 ];
 
 const pageMap = {
+  hmtai: <HMTAIPage />,
   qa: <UnlimitedAIQAPage />,
   assistant: <AIAssistantPage />,
   chat: <AIChatPage />,
