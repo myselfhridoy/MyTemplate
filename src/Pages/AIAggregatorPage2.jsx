@@ -4,6 +4,7 @@ import UnlimitedAIQAPage from "./UnlimitedAIQAPage";
 import HMTAIPage from "./HMTAI";
 import AIChatPage from "./AIChatPage";
 import DoubtSolvePage from "./DoubtSolvePage";
+import BornoAIPage from "./BornoAIPage";
 
 const pageOptions = [
   { label: "H.M. Tutoring AI", value: "hmtai", Comp: HMTAIPage },
@@ -11,6 +12,7 @@ const pageOptions = [
   { label: "Knowledge Master", value: "assistant", Comp: AIAssistantPage },
   { label: "Problem Solver", value: "chat", Comp: AIChatPage },
   { label: "Concept Builder", value: "doubt", Comp: DoubtSolvePage },
+  { label: "Academic Assistant", value: "borno", Comp: BornoAIPage },
 ];
 
 

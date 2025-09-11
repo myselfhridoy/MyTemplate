@@ -12,6 +12,7 @@ import SelfTestPage from './Pages/SelfTestPage';
 
 
 import AIAssistantPage from './Pages/AIAssistantPage';
+import BornoAIPage from './Pages/BornoAIPage';
 import AIChatPage from './Pages/AIChatPage';
 import DoubtSolvePage from './Pages/DoubtSolvePage';
 import UnlimitedAIQAPage from './Pages/UnlimitedAIQAPage';
@@ -42,6 +43,7 @@ export default class App extends Component {
             <Route path="/hmt-ai" element={<HMTAIPage />} />
             <Route path="/ai-aggregator" element={<AIAggregatorPage />} />
             <Route path="/ai-aggregator-2" element={<AIAggregatorPage2 />} />
+            <Route path="/borno-ai" element={<BornoAIPage />} />
           </Routes>
         </div>
       </>

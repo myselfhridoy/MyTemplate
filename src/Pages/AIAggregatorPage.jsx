@@ -4,6 +4,7 @@ import UnlimitedAIQAPage from "./UnlimitedAIQAPage";
 import HMTAIPage from "./HMTAI";
 import AIChatPage from "./AIChatPage";
 import DoubtSolvePage from "./DoubtSolvePage";
+import BornoAIPage from "./BornoAIPage";
 
 const pageOptions = [
   { label: "H.M. Tutoring AI", value: "hmtai" },
@@ -11,6 +12,7 @@ const pageOptions = [
   { label: "Knowledge Master", value: "assistant" },
   { label: "Problem Solver", value: "chat" },
   { label: "Concept Builder", value: "doubt" },
+  { label: "Academic Assistant", value: "borno" },
 ];
 
 const pageMap = {
@@ -19,6 +21,7 @@ const pageMap = {
   assistant: <AIAssistantPage />,
   chat: <AIChatPage />,
   doubt: <DoubtSolvePage />,
+  borno: <BornoAIPage />,
 };
 
 export default function AIAggregatorPage() {
