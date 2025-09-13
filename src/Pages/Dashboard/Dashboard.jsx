@@ -111,6 +111,27 @@ function Dashboard() {
           >AI টিউটর (সকল শ্রেণি) খুলুন</button>
         </div>
 
+        {/* ChatPDF ফিচার কার্ড */}
+        <div
+          className="group relative bg-gradient-to-br from-fuchsia-100 via-fuchsia-50 to-white dark:from-fuchsia-900 dark:via-fuchsia-950 dark:to-gray-900 rounded-xl shadow-lg border border-fuchsia-200 dark:border-fuchsia-800 p-4 flex flex-col items-center justify-between transition-transform hover:-translate-y-1 hover:shadow-2xl cursor-pointer overflow-hidden min-h-[220px]"
+          style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
+          onClick={() => navigate('/chatpdf')}
+        >
+          <div className="absolute top-0 right-0 opacity-10 text-[5rem] pointer-events-none select-none">📄</div>
+          <div className="flex flex-col items-center gap-2 z-10">
+            <div className="bg-fuchsia-600/90 dark:bg-fuchsia-700/80 rounded-full p-2 mb-1 shadow-lg">
+              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 8h8M8 12h8M8 16h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </div>
+            <span className="text-lg font-bold text-fuchsia-800 dark:text-fuchsia-200 tracking-tight">ChatPDF</span>
+            <span className="text-gray-700 dark:text-gray-200 text-center text-sm font-medium">PDF বা যেকোনো ফাইল আপলোড করে AI-এর সাথে আলাপ করুন।</span>
+          </div>
+          <button
+            className="btn btn-accent mt-4 w-full group-hover:scale-105 transition-transform text-base"
+            style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
+            onClick={e => { e.stopPropagation(); navigate('/chatpdf'); }}
+          >ChatPDF খুলুন</button>
+        </div>
+
         {/* আনলিমিটেড AI প্রশ্ন-উত্তর ফিচার কার্ড */}
         {/* <div
           className="group relative bg-gradient-to-br from-purple-100 via-purple-50 to-white dark:from-purple-900 dark:via-purple-950 dark:to-gray-900 rounded-xl shadow-lg border border-purple-200 dark:border-purple-800 p-4 flex flex-col items-center justify-between transition-transform hover:-translate-y-1 hover:shadow-2xl cursor-pointer overflow-hidden min-h-[220px]"

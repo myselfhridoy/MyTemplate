@@ -20,6 +20,9 @@ import HMTAIPage from './Pages/HMTAI';
 import AIAggregatorPage from './Pages/AIAggregatorPage';
 import AIAggregatorPage2 from './Pages/AIAggregatorPage2';
 
+import ChatPDFPage from './Pages/ChatPDFPage';
+import MathGPTPage from './Pages/MathGPTPage';
+
 
 export default class App extends Component {
   render() {
@@ -44,6 +47,8 @@ export default class App extends Component {
             <Route path="/ai-aggregator" element={<AIAggregatorPage />} />
             <Route path="/ai-aggregator-2" element={<AIAggregatorPage2 />} />
             <Route path="/borno-ai" element={<BornoAIPage />} />
+            <Route path="/mathgpt" element={<MathGPTPage />} />
+            <Route path="/chatpdf" element={<ChatPDFPage />} />
           </Routes>
         </div>
       </>
