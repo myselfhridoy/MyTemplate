@@ -16,8 +16,8 @@ const pageOptions = [
 ];
 
 const pageMap = {
-  hmtai: <HMTAIPage />,
-  qa: <UnlimitedAIQAPage />,
+  hmtai: <UnlimitedAIQAPage />,
+  qa: <HMTAIPage />,
   assistant: <AIAssistantPage />,
   chat: <AIChatPage />,
   doubt: <DoubtSolvePage />,

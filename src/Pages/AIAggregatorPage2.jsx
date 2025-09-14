@@ -7,8 +7,8 @@ import DoubtSolvePage from "./DoubtSolvePage";
 import BornoAIPage from "./BornoAIPage";
 
 const pageOptions = [
-  { label: "H.M. Tutoring AI", value: "hmtai", Comp: HMTAIPage },
-  { label: "Study Buddy", value: "qa", Comp: UnlimitedAIQAPage },
+  { label: "H.M. Tutoring AI", value: "hmtai", Comp: UnlimitedAIQAPage },
+  { label: "Study Buddy", value: "qa", Comp: HMTAIPage },
   { label: "Knowledge Master", value: "assistant", Comp: AIAssistantPage },
   { label: "Problem Solver", value: "chat", Comp: AIChatPage },
   { label: "Concept Builder", value: "doubt", Comp: DoubtSolvePage },
