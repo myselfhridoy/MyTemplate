@@ -1,6 +1,100 @@
 
 import React, { useEffect, useState } from "react";
 import { MathJaxContext } from 'better-react-mathjax';
+import { BlockMath, InlineMath } from 'react-katex';
+import 'katex/dist/katex.min.css';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import remarkBreaks from 'remark-breaks';
+import rehypeKatex from 'rehype-katex';
+
+// KaTeXRenderer: renders $...$ and $$...$$ blocks using KaTeX
+function KaTeXRenderer({ html }) {
+  // Split by block math ($$...$$) and inline math ($...$)
+  // This is a simple parser, not perfect for all edge cases
+  if (!html) return null;
+  const blockRegex = /\$\$([\s\S]+?)\$\$/g;
+  const inlineRegex = /\$([^$\n]+?)\$/g;
+  let parts = [];
+  let lastIndex = 0;
+  let match;
+  // Helper to split by <br> and add margin
+  function splitWithBr(str, keyPrefix = '') {
+    const segments = str.split(/<br\s*\/?>(?![^<]*>)/i);
+    const out = [];
+    segments.forEach((seg, i) => {
+      if (i > 0) {
+        out.push(<br key={keyPrefix + 'br' + i} className="katex-linebreak" />);
+      }
+      if (seg) out.push(seg);
+    });
+    return out;
+  }
+  // First, handle block math
+  let blockMatches = [];
+  while ((match = blockRegex.exec(html)) !== null) {
+    blockMatches.push({ start: match.index, end: blockRegex.lastIndex, content: match[1] });
+  }
+  if (blockMatches.length === 0) {
+    // No block math, just handle inline
+    let idx = 0;
+    let text = html;
+    let m;
+    while ((m = inlineRegex.exec(text)) !== null) {
+      if (m.index > idx) {
+        parts.push(...splitWithBr(text.slice(idx, m.index), 'inline'+m.index));
+      }
+      parts.push(<InlineMath key={m.index}>{m[1]}</InlineMath>);
+      idx = inlineRegex.lastIndex;
+    }
+    if (idx < text.length) {
+      parts.push(...splitWithBr(text.slice(idx), 'inlineEnd'));
+    }
+    return <span>{parts}</span>;
+  } else {
+    // There is block math, split accordingly
+    let idx = 0;
+    for (let i = 0; i < blockMatches.length; i++) {
+      const { start, end, content } = blockMatches[i];
+      if (start > idx) {
+        // Handle inline math in the non-math region
+        let text = html.slice(idx, start);
+        let m;
+        let last = 0;
+        while ((m = inlineRegex.exec(text)) !== null) {
+          if (m.index > last) {
+            parts.push(...splitWithBr(text.slice(last, m.index), 'block'+start+'-'+m.index));
+          }
+          parts.push(<InlineMath key={start + m.index}>{m[1]}</InlineMath>);
+          last = inlineRegex.lastIndex;
+        }
+        if (last < text.length) {
+          parts.push(...splitWithBr(text.slice(last), 'blockEnd'+start));
+        }
+      }
+      parts.push(<BlockMath key={start}>{content}</BlockMath>);
+      idx = end;
+    }
+    if (idx < html.length) {
+      // Handle inline math in the trailing region
+      let text = html.slice(idx);
+      let m;
+      let last = 0;
+      while ((m = inlineRegex.exec(text)) !== null) {
+        if (m.index > last) {
+          parts.push(...splitWithBr(text.slice(last, m.index), 'trail'+idx+'-'+m.index));
+        }
+        parts.push(<InlineMath key={idx + m.index}>{m[1]}</InlineMath>);
+        last = inlineRegex.lastIndex;
+      }
+      if (last < text.length) {
+        parts.push(...splitWithBr(text.slice(last), 'trailEnd'+idx));
+      }
+    }
+    return <span>{parts}</span>;
+  }
+}
 
 const BOOK_MAPPING_URL =
   "https://raw.githubusercontent.com/myselfhridoy/hmtutoring-database/refs/heads/main/bookcontentmapping.json";
@@ -58,7 +152,7 @@ function BookContentPage() {
             // Add Tailwind classes to headings and paragraphs
             cleanedHtml = cleanedHtml
               .replace(/<h1(.*?)>([\s\S]*?)<\/h1>/g, '<h1$1 class="text-3xl font-extrabold text-primary underline underline-offset-4 mb-4 mt-8" >$2</h1>')
-              .replace(/<h2(.*?)>([\s\S]*?)<\/h2>/g, '<h2$1 class="text-2xl font-bold text-blue-700 underline underline-offset-4 mb-3 mt-6" >$2</h2>')
+              .replace(/<h2(.*?)>([\s\S]*?)<\/h2>/g, '<h2$1 class="text-2xl font-bold text-red-400 underline underline-offset-4 mb-3 mt-6" >$2</h2>')
               .replace(/<h3(.*?)>([\s\S]*?)<\/h3>/g, '<h3$1 class="text-xl font-bold text-blue-600 underline underline-offset-4 mb-2 mt-4" >$2</h3>')
               .replace(/<h4(.*?)>([\s\S]*?)<\/h4>/g, '<h4$1 class="text-lg font-semibold text-blue-500 underline underline-offset-4 mb-2 mt-3" >$2</h4>')
               .replace(/<h5(.*?)>([\s\S]*?)<\/h5>/g, '<h5$1 class="text-base font-semibold text-blue-400 underline underline-offset-4 mb-1 mt-2" >$2</h5>')
@@ -173,21 +267,50 @@ function BookContentPage() {
                   }}
                 >
                   <style>{`
+                    .katex-linebreak {
+                      display: block;
+                      margin-bottom: 1.25em;
+                    }
                     .prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
                       text-decoration: underline;
                       text-underline-offset: 6px;
                     }
+                    .prose h1, .prose h2 {
+                      text-align: center;
+                    }
+                    .prose h1, .prose h2 {
+                      color: #fb7185 !important; /* Tailwind red-400 */
+                    }
                     .prose, .prose p, .prose span, .prose div, .prose li, .prose td, .prose th {
                       color: var(--fallback-bc, var(--b1));
+                    }
+                    .prose p, .prose ul, .prose ol, .prose li {
+                      margin-bottom: 1.1em;
+                    }
+                    .prose br {
+                      display: block;
+                      margin-bottom: 1.25em;
+                    }
+                    .prose td br, .prose th br {
+                      display: block;
+                      margin-bottom: 1.25em !important;
                     }
                     .dark .prose, .dark .prose p, .dark .prose span, .dark .prose div, .dark .prose li, .dark .prose td, .dark .prose th {
                       color: var(--fallback-bc, var(--bc));
                     }
-                    .dark .prose h1, .dark .prose h2, .dark .prose h3, .dark .prose h4, .dark .prose h5, .dark .prose h6 {
+                    .dark .prose h1, .dark .prose h3, .dark .prose h4, .dark .prose h5, .dark .prose h6 {
                       color: #fff !important;
                     }
+                    .dark .prose h1, .dark .prose h2 {
+                      color: #fb7185 !important;
+                    }
                   `}</style>
-                  <span dangerouslySetInnerHTML={{ __html: divBlocks[currentPage - 1] }} />
+                  {/* Render as Markdown with math/KaTeX support */}
+                  <ReactMarkdown
+                    children={divBlocks[currentPage - 1]}
+                    remarkPlugins={[remarkGfm, remarkMath, remarkBreaks]}
+                    rehypePlugins={[rehypeKatex]}
+                  />
                 </div>
                 {/* Pagination controls below content */}
                 {divBlocks.length > 1 && (
