@@ -158,7 +158,7 @@ const ChatPDFPage = ({
       if (file) {
         formData.append("attachments", file);
       }
-      formData.append("max_mode", "false");
+      formData.append("max_mode", "true");
       const response = await fetch(API_URL, {
         method: "POST",
         body: formData,
