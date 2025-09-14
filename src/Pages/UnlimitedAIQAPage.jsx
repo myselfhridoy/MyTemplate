@@ -21,7 +21,7 @@
   };
 
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { v4 as uuidv4 } from "uuid";
 import MathRenderer from "../Components/MathRenderer/MathRenderer";
 
@@ -125,6 +125,9 @@ const UnlimitedAIQAPage = ({
     }
   };
 
+  // conversation_id persists for the session (until page refresh)
+  const conversationIdRef = useRef(uuidv4());
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     // Validation: Check if all required fields are selected
@@ -140,7 +143,7 @@ const UnlimitedAIQAPage = ({
     setError("");
     setAnswer("");
     try {
-      const conversation_id = uuidv4();
+      const conversation_id = conversationIdRef.current;
       const message_id = uuidv4();
       const formData = new FormData();
       formData.append("conversation_id", conversation_id);
