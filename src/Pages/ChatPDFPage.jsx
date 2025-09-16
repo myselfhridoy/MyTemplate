@@ -6,26 +6,16 @@ import MathRenderer from "../Components/MathRenderer/MathRenderer";
 const API_URL = "https://hmtutoring-backend.onrender.com/api/ai-free-chatpdf";
 
 const ChatPDFPage = ({
-  classOverride = undefined,
-  subjectOverride = undefined,
-  chapterOverride = undefined,
   questionTypeOverride = undefined,
   hideSelectors = false
 }) => {
-  const [selectedClass, setSelectedClass] = useState(classOverride ?? "");
-  const [selectedSubject, setSelectedSubject] = useState(subjectOverride ?? "");
-  const [selectedChapter, setSelectedChapter] = useState(chapterOverride ?? "");
   const [questionType, setQuestionType] = useState(questionTypeOverride ?? "");
-  useEffect(() => { if (classOverride !== undefined) setSelectedClass(classOverride); }, [classOverride]);
-  useEffect(() => { if (subjectOverride !== undefined) setSelectedSubject(subjectOverride); }, [subjectOverride]);
-  useEffect(() => { if (chapterOverride !== undefined) setSelectedChapter(chapterOverride); }, [chapterOverride]);
   useEffect(() => { if (questionTypeOverride !== undefined) setQuestionType(questionTypeOverride); }, [questionTypeOverride]);
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [mapping, setMapping] = useState([]);
-  const [mappingLoading, setMappingLoading] = useState(true);
   const [file, setFile] = useState(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
   const fileInputRef = React.useRef();
@@ -53,38 +43,9 @@ const ChatPDFPage = ({
     return <MathRenderer text={answer} />;
   }, [answer]);
 
-  useEffect(() => {
-    setMappingLoading(true);
-    fetch("https://raw.githubusercontent.com/myselfhridoy/hmtutoring-database/refs/heads/main/bookcontentmapping.json?_=" + Date.now())
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
-          setMapping(data);
-        } else {
-          setMapping([]);
-        }
-      })
-      .catch(() => setMapping([]))
-      .finally(() => setMappingLoading(false));
-  }, []);
+  // Removed mappingLoading and mapping fetch for class/subject/chapter
 
-  const classes = Array.from(new Set(mapping.map(m => m['শ্রেণি']).filter(Boolean)));
-  let subjects = [];
-  if (selectedClass) {
-    const filteredItems = mapping.filter(m => m['শ্রেণি'] === selectedClass);
-    subjects = filteredItems.map(item => item['বিষয়'] || item.বিষয় || Object.values(item)[1]).filter(Boolean);
-    subjects = Array.from(new Set(subjects));
-  }
-  const chapters = (selectedClass && selectedSubject)
-    ? (() => {
-        const selectedMapping = mapping.find(m =>
-          m['শ্রেণি'] === selectedClass &&
-          (m['বিষয়'] || Object.values(m)[1]) === selectedSubject
-        );
-        const chapterObj = selectedMapping?.['অধ্যায়'] || selectedMapping && Object.values(selectedMapping)[2] || {};
-        return Object.keys(chapterObj);
-      })()
-    : [];
+  // Removed classes, subjects, chapters variables
   const questionTypes = [
     { value: 'জ্ঞানমূলক', label: 'জ্ঞানমূলক' },
     { value: 'অনুধাবন', label: 'অনুধাবন' },
@@ -133,8 +94,8 @@ const ChatPDFPage = ({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!selectedClass || !selectedSubject || !selectedChapter || !questionType) {
-      setError("অনুগ্রহ করে শ্রেণি, বিষয়, অধ্যায় এবং প্রশ্নের ধরণ সিলেক্ট করুন।");
+    if (!questionType) {
+      setError("প্রশ্নের ধরণ সিলেক্ট করুন।");
       setLoading(false);
       return;
     }
@@ -147,12 +108,11 @@ const ChatPDFPage = ({
     setError("");
     setAnswer("");
     try {
-  const message_id = uuidv4();
-  const formData = new FormData();
-  formData.append("conversation_id", conversationId);
-  formData.append("message_id", message_id);
-      const context = `আপনি ${selectedClass} ${selectedSubject} এর "${selectedChapter}" অধ্যায়ের একজন দক্ষ শিক্ষক।`;
-      const prompt = getPromptForQuestionType(questionType, question, context);
+      const message_id = uuidv4();
+      const formData = new FormData();
+      formData.append("conversation_id", conversationId);
+      formData.append("message_id", message_id);
+      const prompt = getPromptForQuestionType(questionType, question);
       formData.append("content", prompt);
       formData.append("model", "gemini-2.5-flash");
       if (file) {
@@ -166,7 +126,6 @@ const ChatPDFPage = ({
       });
       if (!response.ok) {
         setLoading(false);
-        // Only clear preview on error, keep file and file input so user can retry in same conversation
         if (imagePreviewUrl) {
           URL.revokeObjectURL(imagePreviewUrl);
         }
@@ -174,17 +133,24 @@ const ChatPDFPage = ({
         throw new Error("API Error: " + response.status);
       }
       const reader = response.body.getReader();
-      let result = "";
+      let answerText = "";
       const decoder = new TextDecoder('utf-8');
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        result += decoder.decode(value, { stream: true });
-        setAnswer(result);
+        const chunk = decoder.decode(value, { stream: true });
+        try {
+          const obj = JSON.parse(chunk);
+          if (obj.type === "text_delta" && obj.data) {
+            answerText += obj.data;
+          }
+        } catch {}
       }
-      result += decoder.decode();
-      setAnswer(result);
-      // Clear file input and preview after success
+      if (answerText) {
+        setAnswer(answerText);
+      } else {
+        setAnswer("");
+      }
       setFile(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
       if (imagePreviewUrl) {
@@ -208,44 +174,7 @@ const ChatPDFPage = ({
       >
         {!hideSelectors ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
-            <select className="select select-bordered w-full text-sm" value={selectedClass} onChange={e => { 
-              setSelectedClass(e.target.value); 
-              setSelectedSubject(''); 
-              setSelectedChapter(''); 
-              if (answer) setAnswer('');
-            }} disabled={mappingLoading}>
-              <option value="">{mappingLoading ? "লোড হচ্ছে..." : "শ্রেণি"}</option>
-              {classes.map((cls, i) => <option key={i} value={cls}>{cls}</option>)}
-            </select>
-            {selectedClass && (
-              <select className="select select-bordered w-full text-sm" value={selectedSubject} onChange={e => { 
-                setSelectedSubject(e.target.value); 
-                setSelectedChapter(''); 
-                if (answer) setAnswer('');
-              }} disabled={mappingLoading}>
-                <option value="">বিষয়</option>
-                {subjects.map((subj, i) => <option key={i} value={subj}>{subj}</option>)}
-              </select>
-            )}
-            {!selectedClass && (
-              <select className="select select-bordered w-full text-sm" disabled>
-                <option value="">প্রথমে শ্রেণি নির্বাচন করুন</option>
-              </select>
-            )}
-            {selectedClass && selectedSubject && (
-              <select className="select select-bordered w-full text-sm" value={selectedChapter} onChange={e => {
-                setSelectedChapter(e.target.value);
-                if (answer) setAnswer('');
-              }} disabled={mappingLoading}>
-                <option value="">অধ্যায়</option>
-                {chapters.map((ch, i) => <option key={i} value={ch}>{ch}</option>)}
-              </select>
-            )}
-            {(!selectedClass || !selectedSubject) && (
-              <select className="select select-bordered w-full text-sm" disabled>
-                <option value="">প্রথমে বিষয় নির্বাচন করুন</option>
-              </select>
-            )}
+            {/* শ্রেণি, বিষয়, অধ্যায় dropdowns removed as per user request */}
             <select className="select select-bordered w-full text-sm" value={questionType} onChange={e => {
               setQuestionType(e.target.value);
               if (answer) setAnswer('');
@@ -256,27 +185,7 @@ const ChatPDFPage = ({
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
-            <input
-              className="input input-bordered w-full text-sm"
-              style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
-              placeholder="শ্রেণি"
-              value={selectedClass}
-              onChange={e => setSelectedClass(e.target.value)}
-            />
-            <input
-              className="input input-bordered w-full text-sm"
-              style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
-              placeholder="বিষয়"
-              value={selectedSubject}
-              onChange={e => setSelectedSubject(e.target.value)}
-            />
-            <input
-              className="input input-bordered w-full text-sm"
-              style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
-              placeholder="অধ্যায়"
-              value={selectedChapter}
-              onChange={e => setSelectedChapter(e.target.value)}
-            />
+            {/* শ্রেণি, বিষয়, অধ্যায় input fields removed as per user request */}
             <select
               className="select select-bordered w-full text-sm"
               style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
