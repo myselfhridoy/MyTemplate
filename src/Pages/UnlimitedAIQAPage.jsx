@@ -153,6 +153,7 @@ const UnlimitedAIQAPage = ({
       const prompt = getPromptForQuestionType(questionType, question, context);
       formData.append("content", prompt);
       formData.append("model", "gemini-2.5-flash");
+      formData.append("max_mode", "true");
       // Attach image if present
       if (imageFile) {
         formData.append("attachments", imageFile);
@@ -168,18 +169,26 @@ const UnlimitedAIQAPage = ({
       }
       // The response is streamed as text/event-stream
       const reader = response.body.getReader();
-      let result = "";
+      let answerText = "";
       const decoder = new TextDecoder('utf-8');
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        // Use stream:true to avoid broken Unicode at chunk boundaries
-        result += decoder.decode(value, { stream: true });
-        setAnswer(result); // Show partial result as it streams
+        const chunk = decoder.decode(value, { stream: true });
+        try {
+          const obj = JSON.parse(chunk);
+          if (obj.type === "text_delta" && obj.data) {
+            answerText += obj.data;
+          }
+          // Skip thinking_delta
+        } catch {}
       }
-      // Flush any remaining bytes
-      result += decoder.decode();
-      setAnswer(result);
+      // Show only final answer
+      if (answerText) {
+        setAnswer(answerText);
+      } else {
+        setAnswer(""); // fallback: nothing
+      }
     } catch (err) {
       setError(err.message);
     } finally {

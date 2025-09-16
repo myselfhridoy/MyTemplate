@@ -290,7 +290,7 @@ function MathGPTPage({
         prompt = contextPrompt;
       }
 
-      const resp = await fetch("https://wudyver-api.vercel.app/api/ai/math-gpt", {
+      const resp = await fetch("https://hmtutoring-backend.onrender.com/api/mathgpt", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -299,8 +299,13 @@ function MathGPTPage({
           imageUrl: imageBase64 || undefined
         })
       });
-      const data = await resp.json();
-      setAnswer(data.result || "No answer received.");
+      if (resp.ok) {
+        const data = await resp.json();
+        setAnswer(data.result || "No answer received.");
+      } else {
+        const errorText = await resp.text();
+        setAnswer("Error: " + errorText);
+      }
     } catch (err) {
       setAnswer("Error: " + err.message);
     }
