@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from "react";
-const DESMOS_API = "https://www.desmos.com/api/v1.11/calculator.js?apiKey=4f87d04d5502409cb7acc90907fd0832";
+const DESMOS_API_KEY = import.meta.env.VITE_DESMOS_API_KEY || "";
+const DESMOS_API = `https://www.desmos.com/api/v1.11/calculator.js?apiKey=${DESMOS_API_KEY}`;
 
 const DesmosGraphPage = () => {
   const calculatorRef = useRef(null);
