@@ -1,37 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import MathRendererWithContext from '../Components/MathRenderer/MathRenderer';
 
-function AIAssistantPage({
-  classOverride = undefined,
-  subjectOverride = undefined,
-  chapterOverride = undefined,
-  questionTypeOverride = undefined,
-  hideSelectors = false
-}) {
-
-  const [selectedClass, setSelectedClass] = useState(classOverride ?? "");
-  const [selectedSubject, setSelectedSubject] = useState(subjectOverride ?? "");
-  const [selectedChapter, setSelectedChapter] = useState(chapterOverride ?? "");
-  const [questionType, setQuestionType] = useState(questionTypeOverride ?? "");
-
-  React.useEffect(() => {
-    if (classOverride !== undefined) setSelectedClass(classOverride);
-  }, [classOverride]);
-  React.useEffect(() => {
-    if (subjectOverride !== undefined) setSelectedSubject(subjectOverride);
-  }, [subjectOverride]);
-  React.useEffect(() => {
-    if (chapterOverride !== undefined) setSelectedChapter(chapterOverride);
-  }, [chapterOverride]);
-  React.useEffect(() => {
-    if (questionTypeOverride !== undefined) setQuestionType(questionTypeOverride);
-  }, [questionTypeOverride]);
-
-  // Sync state to override props if provided
-  React.useEffect(() => { if (classOverride !== undefined) setSelectedClass(classOverride); }, [classOverride]);
-  React.useEffect(() => { if (subjectOverride !== undefined) setSelectedSubject(subjectOverride); }, [subjectOverride]);
-  React.useEffect(() => { if (chapterOverride !== undefined) setSelectedChapter(chapterOverride); }, [chapterOverride]);
-  React.useEffect(() => { if (questionTypeOverride !== undefined) setQuestionType(questionTypeOverride); }, [questionTypeOverride]);
+function AIAssistantPage() {
+  const [selectedClass, setSelectedClass] = useState("");
+  const [selectedSubject, setSelectedSubject] = useState("");
+  const [selectedChapter, setSelectedChapter] = useState("");
+  const [questionType, setQuestionType] = useState("");
   const [questionText, setQuestionText] = useState("");
   const [imageFile, setImageFile] = useState(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
@@ -90,14 +64,18 @@ function AIAssistantPage({
 
   // Dynamic options (same logic as BookContentPage)
   const classes = Array.from(new Set(mapping.map(m => m['শ্রেণি']).filter(Boolean)));
+  
+  // Try alternative approach for subjects
   let subjects = [];
   if (selectedClass) {
     const filteredItems = mapping.filter(m => m['শ্রেণি'] === selectedClass);
     subjects = filteredItems.map(item => {
+      // Try multiple ways to get the subject
       return item['বিষয়'] || item.বিষয় || Object.values(item)[1];
     }).filter(Boolean);
     subjects = Array.from(new Set(subjects));
   }
+  
   const chapters = (selectedClass && selectedSubject)
     ? (() => {
         const selectedMapping = mapping.find(m => 
@@ -433,7 +411,7 @@ function AIAssistantPage({
         return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' }, body });
       }
       // --- To use Vercel Gemma API, uncomment below and comment out the next two lines ---
-       let resp = await fetch('https://hmtutoring-backend.onrender.com/api/gemma', {
+       let resp = await fetch('https://geminiai-xi.vercel.app/api/gemma', {
         method: 'POST',
          headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
          body
@@ -515,91 +493,57 @@ function AIAssistantPage({
             willChange: 'contents'
           }}
         >
-
-          {!hideSelectors ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
-              <select className="select select-bordered w-full text-sm" value={selectedClass} onChange={e => { 
-                setSelectedClass(e.target.value); 
-                setSelectedSubject(''); 
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
+            <select className="select select-bordered w-full text-sm" value={selectedClass} onChange={e => { 
+              setSelectedClass(e.target.value); 
+              setSelectedSubject(''); 
+              setSelectedChapter(''); 
+              // Clear answer when class changes to reduce lag
+              if (answer) setAnswer('');
+            }} disabled={mappingLoading}>
+              <option value="">{mappingLoading ? "লোড হচ্ছে..." : "শ্রেণি"}</option>
+              {classes.map((cls, i) => <option key={i} value={cls}>{cls}</option>)}
+            </select>
+            {selectedClass && (
+              <select className="select select-bordered w-full text-sm" value={selectedSubject} onChange={e => { 
+                setSelectedSubject(e.target.value); 
                 setSelectedChapter(''); 
+                // Clear answer when subject changes to reduce lag
                 if (answer) setAnswer('');
               }} disabled={mappingLoading}>
-                <option value="">{mappingLoading ? "লোড হচ্ছে..." : "শ্রেণি"}</option>
-                {classes.map((cls, i) => <option key={i} value={cls}>{cls}</option>)}
+                <option value="">বিষয়</option>
+                {subjects.map((subj, i) => <option key={i} value={subj}>{subj}</option>)}
               </select>
-              {selectedClass && (
-                <select className="select select-bordered w-full text-sm" value={selectedSubject} onChange={e => { 
-                  setSelectedSubject(e.target.value); 
-                  setSelectedChapter(''); 
-                  if (answer) setAnswer('');
-                }} disabled={mappingLoading}>
-                  <option value="">বিষয়</option>
-                  {subjects.map((subj, i) => <option key={i} value={subj}>{subj}</option>)}
-                </select>
-              )}
-              {!selectedClass && (
-                <select className="select select-bordered w-full text-sm" disabled>
-                  <option value="">প্রথমে শ্রেণি নির্বাচন করুন</option>
-                </select>
-              )}
-              {selectedClass && selectedSubject && (
-                <select className="select select-bordered w-full text-sm" value={selectedChapter} onChange={e => {
-                  setSelectedChapter(e.target.value);
-                  if (answer) setAnswer('');
-                }} disabled={mappingLoading}>
-                  <option value="">অধ্যায়</option>
-                  {chapters.map((ch, i) => <option key={i} value={ch}>{ch}</option>)}
-                </select>
-              )}
-              {(!selectedClass || !selectedSubject) && (
-                <select className="select select-bordered w-full text-sm" disabled>
-                  <option value="">প্রথমে বিষয় নির্বাচন করুন</option>
-                </select>
-              )}
-              <select className="select select-bordered w-full text-sm" value={questionType} onChange={e => {
-                setQuestionType(e.target.value);
+            )}
+            {!selectedClass && (
+              <select className="select select-bordered w-full text-sm" disabled>
+                <option value="">প্রথমে শ্রেণি নির্বাচন করুন</option>
+              </select>
+            )}
+            {selectedClass && selectedSubject && (
+              <select className="select select-bordered w-full text-sm" value={selectedChapter} onChange={e => {
+                setSelectedChapter(e.target.value);
+                // Clear answer when chapter changes to reduce lag
                 if (answer) setAnswer('');
-              }}>
-                <option value="">প্রশ্নের ধরণ</option>
-                {questionTypes.map((type, i) => <option key={i} value={type.value}>{type.label}</option>)}
+              }} disabled={mappingLoading}>
+                <option value="">অধ্যায়</option>
+                {chapters.map((ch, i) => <option key={i} value={ch}>{ch}</option>)}
               </select>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
-              <input
-                className="input input-bordered w-full text-sm"
-                style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
-                placeholder="শ্রেণি"
-                value={selectedClass}
-                onChange={e => setSelectedClass(e.target.value)}
-              />
-              <input
-                className="input input-bordered w-full text-sm"
-                style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
-                placeholder="বিষয়"
-                value={selectedSubject}
-                onChange={e => setSelectedSubject(e.target.value)}
-              />
-              <input
-                className="input input-bordered w-full text-sm"
-                style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
-                placeholder="অধ্যায়"
-                value={selectedChapter}
-                onChange={e => setSelectedChapter(e.target.value)}
-              />
-              <select
-                className="select select-bordered w-full text-sm"
-                style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
-                value={questionType}
-                onChange={e => setQuestionType(e.target.value)}
-              >
-                <option value="">প্রশ্নের ধরণ</option>
-                {questionTypes.map((type, i) => <option key={i} value={type.value}>{type.label}</option>)}
+            )}
+            {(!selectedClass || !selectedSubject) && (
+              <select className="select select-bordered w-full text-sm" disabled>
+                <option value="">প্রথমে বিষয় নির্বাচন করুন</option>
               </select>
-            </div>
-          )}
-
-
+            )}
+            <select className="select select-bordered w-full text-sm" value={questionType} onChange={e => {
+              setQuestionType(e.target.value);
+              // Clear answer when question type changes to reduce lag
+              if (answer) setAnswer('');
+            }}>
+              <option value="">প্রশ্নের ধরণ</option>
+              {questionTypes.map((type, i) => <option key={i} value={type.value}>{type.label}</option>)}
+            </select>
+          </div>
           <div className="mb-4">
             <textarea
               className="textarea textarea-bordered w-full text-sm"

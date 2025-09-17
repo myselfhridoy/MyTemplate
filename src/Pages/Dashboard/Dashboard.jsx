@@ -126,10 +126,31 @@ function Dashboard() {
             <span className="text-gray-700 dark:text-gray-200 text-center text-sm font-medium">PDF বা যেকোনো ফাইল আপলোড করে AI-এর সাথে আলাপ করুন।</span>
           </div>
           <button
-            className="btn btn-accent mt-4 w-full group-hover:scale-105 transition-transform text-base"
+            className="btn btn-primary mt-4 w-full group-hover:scale-105 transition-transform text-base"
             style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
             onClick={e => { e.stopPropagation(); navigate('/chatpdf'); }}
           >ChatPDF খুলুন</button>
+        </div>
+
+        {/* প্রয়োজনীয় টুলস ফিচার কার্ড */}
+        <div
+          className="group relative bg-gradient-to-br from-cyan-100 via-cyan-50 to-white dark:from-cyan-900 dark:via-cyan-950 dark:to-gray-900 rounded-xl shadow-lg border border-cyan-200 dark:border-cyan-800 p-4 flex flex-col items-center justify-between transition-transform hover:-translate-y-1 hover:shadow-2xl cursor-pointer overflow-hidden min-h-[220px]"
+          style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
+          onClick={() => navigate('/tools')}
+        >
+          <div className="absolute top-0 right-0 opacity-10 text-[5rem] pointer-events-none select-none">🛠️</div>
+          <div className="flex flex-col items-center gap-2 z-10">
+            <div className="bg-cyan-600/90 dark:bg-cyan-700/80 rounded-full p-2 mb-1 shadow-lg">
+              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" d="M12 20h9"/><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m0 0H3m9 0a9 9 0 100-18 9 9 0 000 18z"/></svg>
+            </div>
+            <span className="text-lg font-bold text-cyan-800 dark:text-cyan-200 tracking-tight">প্রয়োজনীয় টুলস</span>
+            <span className="text-gray-700 dark:text-gray-200 text-center text-sm font-medium">বিভিন্ন টুলস ব্যবহার করুন, যেমন গ্রাফ ক্যালকুলেটর।</span>
+          </div>
+          <button
+            className="btn btn-info mt-4 w-full group-hover:scale-105 transition-transform text-base"
+            style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
+            onClick={e => { e.stopPropagation(); navigate('/tools'); }}
+          >টুলস দেখুন</button>
         </div>
 
         {/* আনলিমিটেড AI প্রশ্ন-উত্তর ফিচার কার্ড */}

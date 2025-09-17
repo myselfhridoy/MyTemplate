@@ -150,7 +150,6 @@ const HMTAIPage = ({
       const prompt = getPromptForQuestionType(questionType, question, context);
       formData.append("content", prompt);
       formData.append("model", "gemini-2.5-flash");
-      formData.append("max_mode", "true");
       // Attach image if present
       if (imageFile) {
         formData.append("attachments", imageFile);
@@ -166,26 +165,18 @@ const HMTAIPage = ({
       }
       // The response is streamed as text/event-stream
       const reader = response.body.getReader();
-      let answerText = "";
+      let result = "";
       const decoder = new TextDecoder('utf-8');
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        try {
-          const obj = JSON.parse(chunk);
-          if (obj.type === "text_delta" && obj.data) {
-            answerText += obj.data;
-          }
-          // Skip thinking_delta
-        } catch {}
+        // Use stream:true to avoid broken Unicode at chunk boundaries
+        result += decoder.decode(value, { stream: true });
+        setAnswer(result); // Show partial result as it streams
       }
-      // Show only final answer
-      if (answerText) {
-        setAnswer(answerText);
-      } else {
-        setAnswer(""); // fallback: nothing
-      }
+      // Flush any remaining bytes
+      result += decoder.decode();
+      setAnswer(result);
     } catch (err) {
       setError(err.message);
     } finally {

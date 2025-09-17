@@ -1,22 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import MathRendererWithContext from '../Components/MathRenderer/MathRenderer';
 
-function DoubtSolvePage({
-  classOverride = undefined,
-  subjectOverride = undefined,
-  chapterOverride = undefined,
-  questionTypeOverride = undefined,
-  hideSelectors = false
-}) {
-  const [selectedClass, setSelectedClass] = useState(classOverride ?? "");
-  const [selectedSubject, setSelectedSubject] = useState(subjectOverride ?? "");
-  const [selectedChapter, setSelectedChapter] = useState(chapterOverride ?? "");
-  const [questionType, setQuestionType] = useState(questionTypeOverride ?? "");
-  // Sync override props to state if they change
-  useEffect(() => { if (classOverride !== undefined) setSelectedClass(classOverride); }, [classOverride]);
-  useEffect(() => { if (subjectOverride !== undefined) setSelectedSubject(subjectOverride); }, [subjectOverride]);
-  useEffect(() => { if (chapterOverride !== undefined) setSelectedChapter(chapterOverride); }, [chapterOverride]);
-  useEffect(() => { if (questionTypeOverride !== undefined) setQuestionType(questionTypeOverride); }, [questionTypeOverride]);
+function DoubtSolvePage() {
+  const [selectedClass, setSelectedClass] = useState("");
+  const [selectedSubject, setSelectedSubject] = useState("");
+  const [selectedChapter, setSelectedChapter] = useState("");
+  const [questionType, setQuestionType] = useState("");
   const [questionText, setQuestionText] = useState("");
   // image input disabled for now
   // const [imageFile, setImageFile] = useState(null);
@@ -424,7 +413,7 @@ function DoubtSolvePage({
   const chosenModel = 'gemma-3-27b-it';
       const body = JSON.stringify({ parts, model: chosenModel });
       // Use Vercel Edge API endpoint for Gemma
-      const GEMMA_API_URL = 'https://hmtutoring-backend.onrender.com/api/gemma';
+      const GEMMA_API_URL = 'https://geminiai-xi.vercel.app/api/gemma';
       let resp = await fetch(GEMMA_API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream,application/json' },
@@ -519,88 +508,57 @@ function DoubtSolvePage({
             willChange: 'contents'
           }}
         >
-          {!hideSelectors ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
-              <select className="select select-bordered w-full text-sm" value={selectedClass} onChange={e => { 
-                setSelectedClass(e.target.value); 
-                setSelectedSubject(''); 
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
+            <select className="select select-bordered w-full text-sm" value={selectedClass} onChange={e => { 
+              setSelectedClass(e.target.value); 
+              setSelectedSubject(''); 
+              setSelectedChapter(''); 
+              // Clear answer when class changes to reduce lag
+              if (answer) setAnswer('');
+            }} disabled={mappingLoading}>
+              <option value="">{mappingLoading ? "লোড হচ্ছে..." : "শ্রেণি"}</option>
+              {classes.map((cls, i) => <option key={i} value={cls}>{cls}</option>)}
+            </select>
+            {selectedClass && (
+              <select className="select select-bordered w-full text-sm" value={selectedSubject} onChange={e => { 
+                setSelectedSubject(e.target.value); 
                 setSelectedChapter(''); 
+                // Clear answer when subject changes to reduce lag
                 if (answer) setAnswer('');
               }} disabled={mappingLoading}>
-                <option value="">{mappingLoading ? "লোড হচ্ছে..." : "শ্রেণি"}</option>
-                {classes.map((cls, i) => <option key={i} value={cls}>{cls}</option>)}
+                <option value="">বিষয়</option>
+                {subjects.map((subj, i) => <option key={i} value={subj}>{subj}</option>)}
               </select>
-              {selectedClass && (
-                <select className="select select-bordered w-full text-sm" value={selectedSubject} onChange={e => { 
-                  setSelectedSubject(e.target.value); 
-                  setSelectedChapter(''); 
-                  if (answer) setAnswer('');
-                }} disabled={mappingLoading}>
-                  <option value="">বিষয়</option>
-                  {subjects.map((subj, i) => <option key={i} value={subj}>{subj}</option>)}
-                </select>
-              )}
-              {!selectedClass && (
-                <select className="select select-bordered w-full text-sm" disabled>
-                  <option value="">প্রথমে শ্রেণি নির্বাচন করুন</option>
-                </select>
-              )}
-              {selectedClass && selectedSubject && (
-                <select className="select select-bordered w-full text-sm" value={selectedChapter} onChange={e => {
-                  setSelectedChapter(e.target.value);
-                  if (answer) setAnswer('');
-                }} disabled={mappingLoading}>
-                  <option value="">অধ্যায়</option>
-                  {chapters.map((ch, i) => <option key={i} value={ch}>{ch}</option>)}
-                </select>
-              )}
-              {(!selectedClass || !selectedSubject) && (
-                <select className="select select-bordered w-full text-sm" disabled>
-                  <option value="">প্রথমে বিষয় নির্বাচন করুন</option>
-                </select>
-              )}
-              <select className="select select-bordered w-full text-sm" value={questionType} onChange={e => {
-                setQuestionType(e.target.value);
+            )}
+            {!selectedClass && (
+              <select className="select select-bordered w-full text-sm" disabled>
+                <option value="">প্রথমে শ্রেণি নির্বাচন করুন</option>
+              </select>
+            )}
+            {selectedClass && selectedSubject && (
+              <select className="select select-bordered w-full text-sm" value={selectedChapter} onChange={e => {
+                setSelectedChapter(e.target.value);
+                // Clear answer when chapter changes to reduce lag
                 if (answer) setAnswer('');
-              }}>
-                <option value="">প্রশ্নের ধরণ</option>
-                {questionTypes.map((type, i) => <option key={i} value={type.value}>{type.label}</option>)}
+              }} disabled={mappingLoading}>
+                <option value="">অধ্যায়</option>
+                {chapters.map((ch, i) => <option key={i} value={ch}>{ch}</option>)}
               </select>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
-              <input
-                className="input input-bordered w-full text-sm"
-                style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
-                placeholder="শ্রেণি"
-                value={selectedClass}
-                onChange={e => setSelectedClass(e.target.value)}
-              />
-              <input
-                className="input input-bordered w-full text-sm"
-                style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
-                placeholder="বিষয়"
-                value={selectedSubject}
-                onChange={e => setSelectedSubject(e.target.value)}
-              />
-              <input
-                className="input input-bordered w-full text-sm"
-                style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
-                placeholder="অধ্যায়"
-                value={selectedChapter}
-                onChange={e => setSelectedChapter(e.target.value)}
-              />
-              <select
-                className="select select-bordered w-full text-sm"
-                style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
-                value={questionType}
-                onChange={e => setQuestionType(e.target.value)}
-              >
-                <option value="">প্রশ্নের ধরণ</option>
-                {questionTypes.map((type, i) => <option key={i} value={type.value}>{type.label}</option>)}
+            )}
+            {(!selectedClass || !selectedSubject) && (
+              <select className="select select-bordered w-full text-sm" disabled>
+                <option value="">প্রথমে বিষয় নির্বাচন করুন</option>
               </select>
-            </div>
-          )}
+            )}
+            <select className="select select-bordered w-full text-sm" value={questionType} onChange={e => {
+              setQuestionType(e.target.value);
+              // Clear answer when question type changes to reduce lag
+              if (answer) setAnswer('');
+            }}>
+              <option value="">প্রশ্নের ধরণ</option>
+              {questionTypes.map((type, i) => <option key={i} value={type.value}>{type.label}</option>)}
+            </select>
+          </div>
           <div className="mb-4">
             <textarea
               className="textarea textarea-bordered w-full text-sm"
