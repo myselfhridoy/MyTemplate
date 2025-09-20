@@ -290,7 +290,7 @@ function MathGPTPage({
         prompt = contextPrompt;
       }
 
-      const resp = await fetch("https://hmtutoring-backend.onrender.com/api/mathgpt", {
+      const resp = await fetch("https://geminiai-render.onrender.com/api/mathgpt", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

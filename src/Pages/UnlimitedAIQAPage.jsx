@@ -28,7 +28,7 @@ import MathRenderer from "../Components/MathRenderer/MathRenderer";
 // Use a server-side proxy to avoid exposing token or token-source URL to the client.
 // Deploy a Netlify function (e.g. netlify/functions/proxy_borno) that fetches the
 // real token server-side and forwards the request to the real API with Authorization.
-const API_URL = "https://hmtutoring-backend.onrender.com/api/proxy_aidocmaker";
+const API_URL = "https://geminiai-render.onrender.com/api/proxy_aidocmaker";
 
 const UnlimitedAIQAPage = ({
   classOverride = undefined,

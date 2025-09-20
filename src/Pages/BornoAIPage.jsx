@@ -92,7 +92,7 @@ function BornoAIPage() {
     }
     const body = [question, imageData, DEFAULT_TOKEN, selectedClass, selectedSubject];
     try {
-      const resp = await fetch("https://hmtutoring-backend.onrender.com/api/bornoai", {
+      const resp = await fetch("https://geminiai-render.onrender.com/api/bornoai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body)

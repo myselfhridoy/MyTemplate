@@ -424,7 +424,7 @@ function DoubtSolvePage({
   const chosenModel = 'gemma-3-27b-it';
       const body = JSON.stringify({ parts, model: chosenModel });
       // Use Vercel Edge API endpoint for Gemma
-      const GEMMA_API_URL = 'https://hmtutoring-backend.onrender.com/api/gemma';
+      const GEMMA_API_URL = 'https://geminiai-render.onrender.com/api/gemma';
       let resp = await fetch(GEMMA_API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream,application/json' },

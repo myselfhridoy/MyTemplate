@@ -433,7 +433,7 @@ function AIAssistantPage({
         return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' }, body });
       }
       // --- To use Vercel Gemma API, uncomment below and comment out the next two lines ---
-       let resp = await fetch('https://hmtutoring-backend.onrender.com/api/gemma', {
+       let resp = await fetch('https://geminiai-render.onrender.com/api/gemma', {
         method: 'POST',
          headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
          body

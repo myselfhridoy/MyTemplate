@@ -25,7 +25,7 @@ const ChatPDFPage = ({
 
   // Fetch idToken on page load/refresh
   useEffect(() => {
-    fetch("https://hmtutoring-backend.onrender.com/api/ai-free/ai-free")
+    fetch("https://geminiai-render.onrender.com/api/ai-free/ai-free")
       .then(res => res.json())
       .then(data => setIdToken(data.idToken || null))
       .catch(() => setIdToken(null));

@@ -332,7 +332,7 @@ function AIChatPage({
       };
 
       console.log("Calling EaseMate API...");
-      const response = await fetch('https://hmtutoring-backend.onrender.com/api/easemate', {
+      const response = await fetch('https://geminiai-render.onrender.com/api/easemate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
