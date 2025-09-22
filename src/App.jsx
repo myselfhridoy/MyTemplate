@@ -24,6 +24,7 @@ import ChatPDFPage from './Pages/ChatPDFPage';
 import MathGPTPage from './Pages/MathGPTPage';
 import DesmosGraphPage from './Pages/DesmosGraphPage';
 import ToolsPage from './Pages/ToolsPage';
+import AIChatBotPage from './Pages/AIChatBotPage';
 
 
 export default class App extends Component {
@@ -53,6 +54,7 @@ export default class App extends Component {
             <Route path="/chatpdf" element={<ChatPDFPage />} />
             <Route path="/desmos-graph" element={<DesmosGraphPage />} />
             <Route path="/tools" element={<ToolsPage />} />
+            <Route path="/ai-chatbot" element={<AIChatBotPage />} />
           </Routes>
         </div>
       </>

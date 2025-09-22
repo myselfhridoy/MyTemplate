@@ -8,7 +8,7 @@ const MathRenderer = ({ text }) => {
   if (!text) return null;
   
   // Convert \n to actual line breaks first
-  let processedText = text.replace(/\\n/g, '\n');
+  let processedText = text;
   
   // Minimal text processing - only fix very specific problematic cases
   processedText = processedText

@@ -1,0 +1,382 @@
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import MathRendererWithContext from '../Components/MathRenderer/MathRenderer';
+
+function AIChatBotPage({
+  classOverride = undefined,
+  subjectOverride = undefined,
+  chapterOverride = undefined,
+  questionTypeOverride = undefined,
+  hideSelectors = false
+}) {
+
+  const [selectedClass, setSelectedClass] = useState(classOverride ?? "");
+  const [selectedSubject, setSelectedSubject] = useState(subjectOverride ?? "");
+  const [selectedChapter, setSelectedChapter] = useState(chapterOverride ?? "");
+  const [questionType, setQuestionType] = useState(questionTypeOverride ?? "");
+
+  React.useEffect(() => {
+    if (classOverride !== undefined) setSelectedClass(classOverride);
+  }, [classOverride]);
+  React.useEffect(() => {
+    if (subjectOverride !== undefined) setSelectedSubject(subjectOverride);
+  }, [subjectOverride]);
+  React.useEffect(() => {
+    if (chapterOverride !== undefined) setSelectedChapter(chapterOverride);
+  }, [chapterOverride]);
+  React.useEffect(() => {
+    if (questionTypeOverride !== undefined) setQuestionType(questionTypeOverride);
+  }, [questionTypeOverride]);
+
+  // Sync state to override props if provided
+  React.useEffect(() => { if (classOverride !== undefined) setSelectedClass(classOverride); }, [classOverride]);
+  React.useEffect(() => { if (subjectOverride !== undefined) setSelectedSubject(subjectOverride); }, [subjectOverride]);
+  React.useEffect(() => { if (chapterOverride !== undefined) setSelectedChapter(chapterOverride); }, [chapterOverride]);
+  React.useEffect(() => { if (questionTypeOverride !== undefined) setQuestionType(questionTypeOverride); }, [questionTypeOverride]);
+  const [questionText, setQuestionText] = useState("");
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
+  const [answer, setAnswer] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [mapping, setMapping] = useState([]);
+  const [mappingLoading, setMappingLoading] = useState(true);
+
+  // Cleanup function to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      // Cleanup image preview URL on component unmount
+      if (imagePreviewUrl) {
+        URL.revokeObjectURL(imagePreviewUrl);
+      }
+    };
+  }, [imagePreviewUrl]);
+
+  // Question types
+  const questionTypes = [
+    { value: 'জ্ঞানমূলক', label: 'জ্ঞানমূলক' },
+    { value: 'অনুধাবন', label: 'অনুধাবন' },
+    { value: 'বহুনির্বাচনী', label: 'বহুনির্বাচনী' },
+    { value: 'গাণিতিক প্রশ্ন', label: 'গাণিতিক প্রশ্ন' },
+    { value: 'সৃজনশীল', label: 'সৃজনশীল' }
+  ];
+
+  // Fetch mapping (same as BookContentPage)
+  useEffect(() => {
+    setMappingLoading(true);
+    console.log('Starting to fetch mapping data...');
+    
+    fetch("https://raw.githubusercontent.com/myselfhridoy/hmtutoring-database/refs/heads/main/bookcontentmapping.json?_=" + Date.now())
+      .then((res) => {
+        console.log('Fetch response status:', res.status, res.statusText);
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        }
+        return res.json();
+      })
+      .then((data) => {
+        console.log('Mapping data fetched successfully:', data.length, 'items');
+        if (Array.isArray(data) && data.length > 0) {
+          setMapping(data);
+        } else {
+          console.warn('Invalid data structure received:', data);
+          throw new Error('Invalid data structure');
+        }
+      })
+      .catch((err) => {
+        console.error('Error fetching mapping:', err);
+        setMapping([]);
+      })
+      .finally(() => setMappingLoading(false));
+  }, []);
+
+  // Dynamic options (same logic as BookContentPage)
+  const classes = Array.from(new Set(mapping.map(m => m['শ্রেণি']).filter(Boolean)));
+  let subjects = [];
+  if (selectedClass) {
+    const filteredItems = mapping.filter(m => m['শ্রেণি'] === selectedClass);
+    subjects = filteredItems.map(item => {
+      return item['বিষয়'] || item.বিষয় || Object.values(item)[1];
+    }).filter(Boolean);
+    subjects = Array.from(new Set(subjects));
+  }
+  const chapters = (selectedClass && selectedSubject)
+    ? (() => {
+        const selectedMapping = mapping.find(m => 
+          m['শ্রেণি'] === selectedClass && 
+          (m['বিষয়'] || Object.values(m)[1]) === selectedSubject
+        );
+        const chapterObj = selectedMapping?.['অধ্যায়'] || selectedMapping && Object.values(selectedMapping)[2] || {};
+        return Object.keys(chapterObj);
+      })()
+    : [];
+
+  // Manual test for subjects when class is selected
+  // (Removed for cleaner console)
+
+  // Debug (can be removed)
+  // console.log('Current mapping state:', mapping);
+  // console.log('Classes available:', classes);
+  // console.log('Selected class:', selectedClass);
+  // console.log('Subjects for selected class:', subjects);
+  // console.log('Selected subject:', selectedSubject);
+  // console.log('Chapters for selected subject:', chapters);
+  
+  // Additional debug for subjects
+  // (Removed for cleaner console)
+
+  // useEffect(() => {
+  //   console.log('Mapping changed:', mapping.length, 'items');
+  //   if (mapping.length > 0) {
+  //     console.log('Sample item:', mapping[0]);
+  //   }
+  // }, [mapping]);
+
+  // Get prompt based on question type
+  const getPromptForQuestionType = (type, userQuestion, contextPrompt = null) => {
+    const basePrompt = contextPrompt || `আপনি H.M. Tutoring AI Assistant। সব প্রশ্নের উত্তর বাংলায় এবং শুধুমাত্র গাণিতিক অংশগুলো MathJax ফরম্যাটে \`$...$\` এর ভিতরে থাকবে। **বাংলা লেখাগুলো কখনোই $...$ এর ভিতরে থাকবে না।** 
+
+**গুরুত্বপূর্ণ formatting নিয়ম:**
+- বাংলা টেক্সট এবং math expressions একই লাইনে লিখো
+- শুধুমাত্র নতুন বিষয় বা section এর জন্য নতুন paragraph ব্যবহার করো
+- Math expressions এর আগে বা পরে অনর্থক line break দিও না
+- উদাহরণ: "অবস্থান ভেক্টরকে $\\vec{r}$ দ্বারা প্রকাশ করা হয়।" - এভাবে একই লাইনে লিখো
+
+উত্তরের structure:
+- তালিকার জন্য proper markdown formatting ব্যবহার করো
+- প্রতিটি নতুন বিষয়ের জন্য নতুন paragraph শুরু করো
+
+**কখনোই Gemini বা কোনো AI মডেলের নাম উত্তর বা পরিচয়ে উল্লেখ করবে না।**
+**কোনো ধরনের সম্ভাষণ (নমস্কার, হ্যালো, etc.) ব্যবহার করবে না, সরাসরি উত্তর দাও।**`;
+    
+    switch(type) {
+      case 'জ্ঞানমূলক':
+        return basePrompt + `\n\nএটি একটি জ্ঞানমূলক প্রশ্ন। অত্যন্ত সংক্ষিপ্ত ও সরাসরি উত্তর দাও (মাত্র ১-২ লাইনে)।\n\nপ্রশ্ন: ${userQuestion}`;
+      
+      case 'অনুধাবন':
+        return basePrompt + `\n\nএটি একটি অনুধাবনমূলক প্রশ্ন। **অবশ্যই** এই exact format এ উত্তর দাও:\n\n**সংজ্ঞা:** (প্রশ্নের মূল টপিকের সংক্ষিপ্ত ও সরাসরি সংজ্ঞা দাও - মাত্র ১-২ লাইনে। যেমন: "বেগ কী?" প্রশ্নে "নির্দিষ্ট দিকে কোনো বস্তুর সরণের হারকে বেগ বলে।")\n\n**ব্যাখ্যা:** (প্রশ্নের নির্দিষ্ট অংশের ব্যাখ্যা দাও - মাত্র ৩-৫ বাক্যে। প্রশ্নে যা জানতে চাওয়া হয়েছে সেটার সরাসরি উত্তর দাও।)\n\n**কঠোরভাবে এই দুটি section মাত্র রাখবে। অন্য কিছু লিখবে না।**\n\nপ্রশ্ন: ${userQuestion}`;
+      
+      case 'বহুনির্বাচনী':
+        return basePrompt + `\n\nএটি একটি বহুনির্বাচনী প্রশ্ন। এই format এ উত্তর দাও:\n\n**সঠিক উত্তর:** (প্রথমে সঠিক option উল্লেখ করো)\n\n**সমাধান:**\n- শর্টকাট ফর্মুলা থাকলে সেটি ব্যবহার করে দ্রুত সমাধান দেখাও\n- শর্টকাট ফর্মুলা না থাকলে ধাপে ধাপে ব্যাখ্যা করো\n- বাংলা টেক্সট এবং math একই লাইনে রাখো\n\n**Calculator Hacks:** (যদি কোনো ক্যালকুলেটর হ্যাকস/ট্রিকস থাকে তবে দাও)\n\nপ্রশ্ন: ${userQuestion}`;
+      
+      case 'গাণিতিক প্রশ্ন':
+        return basePrompt + `\n\nএটি একটি গাণিতিক প্রশ্ন। এই format এ ধাপে ধাপে সমাধান দাও:\n\n**প্রদত্ত তথ্য:**\n(প্রদত্ত সব তথ্য তালিকা আকারে লিখো)\n\n**প্রয়োজনীয় সূত্র:**\n(ব্যবহৃত সূত্রগুলো লিখো - বাংলা এবং math একসাথে)\n\n**সমাধান:**\n(প্রতিটি ধাপ আলাদা paragraph এ লিখো)\n\n**উত্তর:**\n(চূড়ান্ত উত্তর)\n\nপ্রশ্ন: ${userQuestion}`;
+      
+      case 'সৃজনশীল':
+        return basePrompt + `\n\nএটি একটি সৃজনশীল প্রশ্ন। প্রশ্নে যতগুলো অংশ আছে সেই অনুযায়ী উত্তর দাও। উদাহরণ:\n\n**যদি ক, খ, গ অংশ থাকে:**\n**ক অংশ:** (সংক্ষিপ্ত উত্তর)\n**খ অংশ:** (ব্যাখ্যামূলক উত্তর)\n**গ অংশ:** (গাণিতিক সমাধান)\n\n**যদি ক, খ, গ, ঘ অংশ থাকে:**\n**ক অংশ:** (সংক্ষিপ্ত উত্তর)\n**খ অংশ:** (ব্যাখ্যামূলক উত্তর)\n**গ অংশ:** (গাণিতিক সমাধান)\n**ঘ অংশ:** (বিশ্লেষণ ও মূল্যায়ন)\n\nপ্রশ্ন: ${userQuestion}`;
+      
+      default:
+        return basePrompt + `\n\nপ্রশ্ন: ${userQuestion}`;
+    }
+  };
+
+  // Debounced input handler to prevent frequent re-renders
+  const handleTextChange = useCallback((e) => {
+    const value = e.target.value;
+    setQuestionText(value);
+    // Clear previous answer immediately when user starts typing to reduce lag
+    if (answer && value.length > 0) {
+      setAnswer("");
+    }
+  }, [answer]);
+
+  // Memoized answer content to prevent unnecessary re-renders
+  const memoizedAnswerContent = useMemo(() => {
+    if (!answer || !answer.trim()) return null;
+    return <MathRendererWithContext text={answer} />;
+  }, [answer]);
+
+  const handleImageChange = (e) => {
+    // Clear previous answer when new image is selected to reduce lag
+    if (answer) {
+      setAnswer("");
+    }
+    
+    // Clean up previous image URL to prevent memory leaks
+    if (imagePreviewUrl) {
+      URL.revokeObjectURL(imagePreviewUrl);
+      setImagePreviewUrl(null);
+    }
+    
+    const file = e.target.files[0];
+    setImageFile(file);
+    
+    // Create new preview URL
+    if (file) {
+      const previewUrl = URL.createObjectURL(file);
+      setImagePreviewUrl(previewUrl);
+    }
+  };
+
+  const handleAsk = async (e) => {
+    e.preventDefault();
+    // Validation: Check if all required fields are selected
+    if (!selectedClass || !selectedSubject || !selectedChapter || !questionType) {
+      setAnswer("অনুগ্রহ করে শ্রেণি, বিষয়, অধ্যায় এবং প্রশ্নের ধরণ সিলেক্ট করুন।");
+      return;
+    }
+    setLoading(true);
+    setAnswer("");
+    try {
+      // Prompt তৈরি
+      let contextPrompt = `আপনি H.M. Tutoring AI Assistant। আপনি ${selectedClass} ${selectedSubject} এর "${selectedChapter}" অধ্যায়ের একজন দক্ষ শিক্ষক। **Instructions:** আপনি শিক্ষার্থীদের প্রশ্নের উত্তর দেবেন যাতে তারা বিষয়টি ভালোভাবে বুঝতে পারে। আপনি ধৈর্যশীল এবং সহায়ক হবেন, এবং শিক্ষার্থীদের উৎসাহিত করবেন। আপনি সহজ ভাষায় এবং উদাহরণসহ ব্যাখ্যা করবেন যাতে শিক্ষার্থীরা সহজে বুঝতে পারে। আপনি কখনোই Gemini বা কোনো AI মডেলের নাম উত্তর বা পরিচয়ে উল্লেখ করবেন না। আপনি কোনো ধরনের সম্ভাষণ (নমস্কার, হ্যালো, etc.) ব্যবহার করবেন না, সরাসরি উত্তর দেবেন।`;
+      const prompt = getPromptForQuestionType(questionType, questionText, contextPrompt);
+      // FormData
+      const formData = new FormData();
+      formData.append('message', prompt);
+      if (imageFile) {
+        formData.append('image', imageFile);
+      }
+      // API call
+      const resp = await fetch('https://geminiai-render.onrender.com/api/chat/send', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await resp.json();
+      if (data.reply) {
+        setAnswer(data.reply);
+      } else {
+        setAnswer(data.error || 'কোনো উত্তর পাওয়া যায়নি।');
+      }
+    } catch (error) {
+      setAnswer("উত্তর আনতে সমস্যা হয়েছে।");
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="container mx-auto p-4 max-w-3xl" style={{ fontFamily: 'Hind Siliguri, sans-serif' }}>
+        <h1 className="text-2xl font-extrabold mb-4 text-center sm:text-left">AI চ্যাট বট</h1>
+        <form 
+          className="bg-white dark:bg-base-200 rounded shadow p-3 sm:p-8 mb-6" 
+          onSubmit={handleAsk}
+          style={{
+            // Optimize form rendering
+            contain: 'layout',
+            willChange: 'contents'
+          }}
+        >
+
+          {!hideSelectors ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
+              <select className="select select-bordered w-full text-sm" value={selectedClass} onChange={e => { 
+                setSelectedClass(e.target.value); 
+                setSelectedSubject(''); 
+                setSelectedChapter(''); 
+                if (answer) setAnswer('');
+              }} disabled={mappingLoading}>
+                <option value="">{mappingLoading ? "লোড হচ্ছে..." : "শ্রেণি"}</option>
+                {classes.map((cls, i) => <option key={i} value={cls}>{cls}</option>)}
+              </select>
+              {selectedClass && (
+                <select className="select select-bordered w-full text-sm" value={selectedSubject} onChange={e => { 
+                  setSelectedSubject(e.target.value); 
+                  setSelectedChapter(''); 
+                  if (answer) setAnswer('');
+                }} disabled={mappingLoading}>
+                  <option value="">বিষয়</option>
+                  {subjects.map((subj, i) => <option key={i} value={subj}>{subj}</option>)}
+                </select>
+              )}
+              {!selectedClass && (
+                <select className="select select-bordered w-full text-sm" disabled>
+                  <option value="">প্রথমে শ্রেণি নির্বাচন করুন</option>
+                </select>
+              )}
+              {selectedClass && selectedSubject && (
+                <select className="select select-bordered w-full text-sm" value={selectedChapter} onChange={e => {
+                  setSelectedChapter(e.target.value);
+                  if (answer) setAnswer('');
+                }} disabled={mappingLoading}>
+                  <option value="">অধ্যায়</option>
+                  {chapters.map((ch, i) => <option key={i} value={ch}>{ch}</option>)}
+                </select>
+              )}
+              {(!selectedClass || !selectedSubject) && (
+                <select className="select select-bordered w-full text-sm" disabled>
+                  <option value="">প্রথমে বিষয় নির্বাচন করুন</option>
+                </select>
+              )}
+              <select className="select select-bordered w-full text-sm" value={questionType} onChange={e => {
+                setQuestionType(e.target.value);
+                if (answer) setAnswer('');
+              }}>
+                <option value="">প্রশ্নের ধরণ</option>
+                {questionTypes.map((type, i) => <option key={i} value={type.value}>{type.label}</option>)}
+              </select>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
+              <input
+                className="input input-bordered w-full text-sm"
+                style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
+                placeholder="শ্রেণি"
+                value={selectedClass}
+                onChange={e => setSelectedClass(e.target.value)}
+              />
+              <input
+                className="input input-bordered w-full text-sm"
+                style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
+                placeholder="বিষয়"
+                value={selectedSubject}
+                onChange={e => setSelectedSubject(e.target.value)}
+              />
+              <input
+                className="input input-bordered w-full text-sm"
+                style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
+                placeholder="অধ্যায়"
+                value={selectedChapter}
+                onChange={e => setSelectedChapter(e.target.value)}
+              />
+              <select
+                className="select select-bordered w-full text-sm"
+                style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
+                value={questionType}
+                onChange={e => setQuestionType(e.target.value)}
+              >
+                <option value="">প্রশ্নের ধরণ</option>
+                {questionTypes.map((type, i) => <option key={i} value={type.value}>{type.label}</option>)}
+              </select>
+            </div>
+          )}
+
+
+          <div className="mb-4">
+            <textarea
+              className="textarea textarea-bordered w-full text-sm"
+              rows={3}
+              placeholder="প্রশ্ন লিখুন..."
+              value={questionText}
+              onChange={handleTextChange}
+            />
+          </div>
+          <div className="mb-4">
+            <label className="block mb-1 font-semibold text-sm">অথবা ছবি আপলোড করুন:</label>
+            <input type="file" accept="image/*" className="file-input file-input-bordered w-full text-sm" onChange={handleImageChange} />
+            {imagePreviewUrl && <div className="mt-2"><img src={imagePreviewUrl} alt="Uploaded" className="max-h-32 w-auto rounded shadow mx-auto block" /></div>}
+          </div>
+          <button className="btn btn-primary w-full text-sm sm:text-base" type="submit" disabled={loading || (!questionText.trim() && !imageFile)}>
+            {loading ? "লোড হচ্ছে..." : "উত্তর জানুন"}
+          </button>
+        </form>
+        {answer && (
+          <div className="bg-base-100 rounded shadow p-3 sm:p-4 text-base sm:text-lg text-base-content overflow-hidden">
+            <span className="font-bold">উত্তর:</span>
+            <div 
+              className="answer-content overflow-x-auto"
+              style={{
+                lineHeight: '1.8', 
+                wordSpacing: '0.1em',
+                marginTop: '0.5rem',
+                contain: 'layout style paint',
+                willChange: 'contents'
+              }}
+            >
+              {/* Use memoized content to prevent unnecessary re-renders */}
+              {memoizedAnswerContent}
+            </div>
+          </div>
+        )}
+      </div>
+  );
+}
+
+export default AIChatBotPage;
