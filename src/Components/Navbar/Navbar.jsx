@@ -56,21 +56,18 @@ function Navbar() {
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"> <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h7" /> </svg>
             </button>
             {dropdownOpen && (
-              <ul
-                className="menu menu-sm dropdown-content bg-base-100 rounded-box z-1 mt-3 w-52 p-2 shadow"
-                tabIndex={0}
-              >
-                <li><Link to="/bookcontent" onClick={() => setTimeout(() => handleMenuClick(), 50)}>পাঠ্যবই</Link></li>
-                <li><Link to="/tools" onClick={() => setTimeout(() => handleMenuClick(), 50)}>প্রয়োজনীয় টুলস</Link></li>
+              <ul className="menu menu-sm dropdown-content bg-base-100 rounded-box z-1 mt-3 w-52 p-2 shadow">
                 <li><Link to="/creative-cq" onClick={() => setTimeout(() => handleMenuClick(), 50)}>প্রশ্ন ব্যাংক</Link></li>
+                <li><Link to="/bookcontent" onClick={() => setTimeout(() => handleMenuClick(), 50)}>পাঠ্যবই</Link></li>
                 <li><Link to="/selftest" onClick={() => setTimeout(() => handleMenuClick(), 50)}>সেলফ টেস্ট</Link></li>
-                <li><Link to="/ai-assistant" onClick={() => setTimeout(() => handleMenuClick(), 50)}>AI সহকারী</Link></li>
-                <li><Link to="/ai-chat" onClick={() => setTimeout(() => handleMenuClick(), 50)}>AI Chat</Link></li>
-                 <li><Link to="/doubt-solve" onClick={() => setTimeout(() => handleMenuClick(), 50)}>ডাউট সলভ</Link></li>
-                {/** <li><Link to="/doubt-solve" onClick={() => setTimeout(() => handleMenuClick(), 50)}>ডাউট সলভ</Link></li> */}
-                {/** <li><Link to="/gemma-solve" onClick={() => setTimeout(() => handleMenuClick(), 50)}>Gemma DoubtSolve</Link></li> */}
-                {/** <li><Link to="/gemma3n-solve" onClick={() => setTimeout(() => handleMenuClick(), 50)}>Gemma 3n 2B DoubtSolve</Link></li> */}
-                {/** <li><Link to="/doubtsolve" onClick={() => setTimeout(() => handleMenuClick(), 50)}>ডাউট সলভ</Link></li> */}
+                {/* <li><Link to="/ai-assistant" onClick={() => setTimeout(() => handleMenuClick(), 50)}>AI সহকারী</Link></li> */}
+                {/* <li><Link to="/unlimited-ai-qa" onClick={() => setTimeout(() => handleMenuClick(), 50)}>আনলিমিটেড AI প্রশ্ন-উত্তর</Link></li> */}
+                {/* <li><Link to="/ai-chat" onClick={() => setTimeout(() => handleMenuClick(), 50)}>AI Chat</Link></li> */}
+                {/* <li><Link to="/doubt-solve" onClick={() => setTimeout(() => handleMenuClick(), 50)}>ডাউট সলভ</Link></li> */}
+                <li><Link to="/ai-aggregator" onClick={() => setTimeout(() => handleMenuClick(), 50)}>AI টিউটর</Link></li>
+                <li><Link to="/ai-aggregator-2" onClick={() => setTimeout(() => handleMenuClick(), 50)}>AI টিউটর (সকল শ্রেণি)</Link></li>
+                <li><Link to="/chatpdf" onClick={() => setTimeout(() => handleMenuClick(), 50)}>AI Chat PDF</Link></li>
+                <li><Link to="/tools" onClick={() => setTimeout(() => handleMenuClick(), 50)}>Tools</Link></li>
               </ul>
             )}
           </div>
