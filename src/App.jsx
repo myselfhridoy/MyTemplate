@@ -25,6 +25,7 @@ import MathGPTPage from './Pages/MathGPTPage';
 import DesmosGraphPage from './Pages/DesmosGraphPage';
 import ToolsPage from './Pages/ToolsPage';
 import AIChatBotPage from './Pages/AIChatBotPage';
+import LuziaChatBotPage from './Pages/LuziaChatBotPage';
 
 
 export default class App extends Component {
@@ -55,6 +56,7 @@ export default class App extends Component {
             <Route path="/desmos-graph" element={<DesmosGraphPage />} />
             <Route path="/tools" element={<ToolsPage />} />
             <Route path="/ai-chatbot" element={<AIChatBotPage />} />
+            <Route path="/luzia-chatbot" element={<LuziaChatBotPage />} />
           </Routes>
         </div>
       </>

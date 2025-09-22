@@ -6,6 +6,7 @@ import AIChatPage from "./AIChatPage";
 import DoubtSolvePage from "./DoubtSolvePage";
 import BornoAIPage from "./BornoAIPage";
 import AIChatBotPage from "./AIChatBotPage";
+import LuziaChatBotPage from "./LuziaChatBotPage";
 
 const pageOptions = [
   { label: "H.M. Tutoring AI", value: "hmtai" },
@@ -15,6 +16,7 @@ const pageOptions = [
   { label: "Concept Builder", value: "doubt" },
   { label: "Academic Assistant", value: "borno" },
   { label: "AI Chat Bot", value: "chatbot" },
+  { label: "Luzia: দ্যা প্রফেসর", value: "luzia" }
 ];
 
 const pageMap = {
@@ -25,6 +27,7 @@ const pageMap = {
   doubt: <DoubtSolvePage />,
   borno: <BornoAIPage />,
   chatbot: <AIChatBotPage />,
+  luzia: <LuziaChatBotPage />
 };
 
 export default function AIAggregatorPage() {
