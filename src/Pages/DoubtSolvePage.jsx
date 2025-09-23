@@ -487,6 +487,7 @@ function DoubtSolvePage({
                     }
                   }
                   if (appended) setAnswer(answerText);
+                  // Only setAnswer here; logging moved after SSE stream
                 }
               } catch {
                 // Ignore parse errors for keep-alive/ping lines
@@ -496,6 +497,27 @@ function DoubtSolvePage({
         }
         if (!answerText || !answerText.trim()) {
           setAnswer('কোনো উত্তর পাওয়া যায়নি।');
+        } else {
+          // --- Google Sheet Logger ---
+          let answerTextForSheet = answerText;
+          if (answerTextForSheet.length > 20000) answerTextForSheet = answerTextForSheet.substring(0, 20000);
+          const rowData = [
+            "", // user (empty for now)
+            "DoubtSolve", // model
+            selectedClass,
+            selectedSubject,
+            selectedChapter,
+            questionType,
+            questionText,
+            "", // imageBase64 (not supported)
+            answerTextForSheet
+          ];
+          fetch('https://geminiai-render.onrender.com/api/googleSheetLogger/log', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ rowData })
+          });
+          // --- End Google Sheet Logger ---
         }
       } else {
         setAnswer('স্ট্রিমিং সাপোর্ট করছে না।');

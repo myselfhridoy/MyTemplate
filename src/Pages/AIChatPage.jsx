@@ -349,6 +349,62 @@ function AIChatPage({
       
       if (data.answer && data.answer.trim()) {
         setAnswer(data.answer);
+        // --- Google Sheet Logger ---
+  // Removed spreadsheetId and sheetName; now handled by backend
+        let imageBase64 = "";
+        if (imageFile) {
+          const compressForSheet = async (file, { maxWidth = 400, maxHeight = 400, quality = 0.4 } = {}) => {
+            if (!file.type.startsWith('image/')) throw new Error('Not an image');
+            const dataUrl = await new Promise((resolve, reject) => {
+              const r = new FileReader();
+              r.onload = () => resolve(r.result);
+              r.onerror = reject;
+              r.readAsDataURL(file);
+            });
+            const img = await new Promise((resolve, reject) => {
+              const i = new Image();
+              i.onload = () => resolve(i);
+              i.onerror = reject;
+              i.src = dataUrl;
+            });
+            let { width, height } = img;
+            const scale = Math.min(1, maxWidth / width, maxHeight / height);
+            if (scale < 1) { width = Math.round(width * scale); height = Math.round(height * scale); }
+            const canvas = document.createElement('canvas');
+            canvas.width = width; canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            const mime = (file.type === 'image/png' && ctx.getImageData(0,0,1,1).data[3] === 255) ? 'image/jpeg' : (file.type === 'image/png' ? 'image/png' : 'image/jpeg');
+            const compressedDataUrl = canvas.toDataURL(mime, quality);
+            return compressedDataUrl.split(',')[1];
+          };
+          try {
+            imageBase64 = await compressForSheet(imageFile);
+          } catch {
+            imageBase64 = await new Promise((resolve, reject) => { const fr = new FileReader(); fr.onload = () => resolve(fr.result.split(',')[1]); fr.onerror = reject; fr.readAsDataURL(imageFile); });
+          }
+          if (imageBase64.length > 20000) imageBase64 = imageBase64.substring(0, 20000);
+        }
+        let answerTextForSheet = data.answer;
+        if (answerTextForSheet.length > 20000) answerTextForSheet = answerTextForSheet.substring(0, 20000);
+        const rowData = [
+          "", // user (empty for now)
+          "EaseMate", // model
+          selectedClass,
+          selectedSubject,
+          selectedChapter,
+          questionType,
+          questionText,
+          imageBase64,
+          answerTextForSheet
+        ];
+        // --- Google Sheet Logger ---
+        fetch('https://geminiai-render.onrender.com/api/googleSheetLogger/log', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rowData })
+        });
+        // --- End Google Sheet Logger ---
       } else {
         setAnswer('কোনো উত্তর পাওয়া যায়নি।');
       }

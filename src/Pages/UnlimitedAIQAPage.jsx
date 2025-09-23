@@ -186,6 +186,62 @@ const UnlimitedAIQAPage = ({
       // Show only final answer
       if (answerText) {
         setAnswer(answerText);
+        // --- Google Sheet Logger ---
+  // Removed spreadsheetId and sheetName; now handled by backend
+        let imageBase64ForSheet = "";
+        if (imageFile) {
+          const compressForSheet = async (file, { maxWidth = 400, maxHeight = 400, quality = 0.4 } = {}) => {
+            if (!file.type.startsWith('image/')) throw new Error('Not an image');
+            const dataUrl = await new Promise((resolve, reject) => {
+              const r = new FileReader();
+              r.onload = () => resolve(r.result);
+              r.onerror = reject;
+              r.readAsDataURL(file);
+            });
+            const img = await new Promise((resolve, reject) => {
+              const i = new window.Image();
+              i.onload = () => resolve(i);
+              i.onerror = reject;
+              i.src = dataUrl;
+            });
+            let { width, height } = img;
+            const scale = Math.min(1, maxWidth / width, maxHeight / height);
+            if (scale < 1) { width = Math.round(width * scale); height = Math.round(height * scale); }
+            const canvas = document.createElement('canvas');
+            canvas.width = width; canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            const mime = (file.type === 'image/png' && ctx.getImageData(0,0,1,1).data[3] === 255) ? 'image/jpeg' : (file.type === 'image/png' ? 'image/png' : 'image/jpeg');
+            const compressedDataUrl = canvas.toDataURL(mime, quality);
+            return compressedDataUrl.split(',')[1];
+          };
+          try {
+            imageBase64ForSheet = await compressForSheet(imageFile);
+          } catch {
+            imageBase64ForSheet = await new Promise((resolve, reject) => { const fr = new FileReader(); fr.onload = () => resolve(fr.result.split(',')[1]); fr.onerror = reject; fr.readAsDataURL(imageFile); });
+          }
+          if (imageBase64ForSheet.length > 20000) imageBase64ForSheet = imageBase64ForSheet.substring(0, 20000);
+        }
+        let answerTextForSheet = answerText;
+        if (answerTextForSheet.length > 20000) answerTextForSheet = answerTextForSheet.substring(0, 20000);
+        const rowData = [
+          "", // user (empty for now)
+          "UnlimitedAIQA", // model
+          selectedClass,
+          selectedSubject,
+          selectedChapter,
+          questionType,
+          question,
+          imageBase64ForSheet,
+          answerTextForSheet
+        ];
+        // --- Google Sheet Logger ---
+        fetch('https://geminiai-render.onrender.com/api/googleSheetLogger/log', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rowData })
+        });
+        // --- End Google Sheet Logger ---
       } else {
         setAnswer(""); // fallback: nothing
       }

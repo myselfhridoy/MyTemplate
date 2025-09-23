@@ -180,6 +180,28 @@ function BornoAIPage() {
       }
       
       setAnswer(answerText);
+
+      // Google Sheet logging (after answer is set)
+      try {
+        const rowData = [
+          "", // User Name (not available)
+          "BornoAI", // Model
+          selectedClass,
+          selectedSubject,
+          "", // Chapter (not available)
+          "", // Question Type (not available)
+          question,
+          imageData,
+          answerText
+        ];
+        await fetch("https://geminiai-render.onrender.com/api/googleSheetLogger/log", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ rowData })
+        });
+      } catch {
+        // Silently fail, do not block UI
+      }
   // If you want to reset file input after submit, uncomment below:
   // setImageFile(null);
   // setImagePreviewUrl(null);
