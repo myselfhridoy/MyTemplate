@@ -273,7 +273,7 @@ function AIChatBotPage({
         if (answerTextForSheet.length > 20000) answerTextForSheet = answerTextForSheet.substring(0, 20000);
         const rowData = [
           "", // user (empty for now)
-          "Gemini", // model
+          "AiChat Bot", // model
           selectedClass,
           selectedSubject,
           selectedChapter,

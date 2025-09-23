@@ -389,7 +389,7 @@ function AIChatPage({
         if (answerTextForSheet.length > 20000) answerTextForSheet = answerTextForSheet.substring(0, 20000);
         const rowData = [
           "", // user (empty for now)
-          "EaseMate", // model
+          "AiChat", // model
           selectedClass,
           selectedSubject,
           selectedChapter,
