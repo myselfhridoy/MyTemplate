@@ -83,34 +83,12 @@ function BornoAIPage() {
     setAnswer("");
     let imageData = "";
     if (imageFile) {
-      // Compress image using canvas (max width 512px, JPEG quality 0.7)
       imageData = await new Promise((resolve, reject) => {
-        const img = new window.Image();
         const reader = new FileReader();
-        reader.onload = (e) => {
-          img.onload = () => {
-            const MAX_WIDTH = 512;
-            const scale = Math.min(1, MAX_WIDTH / img.width);
-            const w = Math.round(img.width * scale);
-            const h = Math.round(img.height * scale);
-            const canvas = document.createElement('canvas');
-            canvas.width = w;
-            canvas.height = h;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, w, h);
-            // JPEG, quality 0.7
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-            // Remove data:image/jpeg;base64,
-            resolve(dataUrl.split(',')[1]);
-          };
-          img.onerror = reject;
-          img.src = e.target.result;
-        };
+        reader.onload = () => resolve(reader.result); // full data URI
         reader.onerror = reject;
         reader.readAsDataURL(imageFile);
       });
-      // Limit base64 length for Google Sheets
-      if (imageData.length > 20000) imageData = imageData.substring(0, 20000);
     }
     const body = [question, imageData, DEFAULT_TOKEN, selectedClass, selectedSubject];
     try {
@@ -201,29 +179,67 @@ function BornoAIPage() {
         }
       }
       
+
       setAnswer(answerText);
 
-      // Google Sheet logging (after answer is set)
-      try {
-        const rowData = [
-          "", // User Name (not available)
-          "BornoAI", // Model
-          selectedClass,
-          selectedSubject,
-          "", // Chapter (not available)
-          "", // Question Type (not available)
-          question,
-          imageData, // now compressed base64 (or empty)
-          answerText.length > 20000 ? answerText.substring(0, 20000) : answerText
-        ];
-        await fetch("https://geminiai-render.onrender.com/api/googleSheetLogger/log", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ rowData })
-        });
-      } catch {
-        // Silently fail, do not block UI
+      // --- Google Sheet Logger ---
+      let imageBase64 = "";
+      if (imageFile) {
+        // Compress image for Google Sheet logging (lower resolution & quality)
+        const compressForSheet = async (file, { maxWidth = 400, maxHeight = 400, quality = 0.4 } = {}) => {
+          if (!file.type.startsWith('image/')) throw new Error('Not an image');
+          const dataUrl = await new Promise((resolve, reject) => {
+            const r = new FileReader();
+            r.onload = () => resolve(r.result);
+            r.onerror = reject;
+            r.readAsDataURL(file);
+          });
+          const img = await new Promise((resolve, reject) => {
+            const i = new window.Image();
+            i.onload = () => resolve(i);
+            i.onerror = reject;
+            i.src = dataUrl;
+          });
+          let { width, height } = img;
+          const scale = Math.min(1, maxWidth / width, maxHeight / height);
+          if (scale < 1) { width = Math.round(width * scale); height = Math.round(height * scale); }
+          const canvas = document.createElement('canvas');
+          canvas.width = width; canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          const mime = (file.type === 'image/png' && ctx.getImageData(0,0,1,1).data[3] === 255) ? 'image/jpeg' : (file.type === 'image/png' ? 'image/png' : 'image/jpeg');
+          const compressedDataUrl = canvas.toDataURL(mime, quality);
+          return compressedDataUrl.split(',')[1];
+        };
+        try {
+          imageBase64 = await compressForSheet(imageFile);
+        } catch {
+          // fallback to original if compression fails
+          imageBase64 = await new Promise((resolve, reject) => { const fr = new FileReader(); fr.onload = () => resolve(fr.result.split(',')[1]); fr.onerror = reject; fr.readAsDataURL(imageFile); });
+        }
+        // Limit base64 string to 20,000 chars for Google Sheet safety
+        if (imageBase64.length > 20000) imageBase64 = imageBase64.substring(0, 20000);
       }
+      // Limit answerText to 20,000 chars for Google Sheet safety
+      let answerTextForSheet = answerText;
+      if (answerTextForSheet.length > 20000) answerTextForSheet = answerTextForSheet.substring(0, 20000);
+      const rowData = [
+        "", // user (empty for now)
+        "BornoAI", // model
+        selectedClass,
+        selectedSubject,
+        "", // chapter (not available)
+        "", // question type (not available)
+        question,
+        imageBase64,
+        answerTextForSheet
+      ];
+      fetch('https://geminiai-render.onrender.com/api/googleSheetLogger/log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rowData })
+      });
+      // --- End Google Sheet Logger ---
   // If you want to reset file input after submit, uncomment below:
   // setImageFile(null);
   // setImagePreviewUrl(null);
