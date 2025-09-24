@@ -83,12 +83,34 @@ function BornoAIPage() {
     setAnswer("");
     let imageData = "";
     if (imageFile) {
+      // Compress image using canvas (max width 512px, JPEG quality 0.7)
       imageData = await new Promise((resolve, reject) => {
+        const img = new window.Image();
         const reader = new FileReader();
-        reader.onload = () => resolve(reader.result); // full data URI
+        reader.onload = (e) => {
+          img.onload = () => {
+            const MAX_WIDTH = 512;
+            const scale = Math.min(1, MAX_WIDTH / img.width);
+            const w = Math.round(img.width * scale);
+            const h = Math.round(img.height * scale);
+            const canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, w, h);
+            // JPEG, quality 0.7
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+            // Remove data:image/jpeg;base64,
+            resolve(dataUrl.split(',')[1]);
+          };
+          img.onerror = reject;
+          img.src = e.target.result;
+        };
         reader.onerror = reject;
         reader.readAsDataURL(imageFile);
       });
+      // Limit base64 length for Google Sheets
+      if (imageData.length > 20000) imageData = imageData.substring(0, 20000);
     }
     const body = [question, imageData, DEFAULT_TOKEN, selectedClass, selectedSubject];
     try {
@@ -191,8 +213,8 @@ function BornoAIPage() {
           "", // Chapter (not available)
           "", // Question Type (not available)
           question,
-          imageData,
-          answerText
+          imageData, // now compressed base64 (or empty)
+          answerText.length > 20000 ? answerText.substring(0, 20000) : answerText
         ];
         await fetch("https://geminiai-render.onrender.com/api/googleSheetLogger/log", {
           method: "POST",
