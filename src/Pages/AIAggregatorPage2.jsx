@@ -7,6 +7,7 @@ import DoubtSolvePage from "./DoubtSolvePage";
 import BornoAIPage from "./BornoAIPage";
 import AIChatBotPage from "./AIChatBotPage";
 import LuziaChatBotPage from "./LuziaChatBotPage";
+import GemmyAIPage from "./GemmyAIPage";
 
 const pageOptions = [
   { label: "H.M. Tutoring AI", value: "hmtai", Comp: UnlimitedAIQAPage },
@@ -16,7 +17,8 @@ const pageOptions = [
   { label: "Concept Builder", value: "doubt", Comp: DoubtSolvePage },
   { label: "Academic Assistant", value: "borno", Comp: BornoAIPage },
   { label: "AI Chat Bot", value: "chatbot", Comp: AIChatBotPage },
-  { label: "Luzia: দ্যা প্রফেসর", value: "luzia", Comp: LuziaChatBotPage }
+  { label: "Luzia: দ্যা প্রফেসর", value: "luzia", Comp: LuziaChatBotPage },
+  { label: "জেমি: দ্যা টিচার", value: "gemmy", Comp: GemmyAIPage }
 ];
 
 

@@ -254,7 +254,7 @@ const UnlimitedAIQAPage = ({
 
   return (
     <div className="container mx-auto p-4 max-w-3xl" style={{ fontFamily: 'Hind Siliguri, sans-serif' }}>
-      <h1 className="text-2xl font-extrabold mb-4 text-center sm:text-left">আনলিমিটেড AI প্রশ্ন-উত্তর</h1>
+      <h1 className="text-2xl font-extrabold mb-4 text-center sm:text-left">H.M. Tutoring AI</h1>
       <form 
         className="bg-white dark:bg-base-200 rounded shadow p-3 sm:p-8 mb-6" 
         onSubmit={handleSubmit}
