@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import MathRenderer from "../Components/MathRenderer/MathRenderer";
 
 // Use a server-side proxy to avoid exposing token or token-source URL to the client.
-const API_URL = "https://hmtutoring-backend.onrender.com/api/ai-free-chatpdf";
+const API_URL = "https://geminiai-render.onrender.com/api/ai-free-chatpdf";
 
 const ChatPDFPage = ({
   questionTypeOverride = undefined,
