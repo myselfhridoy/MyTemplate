@@ -8,17 +8,19 @@ import BornoAIPage from "./BornoAIPage";
 import AIChatBotPage from "./AIChatBotPage";
 import LuziaChatBotPage from "./LuziaChatBotPage";
 import GemmyAIPage from "./GemmyAIPage";
+import MerlineAIPage from "./MerlineAIPage";
 
 const pageOptions = [
   { label: "H.M. Tutoring AI", value: "hmtai", Comp: UnlimitedAIQAPage },
   { label: "Study Buddy", value: "qa", Comp: HMTAIPage },
-  { label: "Knowledge Master", value: "assistant", Comp: AIAssistantPage },
-  { label: "Problem Solver", value: "chat", Comp: AIChatPage },
-  { label: "Concept Builder", value: "doubt", Comp: DoubtSolvePage },
   { label: "Academic Assistant", value: "borno", Comp: BornoAIPage },
   { label: "AI Chat Bot", value: "chatbot", Comp: AIChatBotPage },
   { label: "Luzia: দ্যা প্রফেসর", value: "luzia", Comp: LuziaChatBotPage },
-  { label: "জেমি: দ্যা টিচার", value: "gemmy", Comp: GemmyAIPage }
+  { label: "জেমি: দ্যা টিচার", value: "gemmy", Comp: GemmyAIPage },
+  { label: "মিস মার্লিন: দ্যা টিউটর", value: "merlin", Comp: MerlineAIPage },
+  { label: "Knowledge Master", value: "assistant", Comp: AIAssistantPage },
+  { label: "Problem Solver", value: "chat", Comp: AIChatPage },
+  { label: "Concept Builder", value: "doubt", Comp: DoubtSolvePage }
 ];
 
 

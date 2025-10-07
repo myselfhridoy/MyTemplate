@@ -8,29 +8,32 @@ import BornoAIPage from "./BornoAIPage";
 import AIChatBotPage from "./AIChatBotPage";
 import LuziaChatBotPage from "./LuziaChatBotPage";
 import GemmyAIPage from "./GemmyAIPage";
+import MerlineAIPage from "./MerlineAIPage";
 
 const pageOptions = [
   { label: "H.M. Tutoring AI", value: "hmtai" },
   { label: "Study Buddy", value: "qa" },
-  { label: "Knowledge Master", value: "assistant" },
-  { label: "Problem Solver", value: "chat" },
-  { label: "Concept Builder", value: "doubt" },
   { label: "Academic Assistant", value: "borno" },
   { label: "AI Chat Bot", value: "chatbot" },
   { label: "Luzia: দ্যা প্রফেসর", value: "luzia" },
-  { label: "জেমি: দ্যা টিচার", value: "gemmy" }
+  { label: "জেমি: দ্যা টিচার", value: "gemmy" },
+  { label: "মিস মার্লিন: দ্যা টিউটর", value: "merlin" },
+  { label: "Knowledge Master", value: "assistant" },
+  { label: "Problem Solver", value: "chat" },
+  { label: "Concept Builder", value: "doubt" }
 ];
 
 const pageMap = {
   hmtai: <UnlimitedAIQAPage />,
   qa: <HMTAIPage />,
-  assistant: <AIAssistantPage />,
-  chat: <AIChatPage />,
-  doubt: <DoubtSolvePage />,
   borno: <BornoAIPage />,
   chatbot: <AIChatBotPage />,
   luzia: <LuziaChatBotPage />,
-  gemmy: <GemmyAIPage />
+  gemmy: <GemmyAIPage />,
+  merlin: <MerlineAIPage />,
+  assistant: <AIAssistantPage />,
+  chat: <AIChatPage />,
+  doubt: <DoubtSolvePage />
 };
 
 export default function AIAggregatorPage() {
