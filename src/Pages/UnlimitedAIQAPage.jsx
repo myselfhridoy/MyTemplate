@@ -194,6 +194,10 @@ const UnlimitedAIQAPage = ({
               setAnswer(answerText); // live update
               console.log('Stream update:', answerText.length, 'chars');
             }
+            // Skip thinking_delta for cleaner output
+            else if (obj.type === "thinking_delta") {
+              console.log('Thinking:', obj.data?.substring(0, 50) + '...');
+            }
           } catch (e) {
             console.log('JSON parse error:', e.message, 'Line:', line);
           }
@@ -219,6 +223,10 @@ const UnlimitedAIQAPage = ({
             if (obj.type === "text_delta" && typeof obj.data === "string") {
               answerText += obj.data;
               setAnswer(answerText);
+            }
+            // Skip thinking_delta for cleaner output
+            else if (obj.type === "thinking_delta") {
+              console.log('Final thinking:', obj.data?.substring(0, 50) + '...');
             }
           } catch (e) {
             console.log('Final JSON parse error:', e.message, 'Fragment:', jsonStr);
