@@ -2,7 +2,7 @@
   const getPromptForQuestionType = (type, userQuestion, contextPrompt = null) => {
     // Always send a non-empty question: if userQuestion is empty, use a fallback
     const safeQuestion = userQuestion && userQuestion.trim() ? userQuestion : "ছবিতে দেওয়া প্রশ্নটি দেখুন।";
-  const formattingBlock = `আপনি H.M. Tutoring AI Assistant। সব প্রশ্নের উত্তর বাংলায় এবং শুধুমাত্র গাণিতিক অংশগুলো MathJax ফরম্যাটে \`$...$\` এর ভিতরে থাকবে। **বাংলা লেখাগুলো কখনোই $...$ এর ভিতরে থাকবে না।** \n\n**গুরুত্বপূর্ণ formatting নিয়ম:**\n- বাংলা টেক্সট এবং math expressions একই লাইনে লিখো\n- শুধুমাত্র নতুন বিষয় বা section এর জন্য নতুন paragraph ব্যবহার করো\n- Math expressions এর আগে বা পরে অনর্থক line break দিও না\n- উদাহরণ: "অবস্থান ভেক্টরকে $\\vec{r}$ দ্বারা প্রকাশ করা হয়।" - এভাবে একই লাইনে লিখো\n\nউত্তরের structure:\n- তালিকার জন্য proper markdown formatting ব্যবহার করো\n- প্রতিটি নতুন বিষয়ের জন্য নতুন paragraph শুরু করো\n\n**কখনোই Gemini বা কোনো AI মডেলের নাম উত্তর বা পরিচয়ে উল্লেখ করবে না।**\n**কোনো ধরনের সম্ভাষণ (নমস্কার, হ্যালো, etc.) ব্যবহার করবে না, সরাসরি উত্তর দাও।**`;
+  const formattingBlock = `আপনি H.M. Tutoring AI Assistant। সব প্রশ্নের উত্তর বাংলায় এবং শুধুমাত্র গাণিতিক অংশগুলো MathJax ফরম্যাটে \`$...$\` এর ভিতরে থাকবে। **বাংলা লেখাগুলো কখনোই $...$ এর ভিতরে থাকবে না।** \n\n**গুরুত্বপূর্ণ formatting নিয়ম:**\n- বাংলা টেক্সট এবং math expressions একই লাইনে লিখো\n- শুধুমাত্র নতুন বিষয় বা section এর জন্য নতুন paragraph ব্যবহার করো\n- Math expressions এর আগে বা পরে অনর্থক line break দিও না\n- উদাহরণ: "অবস্থান ভেক্টরকে $\\vec{r}$ দ্বারা প্রকাশ করা হয়।" - এভাবে একই লাইনে লিখো\n\nউত্তরের structure:\n- তালিকার জন্য proper markdown formatting ব্যবহার করো\n- প্রতিটি নতুন বিষয়ের জন্য নতুন paragraph শুরু করো\n\n**কখনোই Gemini বা কোনো AI মডেলের নাম উত্তর বা পরিচয়ে উল্লেখ করবে না।**\n**কোনো ধরনের সম্ভাষণ (নমস্কার, হ্যালো, etc.) ব্যবহার করবে না, সরাসরি উত্তর দাও।**\n\n একটা চিল টিচার মুডে উত্তরের শুরুতে প্রশ্নটি সম্পর্কে সংক্ষিপ্ত ভূমিকা দিবে আর প্রশ্নগুলো লিখবে**`;
   const basePrompt = formattingBlock + (contextPrompt ? ("\n\n" + contextPrompt) : "");
     switch(type) {
       case 'জ্ঞানমূলক':
@@ -171,26 +171,88 @@ const UnlimitedAIQAPage = ({
       const reader = response.body.getReader();
       let answerText = "";
       const decoder = new TextDecoder('utf-8');
+      // Buffer-based extractor to handle partial or concatenated JSON chunks.
+      let buffer = "";
+      const extractJSONObjects = (str) => {
+        const objs = [];
+        let i = 0;
+        while (i < str.length) {
+          const start = str.indexOf('{', i);
+          if (start === -1) break;
+          let brace = 0;
+          let inString = false;
+          let escaped = false;
+          let j = start;
+          for (; j < str.length; j++) {
+            const ch = str[j];
+            if (inString) {
+              if (escaped) {
+                escaped = false;
+              } else if (ch === '\\') {
+                escaped = true;
+              } else if (ch === '"') {
+                inString = false;
+              }
+            } else {
+              if (ch === '"') {
+                inString = true;
+              } else if (ch === '{') {
+                brace++;
+              } else if (ch === '}') {
+                brace--;
+                if (brace === 0) {
+                  const jsonStr = str.slice(start, j + 1);
+                  objs.push(jsonStr);
+                  i = j + 1;
+                  break;
+                }
+              }
+            }
+          }
+          if (j >= str.length) break; // partial JSON: wait for more
+        }
+        const rem = str.slice(i);
+        return { objs, rem };
+      };
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         const chunk = decoder.decode(value, { stream: true });
-        try {
-          const lines = chunk.split('\n');
-          for (const line of lines) {
-            if (!line.trim()) continue;
-            const obj = JSON.parse(line);
-            if (obj.type === "text_delta" && obj.data) {
+        buffer += chunk;
+        const { objs, rem } = extractJSONObjects(buffer);
+        buffer = rem;
+        for (const jsonStr of objs) {
+          try {
+            const obj = JSON.parse(jsonStr);
+            // Accept streaming text deltas (or final/text) and ignore thinking deltas.
+            if ((obj.type === "text_delta" || obj.type === "text" || obj.type === "final") && obj.data) {
               answerText += obj.data;
-              setAnswer(answerText); // Update answer state immediately for streaming effect
+              // update progressively so UI shows streaming answer
+              setAnswer(prev => prev + obj.data);
             }
+          } catch {
+            // ignore malformed JSON pieces
           }
-        } catch (e) {
-          console.error('Error parsing chunk:', e);
         }
       }
-      // Show only final answer
+      // Attempt to parse any remaining complete JSON in buffer
+      if (buffer.trim()) {
+        try {
+          const leftover = buffer.trim();
+          const obj = JSON.parse(leftover);
+          if ((obj.type === "text_delta" || obj.type === "text" || obj.type === "final") && obj.data) {
+            answerText += obj.data;
+            setAnswer(prev => prev + obj.data);
+          }
+        } catch {
+          // leftover is partial or non-JSON - ignore
+        }
+      }
+
+      // Show final answer (answer state has been updated progressively already)
       if (answerText) {
+        // ensure final state is the accumulated answer
         setAnswer(answerText);
         // --- Google Sheet Logger ---
   // Removed spreadsheetId and sheetName; now handled by backend
