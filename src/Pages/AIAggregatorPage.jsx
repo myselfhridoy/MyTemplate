@@ -37,7 +37,7 @@ const pageMap = {
 };
 
 export default function AIAggregatorPage() {
-  const [selected, setSelected] = useState("hmtai"); // এখানে "hmtai" ডিফল্ট করে দেওয়া হয়েছে
+  const [selected, setSelected] = useState("gemmy"); // এখানে "gemmy" ডিফল্ট করে দেওয়া হয়েছে
   return (
     <div className="container mx-auto max-w-3xl p-4">
       <div className="mb-4">
