@@ -2,7 +2,7 @@
   const getPromptForQuestionType = (type, userQuestion, contextPrompt = null) => {
     // Always send a non-empty question: if userQuestion is empty, use a fallback
     const safeQuestion = userQuestion && userQuestion.trim() ? userQuestion : "ছবিতে দেওয়া প্রশ্নটি দেখুন।";
-  const formattingBlock = `আপনি H.M. Tutoring AI Assistant। সব প্রশ্নের উত্তর বাংলায় এবং শুধুমাত্র গাণিতিক অংশগুলো MathJax ফরম্যাটে \`$...$\` এর ভিতরে থাকবে। **বাংলা লেখাগুলো কখনোই $...$ এর ভিতরে থাকবে না।** \n\n**গুরুত্বপূর্ণ formatting নিয়ম:**\n- বাংলা টেক্সট এবং math expressions একই লাইনে লিখো\n- শুধুমাত্র নতুন বিষয় বা section এর জন্য নতুন paragraph ব্যবহার করো\n- Math expressions এর আগে বা পরে অনর্থক line break দিও না\n- উদাহরণ: "অবস্থান ভেক্টরকে $\\vec{r}$ দ্বারা প্রকাশ করা হয়।" - এভাবে একই লাইনে লিখো\n\nউত্তরের structure:\n- তালিকার জন্য proper markdown formatting ব্যবহার করো\n- প্রতিটি নতুন বিষয়ের জন্য নতুন paragraph শুরু করো\n\n**কখনোই Gemini, Aidocmaker বা কোনো AI মডেল/প্ল্যাটফর্মের নাম উত্তর বা পরিচয়ে উল্লেখ করবে না।**\n**কোনো ধরনের সম্ভাষণ (নমস্কার, হ্যালো, etc.) ব্যবহার করবে না, সরাসরি উত্তর দাও।**\n**উত্তরে কোনো website বা platform এর নাম উল্লেখ করবে না।**`;
+  const formattingBlock = `আপনি H.M. Tutoring AI Assistant। সব প্রশ্নের উত্তর বাংলায় এবং শুধুমাত্র গাণিতিক অংশগুলো MathJax ফরম্যাটে \`$...$\` এর ভিতরে থাকবে। **বাংলা লেখাগুলো কখনোই $...$ এর ভিতরে থাকবে না।** \n\n**গুরুত্বপূর্ণ formatting নিয়ম:**\n- বাংলা টেক্সট এবং math expressions একই লাইনে লিখো\n- শুধুমাত্র নতুন বিষয় বা section এর জন্য নতুন paragraph ব্যবহার করো\n- Math expressions এর আগে বা পরে অনর্থক line break দিও না\n- উদাহরণ: "অবস্থান ভেক্টরকে $\\vec{r}$ দ্বারা প্রকাশ করা হয়।" - এভাবে একই লাইনে লিখো\n\nউত্তরের structure:\n- তালিকার জন্য proper markdown formatting ব্যবহার করো\n- প্রতিটি নতুন বিষয়ের জন্য নতুন paragraph শুরু করো\n\n**কখনোই Gemini বা কোনো AI মডেলের নাম উত্তর বা পরিচয়ে উল্লেখ করবে না।**\n**কোনো ধরনের সম্ভাষণ (নমস্কার, হ্যালো, etc.) ব্যবহার করবে না, সরাসরি উত্তর দাও।**`;
   const basePrompt = formattingBlock + (contextPrompt ? ("\n\n" + contextPrompt) : "");
     switch(type) {
       case 'জ্ঞানমূলক':
@@ -167,70 +167,26 @@ const UnlimitedAIQAPage = ({
       if (!response.ok) {
         throw new Error("API Error: " + response.status);
       }
-      // The response is streamed as newline-delimited JSON objects
+      // The response is streamed as text/event-stream
       const reader = response.body.getReader();
-      const decoder = new TextDecoder('utf-8');
       let answerText = "";
-      let buffer = "";
-      
+      const decoder = new TextDecoder('utf-8');
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        
-        buffer += decoder.decode(value, { stream: true });
-        
-        // Split by newlines and process each JSON line
-        let eolIndex;
-        while ((eolIndex = buffer.indexOf('\n')) >= 0) {
-          const line = buffer.slice(0, eolIndex).trim();
-          buffer = buffer.slice(eolIndex + 1);
-          
-          if (!line) continue;
-          
-          try {
+        const chunk = decoder.decode(value, { stream: true });
+        try {
+          const lines = chunk.split('\n');
+          for (const line of lines) {
+            if (!line.trim()) continue;
             const obj = JSON.parse(line);
-            if (obj.type === "text_delta" && typeof obj.data === "string") {
+            if (obj.type === "text_delta" && obj.data) {
               answerText += obj.data;
-              setAnswer(answerText); // live update
-              console.log('Stream update:', answerText.length, 'chars');
+              setAnswer(answerText); // Update answer state immediately for streaming effect
             }
-            // Skip thinking_delta for cleaner output
-            else if (obj.type === "thinking_delta") {
-              console.log('Thinking:', obj.data?.substring(0, 50) + '...');
-            }
-          } catch (e) {
-            console.log('JSON parse error:', e.message, 'Line:', line);
           }
-        }
-      }
-      
-      // Process any remaining buffer (may contain multiple JSON objects)
-      if (buffer.trim()) {
-        // Try to split by '}{'  and add braces back
-        const remainingLines = buffer.trim().split('}{');
-        
-        for (let i = 0; i < remainingLines.length; i++) {
-          let jsonStr = remainingLines[i];
-          
-          // Add missing braces
-          if (i > 0) jsonStr = '{' + jsonStr;
-          if (i < remainingLines.length - 1) jsonStr = jsonStr + '}';
-          
-          if (!jsonStr.trim()) continue;
-          
-          try {
-            const obj = JSON.parse(jsonStr);
-            if (obj.type === "text_delta" && typeof obj.data === "string") {
-              answerText += obj.data;
-              setAnswer(answerText);
-            }
-            // Skip thinking_delta for cleaner output
-            else if (obj.type === "thinking_delta") {
-              console.log('Final thinking:', obj.data?.substring(0, 50) + '...');
-            }
-          } catch (e) {
-            console.log('Final JSON parse error:', e.message, 'Fragment:', jsonStr);
-          }
+        } catch (e) {
+          console.error('Error parsing chunk:', e);
         }
       }
       // Show only final answer
