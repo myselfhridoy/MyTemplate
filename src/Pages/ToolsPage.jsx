@@ -1,10 +1,13 @@
 import React, { useState } from "react";
 import DesmosGraphPage from "./DesmosGraphPage";
+import BoardResultPage from "./BoardResultPage";
 
 const toolOptions = [
   { value: "", label: "টুল সিলেক্ট করুন" },
+  { value: "board-result", label: "বোর্ড পরীক্ষার ফলাফল" },
   { value: "desmos", label: "গ্রাফ ক্যালকুলেটর" },
   { value: "telegram", label: "টেলিগ্রাম বট" }
+  
 ];
 
 const ToolsPage = () => {
@@ -44,6 +47,11 @@ const ToolsPage = () => {
               @HMTutoringAI_bot
             </a>
           </div>
+        </div>
+      )}
+      {selectedTool === "board-result" && (
+        <div className="mt-2">
+          <BoardResultPage />
         </div>
       )}
     </div>
