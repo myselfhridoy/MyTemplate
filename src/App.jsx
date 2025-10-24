@@ -27,6 +27,8 @@ import ToolsPage from './Pages/ToolsPage';
 import AIChatBotPage from './Pages/AIChatBotPage';
 import LuziaChatBotPage from './Pages/LuziaChatBotPage';
 import GemmyAIPage from './Pages/GemmyAIPage';
+import PrivacyPolicy from './Pages/PrivacyPolicy';
+import TermsOfService from './Pages/TermsOfService';
 
 
 export default class App extends Component {
@@ -59,6 +61,8 @@ export default class App extends Component {
             <Route path="/ai-chatbot" element={<AIChatBotPage />} />
             <Route path="/luzia-chatbot" element={<LuziaChatBotPage />} />
             <Route path="/gemmy-ai" element={<GemmyAIPage />} />
+            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+            <Route path="/terms-of-service" element={<TermsOfService />} />
           </Routes>
         </div>
       </>

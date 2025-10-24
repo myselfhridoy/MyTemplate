@@ -68,6 +68,9 @@ function Navbar() {
                 <li><Link to="/ai-aggregator-2" onClick={() => setTimeout(() => handleMenuClick(), 50)}>AI টিউটর (সকল শ্রেণি)</Link></li>
                 <li><Link to="/chatpdf" onClick={() => setTimeout(() => handleMenuClick(), 50)}>AI Chat PDF</Link></li>
                 <li><Link to="/tools" onClick={() => setTimeout(() => handleMenuClick(), 50)}>প্রয়োজনীয় টুলস</Link></li>
+                <li className="divider" />
+                <li><Link to="/privacy-policy" onClick={() => setTimeout(() => handleMenuClick(), 50)}>Privacy Policy</Link></li>
+                <li><Link to="/terms-of-service" onClick={() => setTimeout(() => handleMenuClick(), 50)}>Terms of Service</Link></li>
               </ul>
             )}
           </div>
