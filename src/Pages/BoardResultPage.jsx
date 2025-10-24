@@ -61,7 +61,7 @@ const BoardResultPage = () => {
       setError("");
       setCaptchaCode(""); // Clear previous code
       
-      const response = await fetch('https://geminiai-render.onrender.com/api/test-api/captcha', {
+      const response = await fetch('https://geminiai-render.onrender.com/api/eboard/captcha', {
         method: 'GET'
       });
       
@@ -125,7 +125,7 @@ const BoardResultPage = () => {
       };
       console.debug('BoardResult: sending request payload ->', payload);
 
-      const response = await fetch('https://geminiai-render.onrender.com/api/test-api/result', {
+      const response = await fetch('https://geminiai-render.onrender.com/api/eboard/result', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
