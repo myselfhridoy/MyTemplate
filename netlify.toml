@@ -13,3 +13,15 @@
   to = "/.netlify/functions/CloudflareGemmaProxy"
   status = 200
   force = true
+
+[[redirects]]
+  from = "/api/github-proxy"
+  to = "/.netlify/functions/github-proxy"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/github-image"
+  to = "/.netlify/functions/github-image"
+  status = 200
+  force = true
