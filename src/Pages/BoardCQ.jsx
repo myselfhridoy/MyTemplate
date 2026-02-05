@@ -178,14 +178,15 @@ function BoardCQ() {
   ];
 
   const boards = [
-    { value: 'AB', label: 'সকল বোর্ড', hasSession: true },
+    { value: 'AB', label: 'সম্মিলিত বোর্ড', hasSession: true },
     { value: 'DB', label: 'ঢাকা বোর্ড', hasSession: false },
     { value: 'RB', label: 'রাজশাহী বোর্ড', hasSession: false },
-    { value: 'CB', label: 'চট্টগ্রাম বোর্ড', hasSession: false },
+    { value: 'CB', label: 'কুমিল্লা বোর্ড', hasSession: false },
+    { value: 'CtgB', label: 'চট্টগ্রাম বোর্ড', hasSession: false },
+    { value: 'SB', label: 'সিলেট বোর্ড', hasSession: false },
+    { value: 'BB', label: 'বরিশাল বোর্ড', hasSession: false },
     { value: 'JB', label: 'যশোর বোর্ড', hasSession: false },
-    { value: 'CtgB', label: 'কুমিল্লা বোর্ড', hasSession: false },
     { value: 'DinB', label: 'দিনাজপুর বোর্ড', hasSession: false },
-    { value: 'SBB', label: 'সিলেট বোর্ড', hasSession: false },
     { value: 'MSB', label: 'ময়মনসিংহ বোর্ড', hasSession: false }
   ];
 
@@ -197,12 +198,13 @@ function BoardCQ() {
     { value: '20', label: '২০২০' },
     { value: '19', label: '২০১৯' },
     { value: '18', label: '২০১৮' },
-    { value: '17', label: '২০১৭' }
+    { value: '17', label: '২০১৭' },
+    { value: '16', label: '২০১৬' }
   ];
 
   const sessions = [
-    { value: 'S1', label: 'সেশন ১' },
-    { value: 'S2', label: 'সেশন ২' }
+    { value: 'S1', label: 'সেট ১' },
+    { value: 'S2', label: 'সেট ২' }
   ];
 
   // Load CQ data when all filters are selected
