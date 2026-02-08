@@ -11,7 +11,7 @@ function ExampleWithAnswer() {
     const fetchData = async () => {
       try {
         const response = await fetch(
-          'https://corsproxy.io/?url=' + encodeURIComponent('https://raw.githubusercontent.com/myselfhridoy/hmtutoring-database/refs/heads/main/testanswer.json'),
+          'https://raw.githubusercontent.com/myselfhridoy/hmtutoring-database/refs/heads/main/testanswer.json',
           {
             headers: {
               'Accept': 'application/json',
