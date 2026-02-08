@@ -11,21 +11,21 @@ import GemmyAIPage from "./GemmyAIPage";
 import MerlineAIPage from "./MerlineAIPage";
 
 const pageOptions = [
+  { label: "জেমি: দ্যা টিচার", value: "gemmy", Comp: GemmyAIPage },
+  { label: "মিস মার্লিন: দ্যা টিউটর", value: "merlin", Comp: MerlineAIPage },
+  { label: "Luzia: দ্যা প্রফেসর", value: "luzia", Comp: LuziaChatBotPage },
+  { label: "Knowledge Master", value: "assistant", Comp: AIAssistantPage },
+  { label: "Concept Builder", value: "doubt", Comp: DoubtSolvePage },
   { label: "H.M. Tutoring AI", value: "hmtai", Comp: UnlimitedAIQAPage },
   { label: "Study Buddy", value: "qa", Comp: HMTAIPage },
   { label: "Academic Assistant", value: "borno", Comp: BornoAIPage },
   { label: "AI Chat Bot", value: "chatbot", Comp: AIChatBotPage },
-  { label: "Luzia: দ্যা প্রফেসর", value: "luzia", Comp: LuziaChatBotPage },
-  { label: "জেমি: দ্যা টিচার", value: "gemmy", Comp: GemmyAIPage },
-  { label: "মিস মার্লিন: দ্যা টিউটর", value: "merlin", Comp: MerlineAIPage },
-  { label: "Knowledge Master", value: "assistant", Comp: AIAssistantPage },
   { label: "Problem Solver", value: "chat", Comp: AIChatPage },
-  { label: "Concept Builder", value: "doubt", Comp: DoubtSolvePage }
 ];
 
 
 export default function AIAggregatorPage2() {
-  const [selected, setSelected] = useState("hmtai"); // এখানে "hmtai" ডিফল্ট করে দেওয়া হয়েছে
+  const [selected, setSelected] = useState("gemmy"); // এখানে "gemmy" ডিফল্ট করে দেওয়া হয়েছে
   const [classOverride, setClassOverride] = useState("");
   const [subjectOverride, setSubjectOverride] = useState("");
   const [chapterOverride, setChapterOverride] = useState("");

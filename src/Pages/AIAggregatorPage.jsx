@@ -11,33 +11,33 @@ import GemmyAIPage from "./GemmyAIPage";
 import MerlineAIPage from "./MerlineAIPage";
 
 const pageOptions = [
+  { label: "জেমি: দ্যা টিচার", value: "gemmy" },
+  { label: "মিস মার্লিন: দ্যা টিউটর", value: "merlin" },
+  { label: "Luzia: দ্যা প্রফেসর", value: "luzia" },
+  { label: "Knowledge Master", value: "assistant" },
+  { label: "Concept Builder", value: "doubt" },
   { label: "H.M. Tutoring AI", value: "hmtai" },
   { label: "Study Buddy", value: "qa" },
   { label: "Academic Assistant", value: "borno" },
   { label: "AI Chat Bot", value: "chatbot" },
-  { label: "Luzia: দ্যা প্রফেসর", value: "luzia" },
-  { label: "জেমি: দ্যা টিচার", value: "gemmy" },
-  { label: "মিস মার্লিন: দ্যা টিউটর", value: "merlin" },
-  { label: "Knowledge Master", value: "assistant" },
   { label: "Problem Solver", value: "chat" },
-  { label: "Concept Builder", value: "doubt" }
 ];
 
 const pageMap = {
+  gemmy: <GemmyAIPage />,
+  merlin: <MerlineAIPage />,
+  assistant: <AIAssistantPage />,
+  luzia: <LuziaChatBotPage />,
+  doubt: <DoubtSolvePage />,
   hmtai: <UnlimitedAIQAPage />,
   qa: <HMTAIPage />,
   borno: <BornoAIPage />,
   chatbot: <AIChatBotPage />,
-  luzia: <LuziaChatBotPage />,
-  gemmy: <GemmyAIPage />,
-  merlin: <MerlineAIPage />,
-  assistant: <AIAssistantPage />,
   chat: <AIChatPage />,
-  doubt: <DoubtSolvePage />
 };
 
 export default function AIAggregatorPage() {
-  const [selected, setSelected] = useState("hmtai"); // এখানে "hmtai" ডিফল্ট করে দেওয়া হয়েছে
+  const [selected, setSelected] = useState("gemmy"); // এখানে "gemmy" ডিফল্ট করে দেওয়া হয়েছে
   return (
     <div className="container mx-auto max-w-3xl p-4">
       <div className="mb-4">
