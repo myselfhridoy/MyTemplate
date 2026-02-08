@@ -11,7 +11,7 @@ function ExamplePage() {
     const fetchData = async () => {
       try {
         const response = await fetch(
-          'https://corsproxy.io/?https://raw.githubusercontent.com/myselfhridoy/hmtutoring-database/refs/heads/main/test.json',
+          'https://corsproxy.io/?url=https://raw.githubusercontent.com/myselfhridoy/hmtutoring-database/refs/heads/main/test.json',
           {
             headers: {
               'Accept': 'application/json',

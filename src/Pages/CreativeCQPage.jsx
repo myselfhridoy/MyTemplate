@@ -47,7 +47,7 @@ function CreativeCQPage() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch('https://corsproxy.io/?https://raw.githubusercontent.com/myselfhridoy/hmtutoring-database/refs/heads/main/cqmapping.json');
+        const res = await fetch('https://corsproxy.io/?url=https://raw.githubusercontent.com/myselfhridoy/hmtutoring-database/refs/heads/main/cqmapping.json');
         if (!res.ok) throw new Error('Mapping fetch failed');
         const data = await res.json();
         setMapping(Array.isArray(data) ? data : []);
@@ -78,7 +78,7 @@ function CreativeCQPage() {
         setChapterUrl(url);
         setLoading(true);
         setError(null);
-        fetch('https://corsproxy.io/?' + url, {
+        fetch('https://corsproxy.io/?url=' + encodeURIComponent(url), {
           headers: { 'Accept': 'application/json', 'Cache-Control': 'no-cache' }
         })
           .then(res => {
