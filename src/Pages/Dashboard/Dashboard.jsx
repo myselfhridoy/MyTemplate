@@ -28,6 +28,28 @@ function Dashboard() {
             onClick={e => { e.stopPropagation(); navigate('/creative-cq'); }}
           >প্রশ্ন ব্যাংক দেখুন</button>
         </div>
+
+        {/* বোর্ড পরীক্ষার প্রশ্নব্যাংক কার্ড */}
+        <div
+          className="group relative bg-gradient-to-br from-rose-100 via-rose-50 to-white dark:from-rose-900 dark:via-rose-950 dark:to-gray-900 rounded-xl shadow-lg border border-rose-200 dark:border-rose-800 p-4 flex flex-col items-center justify-between transition-transform hover:-translate-y-1 hover:shadow-2xl cursor-pointer overflow-hidden min-h-[220px]"
+          style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
+          onClick={() => navigate('/board-cq')}
+        >
+          <div className="absolute top-0 right-0 opacity-10 text-[5rem] pointer-events-none select-none">🏛️</div>
+          <div className="flex flex-col items-center gap-2 z-10">
+            <div className="bg-rose-600/90 dark:bg-rose-700/80 rounded-full p-2 mb-1 shadow-lg">
+              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0H5m14 0h2m-16 0H3m5-12h4m-4 4h4"/></svg>
+            </div>
+            <span className="text-lg font-bold text-rose-800 dark:text-rose-200 tracking-tight">বোর্ড পরীক্ষার প্রশ্নব্যাংক</span>
+            <span className="text-gray-700 dark:text-gray-200 text-center text-sm font-medium">বিভিন্ন বোর্ড পরীক্ষার বিগত বছরের প্রশ্ন ব্রাউজ করুন ও AI দিয়ে সমাধান করুন।</span>
+          </div>
+          <button
+            className="btn mt-4 w-full group-hover:scale-105 transition-transform text-base bg-rose-600 hover:bg-rose-700 text-white border-none"
+            style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
+            onClick={e => { e.stopPropagation(); navigate('/board-cq'); }}
+          >বোর্ড প্রশ্নব্যাংক দেখুন</button>
+        </div>
+
         {/* পাঠ্যবই ফিচার কার্ড */}
         <div
           className="group relative bg-gradient-to-br from-yellow-100 via-yellow-50 to-white dark:from-yellow-900 dark:via-yellow-950 dark:to-gray-900 rounded-xl shadow-lg border border-yellow-200 dark:border-yellow-800 p-4 flex flex-col items-center justify-between transition-transform hover:-translate-y-1 hover:shadow-2xl cursor-pointer overflow-hidden min-h-[220px]"
