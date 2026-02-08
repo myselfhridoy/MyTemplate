@@ -60,6 +60,10 @@ function Navbar() {
                 <li><Link to="/creative-cq" onClick={() => setTimeout(() => handleMenuClick(), 50)}>প্রশ্ন ব্যাংক</Link></li>
                 <li><Link to="/bookcontent" onClick={() => setTimeout(() => handleMenuClick(), 50)}>পাঠ্যবই</Link></li>
                 <li><Link to="/selftest" onClick={() => setTimeout(() => handleMenuClick(), 50)}>সেলফ টেস্ট</Link></li>
+                <li><Link to="/board-cq" onClick={() => setTimeout(() => handleMenuClick(), 50)}>বোর্ড প্রশ্ন (BCQ)</Link></li>
+                <li><Link to="/chapter-wise-bcq" onClick={() => setTimeout(() => handleMenuClick(), 50)}>অধ্যায়ভিত্তিক BCQ</Link></li>
+                <li><Link to="/board-cq" onClick={() => setTimeout(() => handleMenuClick(), 50)}>বোর্ড প্রশ্ন (BCQ)</Link></li>
+                <li><Link to="/chapter-wise-bcq" onClick={() => setTimeout(() => handleMenuClick(), 50)}>অধ্যায়ভিত্তিক BCQ</Link></li>
                 {/* <li><Link to="/ai-assistant" onClick={() => setTimeout(() => handleMenuClick(), 50)}>AI সহকারী</Link></li> */}
                 {/* <li><Link to="/unlimited-ai-qa" onClick={() => setTimeout(() => handleMenuClick(), 50)}>আনলিমিটেড AI প্রশ্ন-উত্তর</Link></li> */}
                 {/* <li><Link to="/ai-chat" onClick={() => setTimeout(() => handleMenuClick(), 50)}>AI Chat</Link></li> */}

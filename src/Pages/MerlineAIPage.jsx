@@ -122,7 +122,7 @@ function MerlineAIPage({
       const prompt = getPromptForQuestionType(questionType, questionText, contextPrompt);
       // Prepare OpenAI-style request
       const openaiReq = {
-        model: "gemini-2.5-flash",
+        model: "gemini-3.0-flash",
         messages: [
           { role: "system", content: contextPrompt },
           { role: "user", content: prompt }
