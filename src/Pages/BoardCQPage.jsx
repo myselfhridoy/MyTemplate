@@ -13,7 +13,7 @@ function getBengaliNum(num) {
 
 // Filter options
 const filterOptions = [
-  { value: 'cq', label: 'সৃজনশীল (পূর্ণ)' },
+  { value: 'cq', label: 'সৃজনশীল' },
   { value: 'ka', label: 'ক (জ্ঞানমূলক)' },
   { value: 'kha', label: 'খ (অনুধাবন)' },
   { value: 'ga', label: 'গ (প্রয়োগ)' },
@@ -199,10 +199,20 @@ function BoardCQPage() {
   // =============================================
   const renderText = (text) => {
     if (!text) return null;
-    const parts = text.split(/(\$[^$]+\$)/g);
+    // Split by $$...$$ (display math) first, then $...$ (inline math)
+    const parts = text.split(/(\$\$[\s\S]+?\$\$|\$[^$]+?\$)/g);
     return (
       <span>
         {parts.map((part, i) => {
+          // Display math block $$...$$
+          if (/^\$\$[\s\S]+?\$\$$/.test(part)) {
+            return (
+              <div key={i} style={{ overflowX: 'auto', margin: '8px 0', maxWidth: '100%', WebkitOverflowScrolling: 'touch' }}>
+                <MathJax dynamic style={{ fontSize: '0.85em' }}>{part}</MathJax>
+              </div>
+            );
+          }
+          // Inline math $...$
           if (/^\$[^$]+\$$/.test(part)) {
             return (
               <span key={i} style={{ display: 'inline' }}>
@@ -210,6 +220,7 @@ function BoardCQPage() {
               </span>
             );
           }
+          // Plain text with newlines
           const lines = part.split(/\r?\n/);
           return lines.map((line, idx) => (
             <span key={`${i}-${idx}`}>
@@ -408,6 +419,40 @@ function BoardCQPage() {
   // =============================================
   // Suggestion analysis & download
   // =============================================
+  const boardShortMap = [
+    ['ঢাকা বোর্ড', 'DB'],
+    ['রাজশাহী বোর্ড', 'RB'],
+    ['কুমিল্লা বোর্ড', 'CB'],
+    ['চট্টগ্রাম বোর্ড', 'CtgB'],
+    ['সিলেট বোর্ড', 'SB'],
+    ['বরিশাল বোর্ড', 'BB'],
+    ['যশোর বোর্ড', 'JB'],
+    ['দিনাজপুর বোর্ড', 'DinB'],
+    ['ময়মনসিংহ বোর্ড', 'MSB'],
+    ['সম্মিলিত বোর্ড', 'AB'],
+  ];
+
+  const shortenSource = (source) => {
+    let s = source;
+    // Board name → short code
+    for (const [bn, code] of boardShortMap) {
+      if (s.includes(bn)) { s = s.replace(bn, code); break; }
+    }
+    // সেট ০১/সেট ১/সেট ০২/সেট ২ → S1/S2
+    s = s.replace(/\(সেট\s*[০0]?[১1]\)/, '(S1)');
+    s = s.replace(/\(সেট\s*[০0]?[২2]\)/, '(S2)');
+    // Extract 2-digit year: ২০২৫ → '25, ২০১৯ → '19
+    const bn2en = str => str.replace(/[০-৯]/g, d => '০১২৩৪৫৬৭৮৯'.indexOf(d));
+    const yearMatch = bn2en(s).match(/(20\d{2}|19\d{2})/);
+    if (yearMatch) {
+      const shortYear = "'" + yearMatch[0].slice(-2);
+      s = s.replace(/[০-৯]{4}|\d{4}/, shortYear);
+    }
+    // Clean up extra spaces
+    s = s.replace(/\s+/g, ' ').trim();
+    return s;
+  };
+
   const generateSuggestion = async () => {
     if (!selectedClass || !selectedSubject || !selectedQtype || !selectedChapter) return;
     setSuggestionLoading(true);
@@ -460,7 +505,12 @@ function BoardCQPage() {
           total: t.ga + t.gha,
           boards: Array.from(t.boardMap.entries())
             .sort(([aS], [bS]) => extractYear(bS) - extractYear(aS))
-            .map(([source, labels]) => `${source}(${Array.from(labels).join(',')})`),
+            .map(([source, labels]) => {
+              const lbl = Array.from(labels).join(',');
+              // Shorten board name
+              const shortBoard = shortenSource(source);
+              return `${shortBoard}(${lbl})`;
+            }),
         }))
         .sort((a, b) => {
           const codeA = (a.code || '').match(/T-(\d+)/i);
@@ -514,10 +564,28 @@ function BoardCQPage() {
   return (
     <MathJaxContext
       config={{
-        loader: { load: ['input/tex', 'output/chtml'] },
-        tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] },
+        loader: { load: ['input/tex', 'output/chtml', '[tex]/ams', '[tex]/newcommand'] },
+        tex: {
+          inlineMath: [['$', '$'], ['\\(', '\\)']],
+          displayMath: [['$$', '$$'], ['\\[', '\\]']],
+          packages: { '[+]': ['ams', 'newcommand'] },
+        },
+        chtml: {
+          mtextInheritFont: true,
+          matchFontHeight: false,
+        },
       }}
     >
+      {/* Force Bengali font on MathJax \text{} elements */}
+      <style>{`
+        mjx-container mjx-utext,
+        mjx-container mjx-mtext,
+        mjx-container [data-mjx-texclass="ORD"] mjx-mtext,
+        .MathJax mjx-utext,
+        .MathJax mjx-mtext {
+          font-family: 'Hind Siliguri', 'Noto Sans Bengali', sans-serif !important;
+        }
+      `}</style>
       <div className="container mx-auto p-4" style={{ fontFamily: 'Hind Siliguri, sans-serif' }}>
         <h1 className="text-2xl font-extrabold mb-2">
           বোর্ড প্রশ্ন ব্যাংক
