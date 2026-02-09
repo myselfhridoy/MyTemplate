@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MathJaxContext, MathJax } from 'better-react-mathjax';
 import mappingData from '../Components/Mapping/Mapping.json';
 import AskAIModal from '../Components/AskAI/AskAIModal';
+import html2canvas from 'html2canvas';
 
 const API_BASE = 'https://geminiai-render.onrender.com/api/nctb-questions/board-questions';
 
@@ -46,6 +47,7 @@ function BoardCQPage() {
   const [showSuggestion, setShowSuggestion] = useState(false);
   const [suggestionData, setSuggestionData] = useState([]);
   const [suggestionLoading, setSuggestionLoading] = useState(false);
+  const [downloadingPng, setDownloadingPng] = useState(false);
   const suggestionRef = useRef(null);
 
   // Derived from Mapping.json
@@ -484,11 +486,14 @@ function BoardCQPage() {
 
   const downloadSuggestion = async () => {
     if (!suggestionRef.current) return;
+    setDownloadingPng(true);
     try {
-      const html2canvas = (await import('html2canvas')).default;
+      await new Promise(r => setTimeout(r, 100));
       const canvas = await html2canvas(suggestionRef.current, {
         scale: 2,
         backgroundColor: '#ffffff',
+        useCORS: true,
+        logging: false,
       });
       const link = document.createElement('a');
       const ch = chapters.find(c => c.id === parseInt(selectedChapter));
@@ -498,6 +503,9 @@ function BoardCQPage() {
       link.click();
     } catch (err) {
       console.error('Download failed:', err);
+      alert('ডাউনলোড ব্যর্থ হয়েছে। আবার চেষ্টা করুন।');
+    } finally {
+      setDownloadingPng(false);
     }
   };
 
@@ -756,20 +764,24 @@ function BoardCQPage() {
 
       {/* Suggestion Modal */}
       {showSuggestion && (
-        <div className="modal modal-open" style={{ zIndex: 1000 }}>
-          <div className="modal-box max-w-5xl w-full max-h-[90vh] overflow-y-auto">
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div style={{ backgroundColor: '#fff', borderRadius: '12px', maxWidth: '960px', width: '95%', maxHeight: '90vh', overflowY: 'auto', position: 'relative', padding: '20px', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
             <button
-              className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2 z-10"
+              style={{ position: 'absolute', right: '12px', top: '12px', background: '#f1f5f9', border: 'none', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#334155' }}
               onClick={() => setShowSuggestion(false)}
             >✕</button>
 
-            <div className="flex justify-end mb-3 gap-2">
-              <button className="btn btn-sm btn-primary gap-1" onClick={downloadSuggestion}>
-                📥 ডাউনলোড PNG
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px', gap: '8px' }}>
+              <button
+                style={{ padding: '6px 16px', backgroundColor: downloadingPng ? '#93c5fd' : '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', cursor: downloadingPng ? 'not-allowed' : 'pointer', fontSize: '14px', fontWeight: 600 }}
+                onClick={downloadSuggestion}
+                disabled={downloadingPng}
+              >
+                {downloadingPng ? '⏳ তৈরি হচ্ছে...' : '📥 ডাউনলোড PNG'}
               </button>
             </div>
 
-            <div ref={suggestionRef} style={{ padding: '24px', backgroundColor: '#fff', fontFamily: 'Hind Siliguri, sans-serif' }}>
+            <div ref={suggestionRef} style={{ padding: '24px', backgroundColor: '#fff', fontFamily: 'Hind Siliguri, sans-serif', color: '#1e293b' }}>
               <div style={{ marginBottom: '16px' }}>
                 <p style={{ fontSize: '18px', fontWeight: 700, color: '#475569', margin: 0 }}>
                   অধ্যায় {getBengaliNum(selectedChapter)}
@@ -818,7 +830,6 @@ function BoardCQPage() {
               </div>
             </div>
           </div>
-          <div className="modal-backdrop" onClick={() => setShowSuggestion(false)}></div>
         </div>
       )}
 
