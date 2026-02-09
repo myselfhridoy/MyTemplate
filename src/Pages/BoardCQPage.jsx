@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MathJaxContext, MathJax } from 'better-react-mathjax';
 import mappingData from '../Components/Mapping/Mapping.json';
 import AskAIModal from '../Components/AskAI/AskAIModal';
-import html2canvas from 'html2canvas';
+import { toPng } from 'html-to-image';
 
 const API_BASE = 'https://geminiai-render.onrender.com/api/nctb-questions/board-questions';
 
@@ -488,18 +488,17 @@ function BoardCQPage() {
     if (!suggestionRef.current) return;
     setDownloadingPng(true);
     try {
-      await new Promise(r => setTimeout(r, 100));
-      const canvas = await html2canvas(suggestionRef.current, {
-        scale: 2,
+      await new Promise(r => setTimeout(r, 200));
+      const dataUrl = await toPng(suggestionRef.current, {
+        quality: 1,
+        pixelRatio: 2,
         backgroundColor: '#ffffff',
-        useCORS: true,
-        logging: false,
       });
       const link = document.createElement('a');
       const ch = chapters.find(c => c.id === parseInt(selectedChapter));
       const chName = ch ? ch.title : selectedChapter;
       link.download = `সাজেশন-অধ্যায়-${selectedChapter}-${chName}.png`;
-      link.href = canvas.toDataURL('image/png');
+      link.href = dataUrl;
       link.click();
     } catch (err) {
       console.error('Download failed:', err);
