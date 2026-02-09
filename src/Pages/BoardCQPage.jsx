@@ -107,19 +107,46 @@ function BoardCQPage() {
       return a.localeCompare(b, 'bn');
     });
 
-  // Derived: unique topics from results (only for selected chapter)
-  const topics = Array.from(new Set(
-    results.flatMap(r => {
-      if (r.sub_questions) return r.sub_questions
-        .filter(sq => sq.chapter_no === parseInt(selectedChapter))
-        .map(sq => sq.topic_name).filter(Boolean);
-      if (r.sub_question && r.sub_question.chapter_no === parseInt(selectedChapter))
-        return [r.sub_question.topic_name].filter(Boolean);
-      return [];
+  // Derived: unique topics from results (only for selected chapter), sorted by topic_code
+  const topicMap = new Map();
+  results.forEach(r => {
+    const sqs = r.sub_questions || (r.sub_question ? [r.sub_question] : []);
+    sqs.forEach(sq => {
+      if (sq.chapter_no === parseInt(selectedChapter) && sq.topic_name && !topicMap.has(sq.topic_name)) {
+        topicMap.set(sq.topic_name, sq.topic_code || '');
+      }
+    });
+  });
+  const topics = Array.from(topicMap.entries())
+    .sort((a, b) => {
+      const codeA = (a[1] || '').match(/T-(\d+)/i);
+      const codeB = (b[1] || '').match(/T-(\d+)/i);
+      if (codeA && codeB) return parseInt(codeA[1]) - parseInt(codeB[1]);
+      if (codeA) return -1;
+      if (codeB) return 1;
+      return a[0].localeCompare(b[0], 'bn');
     })
-  )).sort();
+    .map(([name]) => name);
 
-  // Client-side filtered results
+  // Helper: get topic info from an item
+  const getItemTopic = (item) => {
+    if (item.sub_question) return { code: item.sub_question.topic_code || '', name: item.sub_question.topic_name || '' };
+    // For CQ filter: topic comes from গ/ঘ sub_question matching the chapter
+    if (item.sub_questions && item.sub_questions.length > 0) {
+      const chapterSq = item.sub_questions.find(sq =>
+        sq.chapter_no === parseInt(selectedChapter) && ['গ', 'ঘ'].includes(sq.label)
+      ) || item.sub_questions.find(sq => sq.chapter_no === parseInt(selectedChapter)) || item.sub_questions[0];
+      return { code: chapterSq.topic_code || '', name: chapterSq.topic_name || '' };
+    }
+    return { code: '', name: '' };
+  };
+
+  const extractTopicNum = (code) => {
+    const m = (code || '').match(/T-(\d+)/i);
+    return m ? parseInt(m[1]) : 9999;
+  };
+
+  // Client-side filtered results (sorted by topic_code asc, then source year desc)
   const filteredResults = results.filter(r => {
     if (selectedSource && r.source !== selectedSource) return false;
     if (selectedTopic) {
@@ -130,11 +157,34 @@ function BoardCQPage() {
       }
     }
     return true;
+  }).sort((a, b) => {
+    // Primary: topic code ascending (T-01 -> T-N)
+    const tA = extractTopicNum(getItemTopic(a).code);
+    const tB = extractTopicNum(getItemTopic(b).code);
+    if (tA !== tB) return tA - tB;
+    // Secondary: source year descending
+    const yearA = extractYear(a.source || '');
+    const yearB = extractYear(b.source || '');
+    if (yearB !== yearA) return yearB - yearA;
+    return (a.source || '').localeCompare(b.source || '', 'bn');
   });
 
   // Pagination
   const totalPages = Math.ceil(filteredResults.length / pageSize);
   const paginatedResults = filteredResults.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  // Group paginated results by topic for section headings
+  const groupedByTopic = [];
+  const topicGroupMap = new Map();
+  paginatedResults.forEach((item, idx) => {
+    const t = getItemTopic(item);
+    const key = t.name || 'অন্যান্য';
+    if (!topicGroupMap.has(key)) {
+      topicGroupMap.set(key, groupedByTopic.length);
+      groupedByTopic.push({ code: t.code, name: key, items: [] });
+    }
+    groupedByTopic[topicGroupMap.get(key)].items.push({ item, idx });
+  });
 
   // =============================================
   // MathJax render helper
@@ -524,7 +574,15 @@ function BoardCQPage() {
               {paginatedResults.length === 0 && (
                 <div className="text-center py-8">কোনো প্রশ্ন পাওয়া যায়নি</div>
               )}
-              {paginatedResults.map((item, idx) => renderCard(item, idx))}
+              {groupedByTopic.map((group, gi) => (
+                <div key={gi}>
+                  <div className="sticky top-16 z-10 bg-base-200 dark:bg-base-300 rounded-lg px-4 py-2 mb-3 mt-4 shadow-sm border-l-4 border-primary">
+                    <span className="font-bold text-primary text-sm">{group.code ? `${group.code}: ` : ''}{group.name}</span>
+                    <span className="text-xs text-gray-500 ml-2">({getBengaliNum(group.items.length)} টি)</span>
+                  </div>
+                  {group.items.map(({ item, idx }) => renderCard(item, idx))}
+                </div>
+              ))}
             </div>
 
             {/* ============ Pagination ============ */}
