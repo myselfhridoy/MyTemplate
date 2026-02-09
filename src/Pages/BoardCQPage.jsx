@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { MathJaxContext, MathJax } from 'better-react-mathjax';
 import mappingData from '../Components/Mapping/Mapping.json';
 import AskAIModal from '../Components/AskAI/AskAIModal';
@@ -41,6 +41,12 @@ function BoardCQPage() {
 
   // Ask AI modal state
   const [askAI, setAskAI] = useState({ open: false, questionText: '', stemText: '', imageUrl: '', source: '' });
+
+  // Suggestion modal state
+  const [showSuggestion, setShowSuggestion] = useState(false);
+  const [suggestionData, setSuggestionData] = useState([]);
+  const [suggestionLoading, setSuggestionLoading] = useState(false);
+  const suggestionRef = useRef(null);
 
   // Derived from Mapping.json
   const classes = Array.from(new Set(mappingData.map(m => m.class)));
@@ -398,6 +404,104 @@ function BoardCQPage() {
   };
 
   // =============================================
+  // Suggestion analysis & download
+  // =============================================
+  const generateSuggestion = async () => {
+    if (!selectedClass || !selectedSubject || !selectedQtype || !selectedChapter) return;
+    setSuggestionLoading(true);
+    try {
+      const params = new URLSearchParams({
+        class: selectedClass,
+        subject: selectedSubject,
+        qtype: selectedQtype,
+        chapter: selectedChapter,
+        filter: 'cq',
+      });
+      const res = await fetch(`${API_BASE}?${params}`);
+      if (!res.ok) throw new Error('ডাটা লোড ব্যর্থ');
+      const data = await res.json();
+      const cqResults = data.results || [];
+
+      const topicAnalysis = new Map();
+      cqResults.forEach(item => {
+        const sqs = item.sub_questions || [];
+        sqs.forEach(sq => {
+          if (sq.chapter_no !== parseInt(selectedChapter)) return;
+          if (!['গ', 'ঘ'].includes(sq.label)) return;
+          const topicKey = sq.topic_name || 'অন্যান্য';
+          if (!topicAnalysis.has(topicKey)) {
+            topicAnalysis.set(topicKey, {
+              code: sq.topic_code || '',
+              name: topicKey,
+              ga: 0,
+              gha: 0,
+              boardMap: new Map(),
+            });
+          }
+          const entry = topicAnalysis.get(topicKey);
+          if (sq.label === 'গ') entry.ga++;
+          if (sq.label === 'ঘ') entry.gha++;
+          const source = item.source || '';
+          if (source) {
+            if (!entry.boardMap.has(source)) entry.boardMap.set(source, new Set());
+            entry.boardMap.get(source).add(sq.label);
+          }
+        });
+      });
+
+      let analysisArray = Array.from(topicAnalysis.values())
+        .map(t => ({
+          code: t.code,
+          name: t.name,
+          ga: t.ga,
+          gha: t.gha,
+          total: t.ga + t.gha,
+          boards: Array.from(t.boardMap.entries())
+            .sort(([aS], [bS]) => extractYear(bS) - extractYear(aS))
+            .map(([source, labels]) => `${source}(${Array.from(labels).join(',')})`),
+        }))
+        .sort((a, b) => {
+          const codeA = (a.code || '').match(/T-(\d+)/i);
+          const codeB = (b.code || '').match(/T-(\d+)/i);
+          if (codeA && codeB) return parseInt(codeA[1]) - parseInt(codeB[1]);
+          return b.total - a.total;
+        });
+
+      const maxTotal = Math.max(...analysisArray.map(t => t.total), 1);
+      analysisArray = analysisArray.map(t => ({
+        ...t,
+        importance: t.total >= maxTotal * 0.35 ? '***' : t.total >= maxTotal * 0.1 ? '**' : '*',
+      }));
+
+      setSuggestionData(analysisArray);
+      setShowSuggestion(true);
+    } catch (err) {
+      console.error('Suggestion generation failed:', err);
+    } finally {
+      setSuggestionLoading(false);
+    }
+  };
+
+  const downloadSuggestion = async () => {
+    if (!suggestionRef.current) return;
+    try {
+      const html2canvas = (await import('html2canvas')).default;
+      const canvas = await html2canvas(suggestionRef.current, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+      });
+      const link = document.createElement('a');
+      const ch = chapters.find(c => c.id === parseInt(selectedChapter));
+      const chName = ch ? ch.title : selectedChapter;
+      link.download = `সাজেশন-অধ্যায়-${selectedChapter}-${chName}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (err) {
+      console.error('Download failed:', err);
+    }
+  };
+
+  // =============================================
   // JSX
   // =============================================
   return (
@@ -565,8 +669,22 @@ function BoardCQPage() {
         {selectedChapter && !loading && !error && (
           <div>
             {results.length > 0 && (
-              <div className="text-sm text-gray-500 mb-2">
-                মোট: {getBengaliNum(filteredResults.length)} টি প্রশ্ন পাওয়া গেছে
+              <div className="flex flex-wrap items-center gap-3 mb-2">
+                <span className="text-sm text-gray-500">
+                  মোট: {getBengaliNum(filteredResults.length)} টি প্রশ্ন পাওয়া গেছে
+                </span>
+                <button
+                  className="btn btn-sm btn-outline btn-info gap-1"
+                  onClick={generateSuggestion}
+                  disabled={suggestionLoading}
+                >
+                  {suggestionLoading ? (
+                    <span className="loading loading-spinner loading-xs"></span>
+                  ) : (
+                    '📊'
+                  )}
+                  সাজেশন দেখুন
+                </button>
               </div>
             )}
 
@@ -635,6 +753,75 @@ function BoardCQPage() {
           </div>
         )}
       </div>
+
+      {/* Suggestion Modal */}
+      {showSuggestion && (
+        <div className="modal modal-open" style={{ zIndex: 1000 }}>
+          <div className="modal-box max-w-5xl w-full max-h-[90vh] overflow-y-auto">
+            <button
+              className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2 z-10"
+              onClick={() => setShowSuggestion(false)}
+            >✕</button>
+
+            <div className="flex justify-end mb-3 gap-2">
+              <button className="btn btn-sm btn-primary gap-1" onClick={downloadSuggestion}>
+                📥 ডাউনলোড PNG
+              </button>
+            </div>
+
+            <div ref={suggestionRef} style={{ padding: '24px', backgroundColor: '#fff', fontFamily: 'Hind Siliguri, sans-serif' }}>
+              <div style={{ marginBottom: '16px' }}>
+                <p style={{ fontSize: '18px', fontWeight: 700, color: '#475569', margin: 0 }}>
+                  অধ্যায় {getBengaliNum(selectedChapter)}
+                </p>
+                <h2 style={{ fontSize: '28px', fontWeight: 900, color: '#2563eb', margin: '4px 0' }}>
+                  {chapters.find(c => c.id === parseInt(selectedChapter))?.title || ''}
+                </h2>
+                <p style={{ fontSize: '13px', color: '#94a3b8', margin: 0 }}>
+                  বোর্ড সৃজনশীল বিশ্লেষণ ও সাজেশন
+                </p>
+              </div>
+
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#1e293b', color: '#fff' }}>
+                    <th style={{ border: '1px solid #334155', padding: '8px 6px', textAlign: 'center', width: '60px' }}>গুরুত্ব</th>
+                    <th style={{ border: '1px solid #334155', padding: '8px 6px', textAlign: 'left' }}>টপিক</th>
+                    <th style={{ border: '1px solid #334155', padding: '8px 6px', textAlign: 'center', width: '40px' }}>গ</th>
+                    <th style={{ border: '1px solid #334155', padding: '8px 6px', textAlign: 'center', width: '40px' }}>ঘ</th>
+                    <th style={{ border: '1px solid #334155', padding: '8px 6px', textAlign: 'left' }}>বোর্ডসমূহ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {suggestionData.map((t, i) => (
+                    <tr key={i} style={{ backgroundColor: i % 2 === 0 ? '#ffffff' : '#f8fafc' }}>
+                      <td style={{
+                        border: '1px solid #e2e8f0', padding: '8px 6px', textAlign: 'center',
+                        fontWeight: 700, fontSize: '16px',
+                        color: t.importance === '***' ? '#dc2626' : t.importance === '**' ? '#ea580c' : '#65a30d',
+                      }}>{t.importance}</td>
+                      <td style={{ border: '1px solid #e2e8f0', padding: '8px 6px', fontWeight: 600, color: '#1e3a5f' }}>{t.name}</td>
+                      <td style={{ border: '1px solid #e2e8f0', padding: '8px 6px', textAlign: 'center', fontWeight: 700, color: '#7c3aed' }}>{t.ga}</td>
+                      <td style={{ border: '1px solid #e2e8f0', padding: '8px 6px', textAlign: 'center', fontWeight: 700, color: '#0891b2' }}>{t.gha}</td>
+                      <td style={{ border: '1px solid #e2e8f0', padding: '8px 6px', fontSize: '11px', lineHeight: '1.5', color: '#475569' }}>
+                        {t.boards.join(', ')}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <div style={{ marginTop: '12px', fontSize: '11px', color: '#94a3b8', display: 'flex', gap: '16px' }}>
+                <span><span style={{ color: '#dc2626', fontWeight: 700 }}>***</span> = অতি গুরুত্বপূর্ণ</span>
+                <span><span style={{ color: '#ea580c', fontWeight: 700 }}>**</span> = গুরুত্বপূর্ণ</span>
+                <span><span style={{ color: '#65a30d', fontWeight: 700 }}>*</span> = সাধারণ</span>
+              </div>
+            </div>
+          </div>
+          <div className="modal-backdrop" onClick={() => setShowSuggestion(false)}></div>
+        </div>
+      )}
+
       {/* Ask AI Modal */}
       <AskAIModal
         isOpen={askAI.open}
