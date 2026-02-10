@@ -273,7 +273,7 @@ function BoardCQPage() {
     // filter=cq → Full CQ: stem + all sub_questions (ক,খ,গ,ঘ)
     if (selectedFilter === 'cq') {
       return (
-        <div key={idx} className="card bg-base-100 shadow-xl my-4 overflow-x-auto">
+        <div key={idx} className="card bg-base-100 shadow-xl my-4 overflow-hidden">
           <div className="card-body p-4 sm:p-6" style={{ wordBreak: 'break-word' }}>
             <div className="flex flex-wrap items-center gap-2 mb-2">
               <h2 className="card-title text-lg font-bold whitespace-nowrap">
@@ -358,7 +358,7 @@ function BoardCQPage() {
     // filter=ka/kha/ga/gha → single sub_question
     const showStem = ['ga', 'gha'].includes(selectedFilter);
     return (
-      <div key={idx} className="card bg-base-100 shadow-xl my-4 overflow-x-auto">
+      <div key={idx} className="card bg-base-100 shadow-xl my-4 overflow-hidden">
         <div className="card-body p-4 sm:p-6" style={{ wordBreak: 'break-word' }}>
           <div className="flex flex-wrap items-center gap-2 mb-2">
             <h2 className="card-title text-lg font-bold whitespace-nowrap">

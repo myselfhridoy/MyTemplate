@@ -1,16 +1,18 @@
 import React, { useState, useMemo } from 'react';
 import MathRendererWithContext from '../MathRenderer/MathRenderer';
 
+const GEMMA_API = '/api/gemma';
+
 const AI_MODELS = [
   { value: 'gemmy', label: 'জেমি: দ্যা টিচার', api: 'https://geminiai-render.onrender.com/api/gemmy/generate', type: 'formdata' },
   { value: 'merlin', label: 'মিস মার্লিন: দ্যা টিউটর', api: 'https://geminiai-render.onrender.com/api/merlin/v1/chat/completions', type: 'merlin' },
   { value: 'luzia', label: 'Luzia: দ্যা প্রফেসর', api: 'https://geminiai-render.onrender.com/api/luzia/ask', type: 'luzia' },
   { value: 'hmtai', label: 'H.M. Tutoring AI', api: 'https://geminiai-render.onrender.com/api/ai-free-api', type: 'hmtai' },
-  { value: 'assistant', label: 'Knowledge Master', api: 'https://geminiai-render.onrender.com/api/gemma', type: 'gemma-stream', model: 'gemini-2.5-flash-lite' },
+  { value: 'assistant', label: 'Knowledge Master', api: GEMMA_API, type: 'gemma-stream', model: 'gemini-2.5-flash-lite' },
   { value: 'chatbot', label: 'AI Chat Bot', api: 'https://geminiai-render.onrender.com/api/chat/send', type: 'chatbot' },
   { value: 'easemate', label: 'Problem Solver', api: 'https://geminiai-render.onrender.com/api/easemate', type: 'easemate' },
   { value: 'borno', label: 'Academic Assistant', api: 'https://geminiai-render.onrender.com/api/bornoai', type: 'borno' },
-  { value: 'doubt', label: 'Concept Builder', api: 'https://geminiai-render.onrender.com/api/gemma', type: 'gemma-stream', model: 'gemma-3-27b-it' },
+  { value: 'doubt', label: 'Concept Builder', api: GEMMA_API, type: 'gemma-stream', model: 'gemma-3-27b-it' },
 ];
 
 function AskAIModal({ isOpen, onClose, questionText = '', stemText = '', imageUrl = '', source = '', marks = '', finalAnswer = '', steps = '' }) {
@@ -342,7 +344,44 @@ ${userQuestion}`;
         {answer && (
           <div className="border rounded-lg p-4 bg-base-100" style={{ whiteSpace: 'pre-line', overflowX: 'auto' }}>
             <span className="font-semibold text-success block mb-2">উত্তর:</span>
-            <MathRendererWithContext text={answer} />
+            {(() => {
+              // Split answer into text and SVG parts
+              const svgRegex = /(<svg[\s\S]*?<\/svg>)/gi;
+              const parts = answer.split(svgRegex);
+              if (parts.length <= 1) {
+                // No SVG found, render normally
+                return <MathRendererWithContext text={answer} />;
+              }
+              return parts.map((part, i) => {
+                if (svgRegex.lastIndex === 0) svgRegex.lastIndex = 0; // reset
+                if (/<svg[\s\S]*?<\/svg>/i.test(part)) {
+                  // Sanitize: only allow svg content
+                  const cleanSvg = part.replace(/<script[\s\S]*?<\/script>/gi, '')
+                    // Make SVG responsive: remove fixed width/height, add viewBox if missing
+                    .replace(/<svg([^>]*)>/i, (match, attrs) => {
+                      // Extract width and height values for viewBox
+                      const wMatch = attrs.match(/width\s*=\s*["']?(\d+)/);
+                      const hMatch = attrs.match(/height\s*=\s*["']?(\d+)/);
+                      const hasViewBox = /viewBox/i.test(attrs);
+                      let newAttrs = attrs
+                        .replace(/\bwidth\s*=\s*["']?[\d.]+["']?/gi, '')
+                        .replace(/\bheight\s*=\s*["']?[\d.]+["']?/gi, '');
+                      if (!hasViewBox && wMatch && hMatch) {
+                        newAttrs += ` viewBox="0 0 ${wMatch[1]} ${hMatch[1]}"`;
+                      }
+                      return `<svg${newAttrs} style="width:100%;height:auto;max-width:${wMatch ? wMatch[1] + 'px' : '600px'}">`;
+                    });
+                  return (
+                    <div key={i} style={{ margin: '12px 0', display: 'flex', justifyContent: 'center', overflowX: 'auto', width: '100%' }}>
+                      <div dangerouslySetInnerHTML={{ __html: cleanSvg }} style={{ maxWidth: '100%' }} />
+                    </div>
+                  );
+                }
+                const trimmed = part.trim();
+                if (!trimmed) return null;
+                return <MathRendererWithContext key={i} text={trimmed} />;
+              });
+            })()}
           </div>
         )}
       </div>

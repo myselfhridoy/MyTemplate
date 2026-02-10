@@ -13,6 +13,14 @@ export default defineConfig({
         configure: (proxy) => {
           proxy.on('error', () => {});
         }
+      },
+      // Proxy gemma API to bypass origin check in local dev
+      '/api/gemma': {
+        target: 'https://geminiai-render.onrender.com',
+        changeOrigin: true,
+        headers: {
+          origin: 'https://mytemplatedemo.netlify.app',
+        },
       }
     }
   }
