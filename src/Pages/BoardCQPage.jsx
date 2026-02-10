@@ -11,7 +11,7 @@ function getBengaliNum(num) {
   return String(num).split('').map(d => '০১২৩৪৫৬৭৮৯'[d] ?? d).join('');
 }
 
-// Filter options
+// Filter optionsza 
 const filterOptions = [
   { value: 'cq', label: 'সৃজনশীল' },
   { value: 'ka', label: 'ক (জ্ঞানমূলক)' },
@@ -547,11 +547,21 @@ function BoardCQPage() {
     setDownloadingPng(true);
     try {
       await new Promise(r => setTimeout(r, 200));
-      const dataUrl = await toPng(suggestionRef.current, {
+      // Save original width, temporarily expand for wide capture
+      const el = suggestionRef.current;
+      const origWidth = el.style.width;
+      const origMaxWidth = el.style.maxWidth;
+      el.style.width = '1200px';
+      el.style.maxWidth = '1200px';
+      await new Promise(r => setTimeout(r, 100));
+      const dataUrl = await toPng(el, {
         quality: 1,
-        pixelRatio: 2,
+        pixelRatio: 3,
         backgroundColor: '#ffffff',
       });
+      // Restore original width
+      el.style.width = origWidth;
+      el.style.maxWidth = origMaxWidth;
       const link = document.createElement('a');
       const ch = chapters.find(c => c.id === parseInt(selectedChapter));
       const chName = ch ? ch.title : selectedChapter;
