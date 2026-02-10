@@ -41,7 +41,7 @@ function BoardCQPage() {
   const [openAnswerIdx, setOpenAnswerIdx] = useState(null);
 
   // Ask AI modal state
-  const [askAI, setAskAI] = useState({ open: false, questionText: '', stemText: '', imageUrl: '', source: '' });
+  const [askAI, setAskAI] = useState({ open: false, questionText: '', stemText: '', imageUrl: '', source: '', marks: '', finalAnswer: '', steps: '' });
 
   // Suggestion modal state
   const [showSuggestion, setShowSuggestion] = useState(false);
@@ -154,7 +154,7 @@ function BoardCQPage() {
     return m ? parseInt(m[1]) : 9999;
   };
 
-  // Client-side filtered results (sorted by topic_code asc, then source year desc)
+  // Client-side filtered results
   const filteredResults = results.filter(r => {
     if (selectedSource && r.source !== selectedSource) return false;
     if (selectedTopic) {
@@ -166,11 +166,17 @@ function BoardCQPage() {
     }
     return true;
   }).sort((a, b) => {
-    // Primary: topic code ascending (T-01 -> T-N)
+    if (selectedFilter === 'cq') {
+      // CQ: only year descending (newest first), no topic grouping
+      const yearA = extractYear(a.source || '');
+      const yearB = extractYear(b.source || '');
+      if (yearB !== yearA) return yearB - yearA;
+      return (a.source || '').localeCompare(b.source || '', 'bn');
+    }
+    // ka/kha/ga/gha: topic code ascending, then year descending
     const tA = extractTopicNum(getItemTopic(a).code);
     const tB = extractTopicNum(getItemTopic(b).code);
     if (tA !== tB) return tA - tB;
-    // Secondary: source year descending
     const yearA = extractYear(a.source || '');
     const yearB = extractYear(b.source || '');
     if (yearB !== yearA) return yearB - yearA;
@@ -277,8 +283,10 @@ function BoardCQPage() {
               <button
                 className="btn btn-xs btn-accent sm:ml-auto"
                 onClick={() => {
-                  const allQ = (item.sub_questions || []).map(sq => `${sq.label}। ${sq.question_text}`).join('\n');
-                  setAskAI({ open: true, questionText: allQ, stemText: item.stem?.text || '', imageUrl: (item.stem?.has_image && item.stem?.image_url) || '', source: item.source || '' });
+                  const allQ = (item.sub_questions || []).map(sq => `${sq.label}। ${sq.question_text}${sq.marks ? ` [${sq.marks} নম্বর]` : ''}`).join('\n');
+                  const allAnswers = (item.sub_questions || []).filter(sq => sq.answer?.final_answer).map(sq => `${sq.label}। ${sq.answer.final_answer}`).join('\n');
+                  const allSteps = (item.sub_questions || []).filter(sq => sq.answer?.steps?.length).map(sq => `${sq.label}। ${sq.answer.steps.join(' → ')}`).join('\n');
+                  setAskAI({ open: true, questionText: allQ, stemText: item.stem?.text || '', imageUrl: (item.stem?.has_image && item.stem?.image_url) || '', source: item.source || '', marks: '', finalAnswer: allAnswers, steps: allSteps });
                 }}
               >
                 🤖 Ask AI
@@ -315,7 +323,7 @@ function BoardCQPage() {
                       )}
                       <button
                         className="btn btn-xs btn-ghost btn-accent ml-2"
-                        onClick={() => setAskAI({ open: true, questionText: sq.question_text, stemText: item.stem?.text || '', imageUrl: (item.stem?.has_image && item.stem?.image_url) || '', source: item.source || '' })}
+                        onClick={() => setAskAI({ open: true, questionText: sq.question_text, stemText: item.stem?.text || '', imageUrl: (item.stem?.has_image && item.stem?.image_url) || '', source: item.source || '', marks: sq.marks || '', finalAnswer: sq.answer?.final_answer || '', steps: sq.answer?.steps?.length ? sq.answer.steps.join(' → ') : '' })}
                       >
                         🤖 AI
                       </button>
@@ -359,7 +367,7 @@ function BoardCQPage() {
             <span className="badge badge-sm badge-outline whitespace-nowrap">প্রশ্ন নং: {item.question_no}</span>
             <button
               className="btn btn-xs btn-accent sm:ml-auto"
-              onClick={() => setAskAI({ open: true, questionText: item.sub_question?.question_text || '', stemText: item.stem?.text || '', imageUrl: (item.stem?.has_image && item.stem?.image_url) || '', source: item.source || '' })}
+              onClick={() => setAskAI({ open: true, questionText: item.sub_question?.question_text || '', stemText: item.stem?.text || '', imageUrl: (item.stem?.has_image && item.stem?.image_url) || '', source: item.source || '', marks: item.sub_question?.marks || '', finalAnswer: item.sub_question?.answer?.final_answer || '', steps: item.sub_question?.answer?.steps?.length ? item.sub_question.answer.steps.join(' → ') : '' })}
             >
               🤖 Ask AI
             </button>
@@ -767,15 +775,18 @@ function BoardCQPage() {
               {paginatedResults.length === 0 && (
                 <div className="text-center py-8">কোনো প্রশ্ন পাওয়া যায়নি</div>
               )}
-              {groupedByTopic.map((group, gi) => (
-                <div key={gi}>
-                  <div className="sticky top-16 z-10 bg-base-200 dark:bg-base-300 rounded-lg px-4 py-2 mb-3 mt-4 shadow-sm border-l-4 border-primary">
-                    <span className="font-bold text-primary text-sm">{group.code ? `${group.code}: ` : ''}{group.name}</span>
-                    <span className="text-xs text-gray-500 ml-2">({getBengaliNum(group.items.length)} টি)</span>
+              {selectedFilter === 'cq'
+                ? paginatedResults.map((item, idx) => renderCard(item, idx))
+                : groupedByTopic.map((group, gi) => (
+                  <div key={gi}>
+                    <div className="sticky top-16 z-10 bg-base-200 dark:bg-base-300 rounded-lg px-4 py-2 mb-3 mt-4 shadow-sm border-l-4 border-primary">
+                      <span className="font-bold text-primary text-sm">{group.code ? `${group.code}: ` : ''}{group.name}</span>
+                      <span className="text-xs text-gray-500 ml-2">({getBengaliNum(group.items.length)} টি)</span>
+                    </div>
+                    {group.items.map(({ item, idx }) => renderCard(item, idx))}
                   </div>
-                  {group.items.map(({ item, idx }) => renderCard(item, idx))}
-                </div>
-              ))}
+                ))
+              }
             </div>
 
             {/* ============ Pagination ============ */}
@@ -903,11 +914,14 @@ function BoardCQPage() {
       {/* Ask AI Modal */}
       <AskAIModal
         isOpen={askAI.open}
-        onClose={() => setAskAI({ open: false, questionText: '', stemText: '', imageUrl: '', source: '' })}
+        onClose={() => setAskAI({ open: false, questionText: '', stemText: '', imageUrl: '', source: '', marks: '', finalAnswer: '', steps: '' })}
         questionText={askAI.questionText}
         stemText={askAI.stemText}
         imageUrl={askAI.imageUrl}
         source={askAI.source}
+        marks={askAI.marks}
+        finalAnswer={askAI.finalAnswer}
+        steps={askAI.steps}
       />
     </MathJaxContext>
   );

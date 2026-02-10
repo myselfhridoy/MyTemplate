@@ -13,7 +13,7 @@ const AI_MODELS = [
   { value: 'doubt', label: 'Concept Builder', api: 'https://geminiai-render.onrender.com/api/gemma', type: 'gemma-stream', model: 'gemma-3-27b-it' },
 ];
 
-function AskAIModal({ isOpen, onClose, questionText = '', stemText = '', imageUrl = '', source = '' }) {
+function AskAIModal({ isOpen, onClose, questionText = '', stemText = '', imageUrl = '', source = '', marks = '', finalAnswer = '', steps = '' }) {
   const [selectedModel, setSelectedModel] = useState('gemmy');
   const [answer, setAnswer] = useState('');
   const [loading, setLoading] = useState(false);
@@ -22,9 +22,12 @@ function AskAIModal({ isOpen, onClose, questionText = '', stemText = '', imageUr
     let q = '';
     if (stemText) q += `উদ্দীপক: ${stemText}\n\n`;
     if (questionText) q += questionText;
+    if (marks) q += `\n\n[মান: ${marks} নম্বর]`;
+    if (finalAnswer) q += `\n\n[সঠিক উত্তর/ইঙ্গিত: ${finalAnswer}]`;
+    if (steps) q += `\n\n[সমাধানের ধাপ/সূত্র: ${steps}]`;
     if (source) q += `\n\n(সোর্স: ${source})`;
     return q.trim();
-  }, [questionText, stemText, source]);
+  }, [questionText, stemText, source, marks, finalAnswer, steps]);
 
   // Fetch image URL and convert to File for FormData
   const fetchImageAsFile = async (url) => {
@@ -95,6 +98,8 @@ function AskAIModal({ isOpen, onClose, questionText = '', stemText = '', imageUr
 - Math expressions এর আগে বা পরে অনর্থক line break দিও না
 
 **কোনো ধরনের সম্ভাষণ ব্যবহার করবে না, সরাসরি উত্তর দাও।**
+
+**যদি প্রশ্নে মান (নম্বর) এবং সঠিক উত্তর/ইঙ্গিত দেওয়া থাকে, সেটি মাথায় রেখে মান অনুযায়ী উত্তরের দৈর্ঘ্য ও গভীরতা নির্ধারণ করো। সঠিক উত্তরের সাথে মিলিয়ে ধাপে ধাপে ব্যাখ্যা দাও।**
 
 নিচের প্রশ্নটি ধাপে ধাপে সমাধান করো:
 
