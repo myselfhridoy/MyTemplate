@@ -1,18 +1,16 @@
 import React, { useState, useMemo } from 'react';
 import MathRendererWithContext from '../MathRenderer/MathRenderer';
 
-const GEMMA_API = '/api/gemma';
-
 const AI_MODELS = [
   { value: 'gemmy', label: 'জেমি: দ্যা টিচার', api: 'https://geminiai-render.onrender.com/api/gemmy/generate', type: 'formdata' },
   { value: 'merlin', label: 'মিস মার্লিন: দ্যা টিউটর', api: 'https://geminiai-render.onrender.com/api/merlin/v1/chat/completions', type: 'merlin' },
   { value: 'luzia', label: 'Luzia: দ্যা প্রফেসর', api: 'https://geminiai-render.onrender.com/api/luzia/ask', type: 'luzia' },
   { value: 'hmtai', label: 'H.M. Tutoring AI', api: 'https://geminiai-render.onrender.com/api/ai-free-api', type: 'hmtai' },
-  { value: 'assistant', label: 'Knowledge Master', api: GEMMA_API, type: 'gemma-stream', model: 'gemini-2.5-flash-lite' },
+  { value: 'assistant', label: 'Knowledge Master', api: 'https://geminiai-render.onrender.com/api/gemma', type: 'gemma-stream', model: 'gemini-2.5-flash-lite' },
   { value: 'chatbot', label: 'AI Chat Bot', api: 'https://geminiai-render.onrender.com/api/chat/send', type: 'chatbot' },
   { value: 'easemate', label: 'Problem Solver', api: 'https://geminiai-render.onrender.com/api/easemate', type: 'easemate' },
   { value: 'borno', label: 'Academic Assistant', api: 'https://geminiai-render.onrender.com/api/bornoai', type: 'borno' },
-  { value: 'doubt', label: 'Concept Builder', api: GEMMA_API, type: 'gemma-stream', model: 'gemma-3-27b-it' },
+  { value: 'doubt', label: 'Concept Builder', api: 'https://geminiai-render.onrender.com/api/gemma', type: 'gemma-stream', model: 'gemma-3-27b-it' },
 ];
 
 function AskAIModal({ isOpen, onClose, questionText = '', stemText = '', imageUrl = '', source = '', marks = '', finalAnswer = '', steps = '' }) {
@@ -31,13 +29,39 @@ function AskAIModal({ isOpen, onClose, questionText = '', stemText = '', imageUr
     return q.trim();
   }, [questionText, stemText, source, marks, finalAnswer, steps]);
 
-  // Fetch image URL and convert to File for FormData
+  // Compress image via canvas (reduce size for API calls)
+  const compressImage = (blob, { maxWidth = 800, maxHeight = 800, quality = 0.85 } = {}) => {
+    return new Promise((resolve) => {
+      const url = URL.createObjectURL(blob);
+      const img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        let { width, height } = img;
+        const scale = Math.min(1, maxWidth / width, maxHeight / height);
+        // Only compress if image needs resizing (too large)
+        if (scale >= 1) { resolve(blob); return; }
+        width = Math.round(width * scale); height = Math.round(height * scale);
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        const mime = blob.type && blob.type.startsWith('image/') ? blob.type : 'image/jpeg';
+        canvas.toBlob((b) => resolve(b || blob), mime, quality);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); resolve(blob); };
+      img.src = url;
+    });
+  };
+
+  // Fetch image URL, compress, and convert to File for FormData
   const fetchImageAsFile = async (url) => {
     try {
       const resp = await fetch(url);
       if (!resp.ok) return null;
       const blob = await resp.blob();
-      return new File([blob], 'question_image.jpg', { type: blob.type || 'image/jpeg' });
+      const compressed = await compressImage(blob);
+      const ext = compressed.type === 'image/png' ? 'png' : 'jpg';
+      return new File([compressed], `question_image.${ext}`, { type: compressed.type || 'image/jpeg' });
     } catch {
       return null;
     }
@@ -236,7 +260,16 @@ ${userQuestion}`;
         }
         const resp = await fetch(modelConfig.api, { method: 'POST', body: formData });
         const data = await resp.json();
-        if (data?.reply) answerText = data.reply;
+        if (data?.reply) {
+          answerText = data.reply;
+        } else if (imageUrl) {
+          // Retry without image if empty reply
+          const retryForm = new FormData();
+          retryForm.append('message', prompt);
+          const retryResp = await fetch(modelConfig.api, { method: 'POST', body: retryForm });
+          const retryData = await retryResp.json();
+          if (retryData?.reply) answerText = retryData.reply;
+        }
       } else if (modelConfig.type === 'easemate') {
         // Problem Solver (JSON with data URI image)
         let imgDataUri = null;

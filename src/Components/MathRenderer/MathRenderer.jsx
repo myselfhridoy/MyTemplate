@@ -7,8 +7,8 @@ import rehypeRaw from 'rehype-raw';
 const MathRenderer = ({ text }) => {
   if (!text) return null;
   
-  // Convert \n to actual line breaks first
-  let processedText = text;
+  // Convert escaped \n to actual line breaks first
+  let processedText = text.replace(/\\n/g, '\n');
   
   // Minimal text processing - only fix very specific problematic cases
   processedText = processedText

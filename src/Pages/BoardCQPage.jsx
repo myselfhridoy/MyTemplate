@@ -205,8 +205,10 @@ function BoardCQPage() {
   // =============================================
   const renderText = (text) => {
     if (!text) return null;
+    // Normalize escaped newlines to real newlines
+    const normalized = text.replace(/\\n/g, '\n');
     // Split by $$...$$ (display math) first, then $...$ (inline math)
-    const parts = text.split(/(\$\$[\s\S]+?\$\$|\$[^$]+?\$)/g);
+    const parts = normalized.split(/(\$\$[\s\S]+?\$\$|\$[^$]+?\$)/g);
     return (
       <span>
         {parts.map((part, i) => {
