@@ -206,7 +206,7 @@ function BoardCQPage() {
   const renderText = (text) => {
     if (!text) return null;
     // Normalize escaped newlines to real newlines
-    const normalized = text.replace(/\\n/g, '\n');
+    const normalized = text.replace(/\\n(?![a-zA-Z])/g, '\n');
     // Split by $$...$$ (display math) first, then $...$ (inline math)
     const parts = normalized.split(/(\$\$[\s\S]+?\$\$|\$[^$]+?\$)/g);
     return (
@@ -934,6 +934,9 @@ function BoardCQPage() {
         marks={askAI.marks}
         finalAnswer={askAI.finalAnswer}
         steps={askAI.steps}
+        className={selectedClass || ''}
+        subjectName={selectedSubjectObj?.subject?.title || ''}
+        chapterName={chapters.find(c => c.id === parseInt(selectedChapter))?.title || ''}
       />
     </MathJaxContext>
   );

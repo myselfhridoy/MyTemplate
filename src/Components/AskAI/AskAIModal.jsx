@@ -1,5 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import MathRendererWithContext from '../MathRenderer/MathRenderer';
+import { toPng } from 'html-to-image';
 
 const AI_MODELS = [
   { value: 'gemmy', label: 'জেমি: দ্যা টিচার', api: 'https://geminiai-render.onrender.com/api/gemmy/generate', type: 'formdata' },
@@ -13,10 +14,14 @@ const AI_MODELS = [
   { value: 'doubt', label: 'Concept Builder', api: 'https://geminiai-render.onrender.com/api/gemma', type: 'gemma-stream', model: 'gemma-3-27b-it' },
 ];
 
-function AskAIModal({ isOpen, onClose, questionText = '', stemText = '', imageUrl = '', source = '', marks = '', finalAnswer = '', steps = '' }) {
+function AskAIModal({ isOpen, onClose, questionText = '', stemText = '', imageUrl = '', source = '', marks = '', finalAnswer = '', steps = '', subjectName = '', chapterName = '', className = '' }) {
   const [selectedModel, setSelectedModel] = useState('gemmy');
   const [answer, setAnswer] = useState('');
   const [loading, setLoading] = useState(false);
+  const [downloadingAnswer, setDownloadingAnswer] = useState(false);
+  const answerRef = useRef(null);
+  const visibleAnswerRef = useRef(null);
+  const [capturedHTML, setCapturedHTML] = useState('');
 
   const fullQuestion = useMemo(() => {
     let q = '';
@@ -318,6 +323,72 @@ ${userQuestion}`;
     onClose();
   };
 
+  // Capture the visible answer's rendered HTML (MathJax already baked in) before download/share
+  const prepareCapture = () => {
+    if (visibleAnswerRef.current) {
+      setCapturedHTML(visibleAnswerRef.current.innerHTML);
+    }
+  };
+
+  // Download answer as PNG
+  const downloadAnswer = async () => {
+    if (!visibleAnswerRef.current) return;
+    setDownloadingAnswer(true);
+    prepareCapture();
+    // Wait for React to render the hidden div with capturedHTML
+    await new Promise(r => setTimeout(r, 300));
+    try {
+      const el = answerRef.current;
+      if (!el) throw new Error('Capture element not found');
+      const dataUrl = await toPng(el, {
+        quality: 1,
+        pixelRatio: 2,
+        backgroundColor: '#ffffff',
+        skipFonts: true,
+      });
+      const link = document.createElement('a');
+      link.download = `AI-উত্তর-${source || 'answer'}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error('Download failed:', err);
+      alert('ডাউনলোড ব্যর্থ হয়েছে।');
+    } finally {
+      setDownloadingAnswer(false);
+    }
+  };
+
+  // Share answer as PNG
+  const shareAnswer = async () => {
+    if (!visibleAnswerRef.current || !navigator.share) {
+      return downloadAnswer();
+    }
+    setDownloadingAnswer(true);
+    prepareCapture();
+    await new Promise(r => setTimeout(r, 300));
+    try {
+      const el = answerRef.current;
+      if (!el) throw new Error('Capture element not found');
+      const dataUrl = await toPng(el, {
+        quality: 1,
+        pixelRatio: 2,
+        backgroundColor: '#ffffff',
+        skipFonts: true,
+      });
+      const resp = await fetch(dataUrl);
+      const blob = await resp.blob();
+      const file = new File([blob], `AI-উত্তর.png`, { type: 'image/png' });
+      await navigator.share({ files: [file], title: 'AI উত্তর - H.M. Tutoring' });
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        console.error('Share failed:', err);
+        downloadAnswer();
+      }
+    } finally {
+      setDownloadingAnswer(false);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -375,24 +446,20 @@ ${userQuestion}`;
 
         {/* Answer */}
         {answer && (
-          <div className="border rounded-lg p-4 bg-base-100" style={{ whiteSpace: 'pre-line', overflowX: 'auto' }}>
+          <>
+          <div ref={visibleAnswerRef} className="border rounded-lg p-4 bg-base-100" style={{ whiteSpace: 'pre-line', overflowX: 'auto' }}>
             <span className="font-semibold text-success block mb-2">উত্তর:</span>
             {(() => {
-              // Split answer into text and SVG parts
               const svgRegex = /(<svg[\s\S]*?<\/svg>)/gi;
               const parts = answer.split(svgRegex);
               if (parts.length <= 1) {
-                // No SVG found, render normally
                 return <MathRendererWithContext text={answer} />;
               }
               return parts.map((part, i) => {
-                if (svgRegex.lastIndex === 0) svgRegex.lastIndex = 0; // reset
+                if (svgRegex.lastIndex === 0) svgRegex.lastIndex = 0;
                 if (/<svg[\s\S]*?<\/svg>/i.test(part)) {
-                  // Sanitize: only allow svg content
                   const cleanSvg = part.replace(/<script[\s\S]*?<\/script>/gi, '')
-                    // Make SVG responsive: remove fixed width/height, add viewBox if missing
                     .replace(/<svg([^>]*)>/i, (match, attrs) => {
-                      // Extract width and height values for viewBox
                       const wMatch = attrs.match(/width\s*=\s*["']?(\d+)/);
                       const hMatch = attrs.match(/height\s*=\s*["']?(\d+)/);
                       const hasViewBox = /viewBox/i.test(attrs);
@@ -416,7 +483,78 @@ ${userQuestion}`;
               });
             })()}
           </div>
+          {/* Download/Share buttons */}
+          <div className="flex gap-2 mt-3">
+            <button
+              className={`btn btn-sm btn-outline btn-success flex-1 ${downloadingAnswer ? 'loading' : ''}`}
+              onClick={downloadAnswer}
+              disabled={downloadingAnswer}
+            >
+              {downloadingAnswer ? '⏳' : '📥'} ডাউনলোড
+            </button>
+            <button
+              className="btn btn-sm btn-outline btn-info flex-1"
+              onClick={shareAnswer}
+              disabled={downloadingAnswer}
+            >
+              📤 শেয়ার
+            </button>
+          </div>
+          </>
         )}
+
+        {/* Hidden capture div - uses innerHTML from visible answer (no MathJax re-render) */}
+        {capturedHTML && (
+          <div style={{ position: 'absolute', left: '-9999px', top: 0 }}>
+            <div ref={answerRef} style={{ width: '800px', padding: '24px', backgroundColor: '#ffffff', fontFamily: 'Hind Siliguri, sans-serif', color: '#1e293b', position: 'relative', overflow: 'hidden' }}>
+              <style>
+                {`
+                  @font-face {
+                    font-family: 'Hind Siliguri';
+                    src: url('/fonts/HindSiliguri-Regular.woff2') format('woff2'), url('/fonts/HindSiliguri-Regular.ttf') format('truetype');
+                    font-weight: 400;
+                    font-style: normal;
+                  }
+                  @font-face {
+                    font-family: 'Hind Siliguri';
+                    src: url('/fonts/HindSiliguri-Bold.woff2') format('woff2'), url('/fonts/HindSiliguri-Bold.ttf') format('truetype');
+                    font-weight: 700;
+                    font-style: normal;
+                  }
+                `}
+              </style>
+              {/* Watermark */}
+              <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', opacity: 0.05, pointerEvents: 'none', zIndex: 0 }}>
+                <img src="/HMT Logo.png" alt="" style={{ width: '700px', height: 'auto' }} crossOrigin="anonymous" />
+              </div>
+              <div style={{ position: 'relative', zIndex: 1 }}>
+                {/* Header */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', paddingBottom: '10px', borderBottom: '2px solid #2563eb' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 800, fontSize: '16px', color: '#2563eb', whiteSpace: 'nowrap' }}>H.M. Tutoring AI</div>
+                    <div style={{ fontSize: '11px', color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {[className, subjectName, chapterName, source].filter(Boolean).join(' • ')}
+                    </div>
+                  </div>
+                  <div style={{ width: '120px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+                    <img src="/HMT Logo.png" alt="HMT" style={{ width: '90px', height: '90px', objectFit: 'contain' }} crossOrigin="anonymous" />
+                  </div>
+                </div>
+                {/* Answer content from already-rendered visible answer */}
+                <div
+                  style={{ whiteSpace: 'pre-line', fontSize: '14px', lineHeight: '1.7', color: '#1e293b', fontFamily: 'Hind Siliguri, sans-serif' }}
+                  dangerouslySetInnerHTML={{ __html: capturedHTML }}
+                />
+                {/* Footer */}
+                <div style={{ marginTop: '16px', paddingTop: '8px', borderTop: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '10px', color: '#94a3b8' }}>Generated by H.M. Tutoring AI</span>
+                  <span style={{ fontSize: '10px', color: '#94a3b8' }}>hmtutoring.netlify.app</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
       <div className="modal-backdrop" onClick={handleClose}></div>
     </div>
