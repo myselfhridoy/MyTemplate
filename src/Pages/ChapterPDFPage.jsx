@@ -53,7 +53,7 @@ function ChapterPDFPage() {
                 {parts.map((part, i) => {
                     if (/^\$\$[\s\S]+?\$\$$/.test(part)) {
                         return (
-                            <div key={i} style={{ overflowX: 'auto', margin: '4px 0', maxWidth: '100%' }}>
+                            <div key={i} style={{ margin: '4px 0', maxWidth: '100%' }}>
                                 <MathJax dynamic style={{ fontSize: '0.85em' }}>{part}</MathJax>
                             </div>
                         );
@@ -218,18 +218,24 @@ function ChapterPDFPage() {
     return (
         <MathJaxContext
             config={{
-                loader: { load: ['input/tex', 'output/svg', '[tex]/ams', '[tex]/newcommand'] },
+                loader: { load: ['input/tex', 'output/chtml', '[tex]/ams', '[tex]/newcommand'] },
                 tex: {
                     inlineMath: [['$', '$'], ['\\(', '\\)']],
                     displayMath: [['$$', '$$'], ['\\[', '\\]']],
                     packages: { '[+]': ['ams', 'newcommand'] },
                 },
-                svg: { fontCache: 'local' },
+                chtml: {
+                    mtextInheritFont: true,
+                    matchFontHeight: false,
+                },
             }}
         >
             <style>{`
-        mjx-container mjx-utext, mjx-container mjx-mtext,
-        .MathJax mjx-utext, .MathJax mjx-mtext {
+        mjx-container mjx-utext,
+        mjx-container mjx-mtext,
+        mjx-container [data-mjx-texclass="ORD"] mjx-mtext,
+        .MathJax mjx-utext,
+        .MathJax mjx-mtext {
           font-family: 'Hind Siliguri', 'Noto Sans Bengali', sans-serif !important;
         }
 
