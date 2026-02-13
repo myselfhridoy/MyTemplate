@@ -9,6 +9,7 @@ import ExampleWithAnswer from './Pages/ExampleWithAnswer';
 import FilteredCQPage from './Pages/FilteredCQPage';
 import CreativeCQPage from './Pages/CreativeCQPage';
 import BoardCQPage from './Pages/BoardCQPage';
+import ChapterPDFPage from './Pages/ChapterPDFPage';
 import SelfTestPage from './Pages/SelfTestPage';
 
 
@@ -47,6 +48,7 @@ export default class App extends Component {
             <Route path="/cq-filter" element={<FilteredCQPage />} />
             <Route path="/creative-cq" element={<CreativeCQPage />} />
             <Route path="/board-cq" element={<BoardCQPage />} />
+            <Route path="/chapter-pdf" element={<ChapterPDFPage />} />
             <Route path="/selftest/*" element={<SelfTestPage />} />
             <Route path="/bookcontent" element={<BookContentPage />} />
             <Route path="/ai-assistant" element={<AIAssistantPage />} />

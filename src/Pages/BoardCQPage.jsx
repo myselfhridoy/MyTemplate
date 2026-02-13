@@ -718,18 +718,6 @@ function BoardCQPage() {
             </select>
           )}
 
-          {/* সোর্স */}
-          {results.length > 0 && sources.length > 0 && (
-            <select
-              className="select select-bordered"
-              value={selectedSource}
-              onChange={e => { setSelectedSource(e.target.value); setCurrentPage(1); }}
-            >
-              <option value="">সোর্স</option>
-              {sources.map((s, i) => <option key={i} value={s}>{s}</option>)}
-            </select>
-          )}
-
           {/* টপিক */}
           {results.length > 0 && topics.length > 0 && (
             <select
@@ -739,6 +727,18 @@ function BoardCQPage() {
             >
               <option value="">টপিক</option>
               {topics.map((t, i) => <option key={i} value={t}>{t}</option>)}
+            </select>
+          )}
+
+          {/* সোর্স */}
+          {results.length > 0 && sources.length > 0 && (
+            <select
+              className="select select-bordered"
+              value={selectedSource}
+              onChange={e => { setSelectedSource(e.target.value); setCurrentPage(1); }}
+            >
+              <option value="">সোর্স</option>
+              {sources.map((s, i) => <option key={i} value={s}>{s}</option>)}
             </select>
           )}
         </div>
