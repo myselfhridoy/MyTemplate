@@ -1,6 +1,11 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useCallback } from 'react';
 import MathRendererWithContext from '../MathRenderer/MathRenderer';
 import { toPng } from 'html-to-image';
+import { sha256 } from 'js-sha256';
+import SavedAnswerGallery from './SavedAnswerGallery';
+
+const DRIVE_API = 'https://geminiai-render.onrender.com/api/driveRouter';
+const GOOGLE_CLIENT_ID = '19730678351-p3t6io5vl987rnffmim1nlo21ks7evub.apps.googleusercontent.com';
 
 const AI_MODELS = [
   { value: 'gemmy', label: 'জেমি: দ্যা টিচার', api: 'https://geminiai-render.onrender.com/api/gemmy/generate', type: 'formdata' },
@@ -21,6 +26,105 @@ function AskAIModal({ isOpen, onClose, questionText = '', stemText = '', imageUr
   const [downloadingAnswer, setDownloadingAnswer] = useState(false);
   const questionPreviewRef = useRef(null);
   const visibleAnswerRef = useRef(null);
+
+  // ─── Google Drive state (persist in sessionStorage) ───
+  const [gAccessToken, setGAccessToken] = useState(() => {
+    try { return sessionStorage.getItem('g_drive_token') || null; } catch { return null; }
+  });
+  const updateGToken = (token) => {
+    setGAccessToken(token);
+    try { if (token) sessionStorage.setItem('g_drive_token', token); else sessionStorage.removeItem('g_drive_token'); } catch { }
+  };
+  const [savingToDrive, setSavingToDrive] = useState(false);
+  const [driveSaveMsg, setDriveSaveMsg] = useState('');
+  const galleryRefreshRef = useRef(null);
+
+  // Question fingerprint for Drive storage
+  const questionHash = useMemo(() => {
+    const raw = (questionText || '') + '|||' + (stemText || '');
+    return raw.trim() ? sha256(raw) : '';
+  }, [questionText, stemText]);
+
+  // ─── Google OAuth Sign-In ───
+  const requestGoogleToken = useCallback(() => {
+    return new Promise((resolve, reject) => {
+      // eslint-disable-next-line no-undef
+      if (typeof google === 'undefined' || !google.accounts) {
+        reject(new Error('Google Identity Services লোড হয়নি। পেজ রিফ্রেশ করুন।'));
+        return;
+      }
+      // eslint-disable-next-line no-undef
+      const client = google.accounts.oauth2.initTokenClient({
+        client_id: GOOGLE_CLIENT_ID,
+        scope: 'https://www.googleapis.com/auth/drive.file',
+        callback: (response) => {
+          if (response.error) {
+            reject(new Error(response.error_description || 'Google Sign-In ব্যর্থ'));
+          } else {
+            updateGToken(response.access_token);
+            resolve(response.access_token);
+          }
+        },
+      });
+      client.requestAccessToken();
+    });
+  }, []);
+
+  // ─── Save to Drive ───
+  const saveToDrive = async () => {
+    if (!visibleAnswerRef.current) return;
+    setSavingToDrive(true);
+    setDriveSaveMsg('');
+    try {
+      // Get token if not already signed in
+      let token = gAccessToken;
+      if (!token) {
+        token = await requestGoogleToken();
+      }
+
+      // Capture answer as PNG data URL
+      const dataUrl = await captureToDataUrl();
+
+      // Get current model label
+      const modelConfig = AI_MODELS.find(m => m.value === selectedModel);
+      const modelLabel = modelConfig ? modelConfig.label : selectedModel;
+
+      // Send to backend
+      const res = await fetch(`${DRIVE_API}/save`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accessToken: token,
+          questionHash,
+          imageBase64: dataUrl,
+          questionText: (questionText || '').substring(0, 500),
+          source: source || '',
+          modelUsed: modelLabel,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Save failed');
+
+      setDriveSaveMsg('✅ Drive এ সেভ হয়েছে!');
+      // Refresh gallery
+      if (galleryRefreshRef.current) galleryRefreshRef.current();
+    } catch (err) {
+      console.error('Drive save error:', err);
+      if (err.message?.includes('popup_closed') || err.message?.includes('access_denied')) {
+        setDriveSaveMsg('❌ Google Sign-In বাতিল হয়েছে');
+      } else {
+        setDriveSaveMsg('❌ ' + (err.message || 'সেভ ব্যর্থ হয়েছে'));
+      }
+      // If token expired, clear it so next attempt re-authenticates
+      if (err.message?.includes('401') || err.message?.includes('invalid_grant')) {
+        updateGToken(null);
+      }
+    } finally {
+      setSavingToDrive(false);
+      setTimeout(() => setDriveSaveMsg(''), 4000);
+    }
+  };
 
   const fullQuestion = useMemo(() => {
     let q = '';
@@ -508,17 +612,50 @@ ${userQuestion}`;
                 });
               })()}
             </div>
-            {/* Download button */}
-            <div className="mt-3">
+            {/* Download + Drive Save buttons */}
+            <div className="mt-3 mb-4" style={{ display: 'flex', gap: '8px' }}>
               <button
-                className="btn btn-sm btn-outline btn-success w-full"
+                className="btn btn-sm btn-outline btn-success"
+                style={{ flex: 1 }}
                 onClick={downloadAnswer}
                 disabled={downloadingAnswer}
               >
                 📥 ডাউনলোড
               </button>
+              <button
+                className="btn btn-sm btn-outline btn-info"
+                style={{ flex: 1 }}
+                onClick={saveToDrive}
+                disabled={savingToDrive}
+              >
+                {savingToDrive ? (
+                  <><span className="loading loading-spinner loading-xs"></span> সেভ হচ্ছে...</>
+                ) : (
+                  '☁️ Drive এ রাখুন'
+                )}
+              </button>
             </div>
+            {driveSaveMsg && (
+              <div style={{
+                textAlign: 'center', fontSize: '13px', marginTop: '-10px', marginBottom: '12px',
+                padding: '4px 8px', borderRadius: '6px',
+                background: driveSaveMsg.startsWith('✅') ? '#dcfce7' : '#fee2e2',
+                color: driveSaveMsg.startsWith('✅') ? '#166534' : '#991b1b',
+              }}>
+                {driveSaveMsg}
+              </div>
+            )}
           </>
+        )}
+
+        {/* Saved answers gallery */}
+        {questionHash && (
+          <SavedAnswerGallery
+            questionHash={questionHash}
+            accessToken={gAccessToken}
+            onRefreshNeeded={galleryRefreshRef}
+            onTokenReceived={(token) => updateGToken(token)}
+          />
         )}
 
       </div>
