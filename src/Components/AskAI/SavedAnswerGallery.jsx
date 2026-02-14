@@ -14,6 +14,7 @@ function SavedAnswerGallery({ questionHash, accessToken, onRefreshNeeded, onToke
         try { return sessionStorage.getItem('g_drive_token') || null; } catch { return null; }
     });
     const [signInLoading, setSignInLoading] = useState(false);
+    const [expanded, setExpanded] = useState(false);
 
     // Sync external token
     useEffect(() => {
@@ -124,7 +125,7 @@ function SavedAnswerGallery({ questionHash, accessToken, onRefreshNeeded, onToke
                         fontFamily: 'Hind Siliguri, sans-serif',
                     }}
                 >
-                    {signInLoading ? '⏳ সাইন ইন হচ্ছে...' : '📂 সেভ করা উত্তর দেখুন'}
+                    {signInLoading ? '⏳ সাইন ইন হচ্ছে...' : '📂 Drive এ সংরক্ষিত উত্তর'}
                 </button>
                 <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>
                     Google Drive থেকে আগের উত্তর লোড করতে সাইন ইন করুন
@@ -166,149 +167,160 @@ function SavedAnswerGallery({ questionHash, accessToken, onRefreshNeeded, onToke
             marginBottom: '12px',
             background: 'linear-gradient(135deg, #f0f9ff 0%, #f8fafc 100%)',
         }}>
-            {/* Header */}
-            <div style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                padding: '8px 12px',
-                background: 'linear-gradient(90deg, #2563eb, #7c3aed)',
-                color: '#fff', fontSize: '13px', fontWeight: 600,
-            }}>
-                <span>📂 সেভ করা উত্তর ({bengaliNum(answers.length)} টি)</span>
-                <span style={{ fontSize: '11px', opacity: 0.9 }}>
-                    {bengaliNum(currentIndex + 1)} / {bengaliNum(answers.length)}
+            {/* Header — always visible, clickable to toggle */}
+            <div
+                onClick={() => setExpanded((v) => !v)}
+                style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '8px 12px', cursor: 'pointer', userSelect: 'none',
+                    background: 'linear-gradient(90deg, #2563eb, #7c3aed)',
+                    color: '#fff', fontSize: '13px', fontWeight: 600,
+                }}
+            >
+                <span>📂 Drive এ সংরক্ষিত উত্তর ({bengaliNum(answers.length)} টি)</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', opacity: 0.9 }}>
+                    {expanded && <span>{bengaliNum(currentIndex + 1)} / {bengaliNum(answers.length)}</span>}
+                    <span style={{
+                        display: 'inline-block',
+                        transition: 'transform 0.2s ease',
+                        transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                    }}>▼</span>
                 </span>
             </div>
 
-            {/* Image display */}
-            <div style={{ position: 'relative', minHeight: '120px', background: '#fff' }}>
-                {/* Left arrow */}
-                {answers.length > 1 && currentIndex > 0 && (
-                    <button
-                        onClick={goPrev}
-                        style={{
-                            position: 'absolute', left: '4px', top: '50%', transform: 'translateY(-50%)',
-                            zIndex: 5, width: '32px', height: '32px', borderRadius: '50%',
-                            background: 'rgba(0,0,0,0.5)', color: '#fff', border: 'none',
-                            cursor: 'pointer', fontSize: '16px', display: 'flex',
-                            alignItems: 'center', justifyContent: 'center',
-                            backdropFilter: 'blur(4px)',
-                            transition: 'background 0.2s',
-                        }}
-                        onMouseOver={(e) => e.currentTarget.style.background = 'rgba(0,0,0,0.7)'}
-                        onMouseOut={(e) => e.currentTarget.style.background = 'rgba(0,0,0,0.5)'}
-                        title="আগের উত্তর"
-                    >◀</button>
-                )}
+            {/* Collapsible content */}
+            {expanded && (
+                <>
+                    {/* Image display */}
+                    <div style={{ position: 'relative', minHeight: '120px', background: '#fff' }}>
+                        {/* Left arrow */}
+                        {answers.length > 1 && currentIndex > 0 && (
+                            <button
+                                onClick={goPrev}
+                                style={{
+                                    position: 'absolute', left: '4px', top: '50%', transform: 'translateY(-50%)',
+                                    zIndex: 5, width: '32px', height: '32px', borderRadius: '50%',
+                                    background: 'rgba(0,0,0,0.5)', color: '#fff', border: 'none',
+                                    cursor: 'pointer', fontSize: '16px', display: 'flex',
+                                    alignItems: 'center', justifyContent: 'center',
+                                    backdropFilter: 'blur(4px)', transition: 'background 0.2s',
+                                }}
+                                onMouseOver={(e) => e.currentTarget.style.background = 'rgba(0,0,0,0.7)'}
+                                onMouseOut={(e) => e.currentTarget.style.background = 'rgba(0,0,0,0.5)'}
+                                title="আগের উত্তর"
+                            >◀</button>
+                        )}
 
-                {/* Right arrow */}
-                {answers.length > 1 && currentIndex < answers.length - 1 && (
-                    <button
-                        onClick={goNext}
-                        style={{
-                            position: 'absolute', right: '4px', top: '50%', transform: 'translateY(-50%)',
-                            zIndex: 5, width: '32px', height: '32px', borderRadius: '50%',
-                            background: 'rgba(0,0,0,0.5)', color: '#fff', border: 'none',
-                            cursor: 'pointer', fontSize: '16px', display: 'flex',
-                            alignItems: 'center', justifyContent: 'center',
-                            backdropFilter: 'blur(4px)',
-                            transition: 'background 0.2s',
-                        }}
-                        onMouseOver={(e) => e.currentTarget.style.background = 'rgba(0,0,0,0.7)'}
-                        onMouseOut={(e) => e.currentTarget.style.background = 'rgba(0,0,0,0.5)'}
-                        title="পরের উত্তর"
-                    >▶</button>
-                )}
+                        {/* Right arrow */}
+                        {answers.length > 1 && currentIndex < answers.length - 1 && (
+                            <button
+                                onClick={goNext}
+                                style={{
+                                    position: 'absolute', right: '4px', top: '50%', transform: 'translateY(-50%)',
+                                    zIndex: 5, width: '32px', height: '32px', borderRadius: '50%',
+                                    background: 'rgba(0,0,0,0.5)', color: '#fff', border: 'none',
+                                    cursor: 'pointer', fontSize: '16px', display: 'flex',
+                                    alignItems: 'center', justifyContent: 'center',
+                                    backdropFilter: 'blur(4px)', transition: 'background 0.2s',
+                                }}
+                                onMouseOver={(e) => e.currentTarget.style.background = 'rgba(0,0,0,0.7)'}
+                                onMouseOut={(e) => e.currentTarget.style.background = 'rgba(0,0,0,0.5)'}
+                                title="পরের উত্তর"
+                            >▶</button>
+                        )}
 
-                {/* Image */}
-                {imgError[current.id] ? (
-                    <div style={{
-                        display: 'flex', flexDirection: 'column', alignItems: 'center',
-                        justifyContent: 'center', padding: '24px', color: '#94a3b8', minHeight: '150px',
-                    }}>
-                        <span style={{ fontSize: '28px', marginBottom: '8px' }}>🖼️</span>
-                        <span style={{ fontSize: '12px' }}>ইমেজ লোড হয়নি</span>
-                        <a href={current.webViewLink} target="_blank" rel="noopener noreferrer"
-                            style={{ fontSize: '11px', color: '#2563eb', marginTop: '4px' }}>
-                            Drive এ দেখুন →
-                        </a>
+                        {/* Image */}
+                        {imgError[current.id] ? (
+                            <div style={{
+                                display: 'flex', flexDirection: 'column', alignItems: 'center',
+                                justifyContent: 'center', padding: '24px', color: '#94a3b8', minHeight: '150px',
+                            }}>
+                                <span style={{ fontSize: '28px', marginBottom: '8px' }}>🖼️</span>
+                                <span style={{ fontSize: '12px' }}>ইমেজ লোড হয়নি</span>
+                                <a href={current.webViewLink} target="_blank" rel="noopener noreferrer"
+                                    style={{ fontSize: '11px', color: '#2563eb', marginTop: '4px' }}>
+                                    Drive এ দেখুন →
+                                </a>
+                            </div>
+                        ) : (
+                            <img
+                                src={current.thumbnailUrl}
+                                alt={`সেভ করা উত্তর ${currentIndex + 1}`}
+                                style={{
+                                    width: '100%', maxHeight: '400px', objectFit: 'contain',
+                                    display: 'block', cursor: 'pointer',
+                                }}
+                                onClick={() => window.open(current.webViewLink, '_blank')}
+                                onError={() => setImgError((prev) => ({ ...prev, [current.id]: true }))}
+                                referrerPolicy="no-referrer"
+                            />
+                        )}
                     </div>
-                ) : (
-                    <img
-                        src={current.thumbnailUrl}
-                        alt={`সেভ করা উত্তর ${currentIndex + 1}`}
-                        style={{
-                            width: '100%', maxHeight: '400px', objectFit: 'contain',
-                            display: 'block', cursor: 'pointer',
-                        }}
-                        onClick={() => window.open(current.webViewLink, '_blank')}
-                        onError={() => setImgError((prev) => ({ ...prev, [current.id]: true }))}
-                        referrerPolicy="no-referrer"
-                    />
-                )}
-            </div>
 
-            {/* Footer: meta + actions */}
-            <div style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                padding: '6px 12px', borderTop: '1px solid #e2e8f0',
-                background: '#f8fafc', fontSize: '11px', color: '#64748b',
-                flexWrap: 'wrap', gap: '4px',
-            }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                    <span>🕐 {formatDate(current.createdTime)}</span>
-                    {current.modelUsed && (
-                        <span style={{
-                            background: '#e0e7ff', color: '#4338ca', padding: '1px 6px',
-                            borderRadius: '8px', fontSize: '10px', fontWeight: 600,
+                    {/* Footer: meta + actions */}
+                    <div style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        padding: '6px 12px', borderTop: '1px solid #e2e8f0',
+                        background: '#f8fafc', fontSize: '11px', color: '#64748b',
+                        flexWrap: 'wrap', gap: '4px',
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            <span>🕐 {formatDate(current.createdTime)}</span>
+                            {current.modelUsed && (
+                                <span style={{
+                                    background: '#e0e7ff', color: '#4338ca', padding: '1px 6px',
+                                    borderRadius: '8px', fontSize: '10px', fontWeight: 600,
+                                }}>
+                                    {current.modelUsed}
+                                </span>
+                            )}
+                        </div>
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                            <a href={current.webViewLink} target="_blank" rel="noopener noreferrer"
+                                style={{
+                                    background: '#2563eb', color: '#fff', border: 'none',
+                                    padding: '3px 8px', borderRadius: '6px', fontSize: '11px',
+                                    cursor: 'pointer', textDecoration: 'none', fontWeight: 500,
+                                }}>
+                                🔗 Drive
+                            </a>
+                            <button
+                                onClick={() => handleDelete(current.id)}
+                                disabled={deleting === current.id}
+                                style={{
+                                    background: '#fee2e2', color: '#dc2626', border: 'none',
+                                    padding: '3px 8px', borderRadius: '6px', fontSize: '11px',
+                                    cursor: deleting === current.id ? 'wait' : 'pointer', fontWeight: 500,
+                                }}
+                            >
+                                {deleting === current.id ? '⏳' : '🗑️ ডিলিট'}
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Dot indicators */}
+                    {answers.length > 1 && (
+                        <div style={{
+                            display: 'flex', justifyContent: 'center', gap: '5px',
+                            padding: '6px', background: '#f8fafc',
                         }}>
-                            {current.modelUsed}
-                        </span>
+                            {answers.map((_, i) => (
+                                <button
+                                    key={i}
+                                    onClick={() => setCurrentIndex(i)}
+                                    style={{
+                                        width: i === currentIndex ? '16px' : '6px',
+                                        height: '6px',
+                                        borderRadius: '3px',
+                                        background: i === currentIndex ? '#2563eb' : '#cbd5e1',
+                                        border: 'none', cursor: 'pointer',
+                                        transition: 'all 0.3s ease',
+                                    }}
+                                />
+                            ))}
+                        </div>
                     )}
-                </div>
-                <div style={{ display: 'flex', gap: '6px' }}>
-                    <a href={current.webViewLink} target="_blank" rel="noopener noreferrer"
-                        style={{
-                            background: '#2563eb', color: '#fff', border: 'none',
-                            padding: '3px 8px', borderRadius: '6px', fontSize: '11px',
-                            cursor: 'pointer', textDecoration: 'none', fontWeight: 500,
-                        }}>
-                        🔗 Drive
-                    </a>
-                    <button
-                        onClick={() => handleDelete(current.id)}
-                        disabled={deleting === current.id}
-                        style={{
-                            background: '#fee2e2', color: '#dc2626', border: 'none',
-                            padding: '3px 8px', borderRadius: '6px', fontSize: '11px',
-                            cursor: deleting === current.id ? 'wait' : 'pointer', fontWeight: 500,
-                        }}
-                    >
-                        {deleting === current.id ? '⏳' : '🗑️ ডিলিট'}
-                    </button>
-                </div>
-            </div>
-
-            {/* Dot indicators */}
-            {answers.length > 1 && (
-                <div style={{
-                    display: 'flex', justifyContent: 'center', gap: '5px',
-                    padding: '6px', background: '#f8fafc',
-                }}>
-                    {answers.map((_, i) => (
-                        <button
-                            key={i}
-                            onClick={() => setCurrentIndex(i)}
-                            style={{
-                                width: i === currentIndex ? '16px' : '6px',
-                                height: '6px',
-                                borderRadius: '3px',
-                                background: i === currentIndex ? '#2563eb' : '#cbd5e1',
-                                border: 'none', cursor: 'pointer',
-                                transition: 'all 0.3s ease',
-                            }}
-                        />
-                    ))}
-                </div>
+                </>
             )}
         </div>
     );
