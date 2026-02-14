@@ -315,7 +315,7 @@ function BoardCQPage() {
               <div className="space-y-2">
                 {item.sub_questions.map((sq, si) => {
                   const answerKey = `${idx}-${si}`;
-                  const hasAnswer = sq.answer && (sq.answer.full_explanation || sq.answer.final_answer);
+                  const hasAnswer = sq.answer && sq.answer.full_explanation;
                   return (
                     <div key={si} className="border-l-4 border-primary pl-4">
                       <span className="font-bold mr-2">{sq.label}।</span>
@@ -341,7 +341,7 @@ function BoardCQPage() {
                             <div className="p-3 bg-gray-50 rounded border border-gray-200" style={{ whiteSpace: 'pre-line' }}>
                               <span className="font-semibold text-success">উত্তর:</span>
                               <div className="mt-1 text-gray-700">
-                                {renderText(sq.answer.full_explanation || sq.answer.final_answer)}
+                                {renderText(sq.answer.full_explanation)}
                               </div>
                             </div>
                           )}

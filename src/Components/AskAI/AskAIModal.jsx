@@ -16,7 +16,7 @@ const AI_MODELS = [
   { value: 'chatbot', label: 'AI Chat Bot', api: 'https://geminiai-render.onrender.com/api/chat/send', type: 'chatbot' },
   { value: 'easemate', label: 'Problem Solver', api: 'https://geminiai-render.onrender.com/api/easemate', type: 'easemate' },
   { value: 'borno', label: 'Academic Assistant', api: 'https://geminiai-render.onrender.com/api/bornoai', type: 'borno' },
-  { value: 'doubt', label: 'Concept Builder', api: 'https://geminiai-render.onrender.com/api/gemma', type: 'gemma-stream', model: 'gemma-3-27b-it' },
+  { value: 'doubt', label: 'Concept Builder', api: 'https://geminiai-render.onrender.com/api/gemma', type: 'gemma-stream', model: 'gemini-2.5-flash-lite' },
 ];
 
 function AskAIModal({ isOpen, onClose, questionText = '', stemText = '', imageUrl = '', source = '', marks = '', finalAnswer = '', steps = '', subjectName = '', chapterName = '', className = '' }) {
@@ -342,7 +342,7 @@ ${userQuestion}`;
         // Gemma/Knowledge Master/Concept Builder (JSON + SSE stream)
         const parts = [{ text: prompt }];
         // Image support for gemini models (not gemma)
-        if (imageUrl && modelConfig.model !== 'gemma-3-27b-it') {
+        if (imageUrl && modelConfig.model !== 'gemini-2.5-flash-lite') {
           const dataUri = await fetchImageAsDataUri(imageUrl);
           if (dataUri) {
             const [meta, base64] = dataUri.split(',');

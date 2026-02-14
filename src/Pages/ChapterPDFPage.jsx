@@ -499,9 +499,9 @@ function ChapterPDFPage() {
                                                                                 {item.sub_question?.marks && <span style={S.metaBadge}>[{item.sub_question.marks} নম্বর]</span>}
                                                                                 <span style={S.metaBadge}>({item.sources ? item.sources.join(', ') : item.source})</span>
                                                                             </div>
-                                                                            {item.sub_question?.answer?.final_answer && (
+                                                                            {item.sub_question?.answer?.full_explanation && (
                                                                                 <div style={S.answerLine}>
-                                                                                    <strong>উত্তর:</strong> {renderText(item.sub_question.answer.final_answer)}
+                                                                                    <strong>উত্তর:</strong> {renderText(item.sub_question.answer.full_explanation)}
                                                                                 </div>
                                                                             )}
                                                                         </div>
@@ -524,9 +524,9 @@ function ChapterPDFPage() {
                                                                                 {item.sub_question?.marks && <span style={S.metaBadge}>[{item.sub_question.marks} নম্বর]</span>}
                                                                                 <span style={S.metaBadge}>({item.sources ? item.sources.join(', ') : item.source})</span>
                                                                             </div>
-                                                                            {item.sub_question?.answer?.final_answer && (
+                                                                            {item.sub_question?.answer?.full_explanation && (
                                                                                 <div style={S.answerLine}>
-                                                                                    <strong>উত্তর:</strong> {renderText(item.sub_question.answer.final_answer)}
+                                                                                    <strong>উত্তর:</strong> {renderText(item.sub_question.answer.full_explanation)}
                                                                                 </div>
                                                                             )}
                                                                         </div>
@@ -565,9 +565,9 @@ function ChapterPDFPage() {
                                                                                     <strong>{sq.label}।</strong> {renderText(sq.question_text)}
                                                                                     {sq.marks && <span style={S.metaBadge}>[{sq.marks} নম্বর]</span>}
                                                                                 </div>
-                                                                                {sq.answer?.final_answer && (
+                                                                                {sq.answer?.full_explanation && (
                                                                                     <div style={S.answerLine}>
-                                                                                        <strong>উত্তর:</strong> {renderText(sq.answer.final_answer)}
+                                                                                        <strong>উত্তর:</strong> {renderText(sq.answer.full_explanation)}
                                                                                     </div>
                                                                                 )}
                                                                             </div>

@@ -30,11 +30,10 @@ function SavedAnswerGallery({ questionHash, accessToken, onRefreshNeeded, onToke
                 headers: { Authorization: `Bearer ${token}` },
             });
             if (!res.ok) {
-                // Token expired - clear and show sign-in again
                 if (res.status === 401 || res.status === 500) {
                     setLocalToken(null);
                     if (onTokenReceived) onTokenReceived(null);
-                    try { sessionStorage.removeItem('g_drive_token'); } catch { }
+                    try { sessionStorage.removeItem('g_drive_token'); } catch { /* empty */ }
                 }
                 throw new Error('Failed to fetch');
             }
@@ -49,18 +48,12 @@ function SavedAnswerGallery({ questionHash, accessToken, onRefreshNeeded, onToke
         }
     }, [questionHash, localToken]);
 
-    useEffect(() => {
-        fetchAnswers();
-    }, [fetchAnswers]);
+    useEffect(() => { fetchAnswers(); }, [fetchAnswers]);
 
-    // Allow parent to trigger refresh
     useEffect(() => {
-        if (onRefreshNeeded) {
-            onRefreshNeeded.current = fetchAnswers;
-        }
+        if (onRefreshNeeded) onRefreshNeeded.current = fetchAnswers;
     }, [fetchAnswers, onRefreshNeeded]);
 
-    // Sign in to view saved answers
     const handleSignIn = async () => {
         setSignInLoading(true);
         try {
@@ -115,28 +108,22 @@ function SavedAnswerGallery({ questionHash, accessToken, onRefreshNeeded, onToke
 
     if (!questionHash) return null;
 
-    // No token — show sign-in prompt
+    // No token — sign-in prompt (theme-aware)
     if (!localToken) {
         return (
-            <div style={{
-                border: '1px dashed #cbd5e1', borderRadius: '10px',
-                padding: '12px', marginBottom: '12px', textAlign: 'center',
-                background: '#f8fafc',
-            }}>
+            <div className="border border-dashed border-base-300 rounded-xl p-3 mb-3 text-center bg-base-200">
                 <button
                     onClick={handleSignIn}
                     disabled={signInLoading}
-                    style={{
-                        background: 'linear-gradient(90deg, #2563eb, #7c3aed)',
-                        color: '#fff', border: 'none', padding: '6px 16px',
-                        borderRadius: '8px', fontSize: '13px', fontWeight: 600,
-                        cursor: signInLoading ? 'wait' : 'pointer',
-                        fontFamily: 'Hind Siliguri, sans-serif',
-                    }}
+                    className="btn btn-primary btn-sm gap-1"
                 >
-                    {signInLoading ? '⏳ সাইন ইন হচ্ছে...' : '📂 Drive এ সংরক্ষিত উত্তর'}
+                    {signInLoading ? (
+                        <><span className="loading loading-spinner loading-xs"></span> সাইন ইন হচ্ছে...</>
+                    ) : (
+                        '📂 Drive এ সংরক্ষিত উত্তর'
+                    )}
                 </button>
-                <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>
+                <div className="text-xs opacity-50 mt-1">
                     Google Drive থেকে আগের উত্তর লোড করতে সাইন ইন করুন
                 </div>
             </div>
@@ -145,8 +132,8 @@ function SavedAnswerGallery({ questionHash, accessToken, onRefreshNeeded, onToke
 
     if (loading) {
         return (
-            <div style={{ textAlign: 'center', padding: '12px', color: '#64748b', fontSize: '13px' }}>
-                <span className="loading loading-spinner loading-xs" style={{ marginRight: 6 }}></span>
+            <div className="text-center p-3 text-sm opacity-60">
+                <span className="loading loading-spinner loading-xs mr-1"></span>
                 সেভ করা উত্তর লোড হচ্ছে...
             </div>
         );
@@ -161,33 +148,20 @@ function SavedAnswerGallery({ questionHash, accessToken, onRefreshNeeded, onToke
             const d = new Date(iso);
             return d.toLocaleDateString('bn-BD', { day: 'numeric', month: 'short', year: 'numeric' }) +
                 ' ' + d.toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit' });
-        } catch {
-            return iso;
-        }
+        } catch { return iso; }
     };
 
     const bengaliNum = (n) => String(n).split('').map(d => '০১২৩৪৫৬৭৮৯'[d] ?? d).join('');
 
     return (
-        <div style={{
-            border: '1px solid #e2e8f0',
-            borderRadius: '12px',
-            overflow: 'hidden',
-            marginBottom: '12px',
-            background: 'linear-gradient(135deg, #f0f9ff 0%, #f8fafc 100%)',
-        }}>
-            {/* Header — always visible, clickable to toggle */}
+        <div className="border border-base-300 rounded-xl overflow-hidden mb-3 bg-base-200">
+            {/* Header — collapsible toggle */}
             <div
                 onClick={() => setExpanded((v) => !v)}
-                style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    padding: '8px 12px', cursor: 'pointer', userSelect: 'none',
-                    background: 'linear-gradient(90deg, #2563eb, #7c3aed)',
-                    color: '#fff', fontSize: '13px', fontWeight: 600,
-                }}
+                className="flex items-center justify-between px-3 py-2 cursor-pointer select-none text-sm font-semibold bg-base-300 text-base-content"
             >
                 <span>📂 Drive এ সংরক্ষিত উত্তর ({bengaliNum(answers.length)} টি)</span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', opacity: 0.9 }}>
+                <span className="flex items-center gap-1.5 text-xs opacity-90">
                     {expanded && <span>{bengaliNum(currentIndex + 1)} / {bengaliNum(answers.length)}</span>}
                     <span style={{
                         display: 'inline-block',
@@ -201,53 +175,30 @@ function SavedAnswerGallery({ questionHash, accessToken, onRefreshNeeded, onToke
             {expanded && (
                 <>
                     {/* Image display */}
-                    <div style={{ position: 'relative', minHeight: '120px', background: '#fff' }}>
-                        {/* Left arrow */}
+                    <div className="relative bg-base-100" style={{ minHeight: '120px' }}>
+                        {/* Nav arrows */}
                         {answers.length > 1 && currentIndex > 0 && (
                             <button
                                 onClick={goPrev}
-                                style={{
-                                    position: 'absolute', left: '4px', top: '50%', transform: 'translateY(-50%)',
-                                    zIndex: 5, width: '32px', height: '32px', borderRadius: '50%',
-                                    background: 'rgba(0,0,0,0.5)', color: '#fff', border: 'none',
-                                    cursor: 'pointer', fontSize: '16px', display: 'flex',
-                                    alignItems: 'center', justifyContent: 'center',
-                                    backdropFilter: 'blur(4px)', transition: 'background 0.2s',
-                                }}
-                                onMouseOver={(e) => e.currentTarget.style.background = 'rgba(0,0,0,0.7)'}
-                                onMouseOut={(e) => e.currentTarget.style.background = 'rgba(0,0,0,0.5)'}
+                                className="btn btn-circle btn-sm btn-neutral opacity-70 hover:opacity-100 absolute left-1 top-1/2 -translate-y-1/2 z-10"
                                 title="আগের উত্তর"
                             >◀</button>
                         )}
-
-                        {/* Right arrow */}
                         {answers.length > 1 && currentIndex < answers.length - 1 && (
                             <button
                                 onClick={goNext}
-                                style={{
-                                    position: 'absolute', right: '4px', top: '50%', transform: 'translateY(-50%)',
-                                    zIndex: 5, width: '32px', height: '32px', borderRadius: '50%',
-                                    background: 'rgba(0,0,0,0.5)', color: '#fff', border: 'none',
-                                    cursor: 'pointer', fontSize: '16px', display: 'flex',
-                                    alignItems: 'center', justifyContent: 'center',
-                                    backdropFilter: 'blur(4px)', transition: 'background 0.2s',
-                                }}
-                                onMouseOver={(e) => e.currentTarget.style.background = 'rgba(0,0,0,0.7)'}
-                                onMouseOut={(e) => e.currentTarget.style.background = 'rgba(0,0,0,0.5)'}
+                                className="btn btn-circle btn-sm btn-neutral opacity-70 hover:opacity-100 absolute right-1 top-1/2 -translate-y-1/2 z-10"
                                 title="পরের উত্তর"
                             >▶</button>
                         )}
 
-                        {/* Image */}
+                        {/* Image or error */}
                         {imgError[current.id] ? (
-                            <div style={{
-                                display: 'flex', flexDirection: 'column', alignItems: 'center',
-                                justifyContent: 'center', padding: '24px', color: '#94a3b8', minHeight: '150px',
-                            }}>
-                                <span style={{ fontSize: '28px', marginBottom: '8px' }}>🖼️</span>
-                                <span style={{ fontSize: '12px' }}>ইমেজ লোড হয়নি</span>
+                            <div className="flex flex-col items-center justify-center p-6 opacity-50" style={{ minHeight: '150px' }}>
+                                <span className="text-3xl mb-2">🖼️</span>
+                                <span className="text-xs">ইমেজ লোড হয়নি</span>
                                 <a href={current.webViewLink} target="_blank" rel="noopener noreferrer"
-                                    style={{ fontSize: '11px', color: '#2563eb', marginTop: '4px' }}>
+                                    className="text-xs text-primary mt-1 link">
                                     Drive এ দেখুন →
                                 </a>
                             </div>
@@ -255,10 +206,8 @@ function SavedAnswerGallery({ questionHash, accessToken, onRefreshNeeded, onToke
                             <img
                                 src={current.thumbnailUrl}
                                 alt={`সেভ করা উত্তর ${currentIndex + 1}`}
-                                style={{
-                                    width: '100%', maxHeight: '400px', objectFit: 'contain',
-                                    display: 'block', cursor: 'pointer',
-                                }}
+                                className="w-full block cursor-pointer"
+                                style={{ maxHeight: '400px', objectFit: 'contain' }}
                                 onClick={() => window.open(current.webViewLink, '_blank')}
                                 onError={() => setImgError((prev) => ({ ...prev, [current.id]: true }))}
                                 referrerPolicy="no-referrer"
@@ -266,41 +215,25 @@ function SavedAnswerGallery({ questionHash, accessToken, onRefreshNeeded, onToke
                         )}
                     </div>
 
-                    {/* Footer: meta + actions */}
-                    <div style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                        padding: '6px 12px', borderTop: '1px solid #e2e8f0',
-                        background: '#f8fafc', fontSize: '11px', color: '#64748b',
-                        flexWrap: 'wrap', gap: '4px',
-                    }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    {/* Footer */}
+                    <div className="flex items-center justify-between px-3 py-1.5 border-t border-base-300 bg-base-200 text-xs flex-wrap gap-1">
+                        <div className="flex items-center gap-2 flex-wrap opacity-70">
                             <span>🕐 {formatDate(current.createdTime)}</span>
                             {current.modelUsed && (
-                                <span style={{
-                                    background: '#e0e7ff', color: '#4338ca', padding: '1px 6px',
-                                    borderRadius: '8px', fontSize: '10px', fontWeight: 600,
-                                }}>
+                                <span className="badge badge-sm badge-primary badge-outline">
                                     {current.modelUsed}
                                 </span>
                             )}
                         </div>
-                        <div style={{ display: 'flex', gap: '6px' }}>
+                        <div className="flex gap-1.5">
                             <a href={current.webViewLink} target="_blank" rel="noopener noreferrer"
-                                style={{
-                                    background: '#2563eb', color: '#fff', border: 'none',
-                                    padding: '3px 8px', borderRadius: '6px', fontSize: '11px',
-                                    cursor: 'pointer', textDecoration: 'none', fontWeight: 500,
-                                }}>
+                                className="btn btn-xs btn-primary">
                                 🔗 Drive
                             </a>
                             <button
                                 onClick={() => handleDelete(current.id)}
                                 disabled={deleting === current.id}
-                                style={{
-                                    background: '#fee2e2', color: '#dc2626', border: 'none',
-                                    padding: '3px 8px', borderRadius: '6px', fontSize: '11px',
-                                    cursor: deleting === current.id ? 'wait' : 'pointer', fontWeight: 500,
-                                }}
+                                className="btn btn-xs btn-error btn-outline"
                             >
                                 {deleting === current.id ? '⏳' : '🗑️ ডিলিট'}
                             </button>
@@ -309,22 +242,13 @@ function SavedAnswerGallery({ questionHash, accessToken, onRefreshNeeded, onToke
 
                     {/* Dot indicators */}
                     {answers.length > 1 && (
-                        <div style={{
-                            display: 'flex', justifyContent: 'center', gap: '5px',
-                            padding: '6px', background: '#f8fafc',
-                        }}>
+                        <div className="flex justify-center gap-1 py-1.5 bg-base-200">
                             {answers.map((_, i) => (
                                 <button
                                     key={i}
                                     onClick={() => setCurrentIndex(i)}
-                                    style={{
-                                        width: i === currentIndex ? '16px' : '6px',
-                                        height: '6px',
-                                        borderRadius: '3px',
-                                        background: i === currentIndex ? '#2563eb' : '#cbd5e1',
-                                        border: 'none', cursor: 'pointer',
-                                        transition: 'all 0.3s ease',
-                                    }}
+                                    className={`rounded-full border-none cursor-pointer transition-all duration-300 ${i === currentIndex ? 'bg-primary w-4 h-1.5' : 'bg-base-content/30 w-1.5 h-1.5'
+                                        }`}
                                 />
                             ))}
                         </div>
