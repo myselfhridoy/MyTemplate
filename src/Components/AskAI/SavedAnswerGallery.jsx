@@ -29,7 +29,15 @@ function SavedAnswerGallery({ questionHash, accessToken, onRefreshNeeded, onToke
             const res = await fetch(`${DRIVE_API}/answers/${questionHash}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
-            if (!res.ok) throw new Error('Failed to fetch');
+            if (!res.ok) {
+                // Token expired - clear and show sign-in again
+                if (res.status === 401 || res.status === 500) {
+                    setLocalToken(null);
+                    if (onTokenReceived) onTokenReceived(null);
+                    try { sessionStorage.removeItem('g_drive_token'); } catch { }
+                }
+                throw new Error('Failed to fetch');
+            }
             const data = await res.json();
             setAnswers(data.answers || []);
             setCurrentIndex(0);
@@ -65,6 +73,7 @@ function SavedAnswerGallery({ questionHash, accessToken, onRefreshNeeded, onToke
             const client = google.accounts.oauth2.initTokenClient({
                 client_id: GOOGLE_CLIENT_ID,
                 scope: 'https://www.googleapis.com/auth/drive.file',
+                prompt: 'select_account',
                 callback: (response) => {
                     if (response.error) {
                         console.error('Sign-in error:', response);

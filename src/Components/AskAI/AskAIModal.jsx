@@ -12,7 +12,7 @@ const AI_MODELS = [
   { value: 'merlin', label: 'মিস মার্লিন: দ্যা টিউটর', api: 'https://geminiai-render.onrender.com/api/merlin/v1/chat/completions', type: 'merlin' },
   { value: 'luzia', label: 'Luzia: দ্যা প্রফেসর', api: 'https://geminiai-render.onrender.com/api/luzia/ask', type: 'luzia' },
   { value: 'hmtai', label: 'H.M. Tutoring AI', api: 'https://geminiai-render.onrender.com/api/ai-free-api', type: 'hmtai' },
-  { value: 'assistant', label: 'Knowledge Master', api: 'https://geminiai-render.onrender.com/api/gemma', type: 'gemma-stream', model: 'gemini-2.5-flash-lite' },
+  { value: 'assistant', label: 'Knowledge Master', api: 'https://geminiai-render.onrender.com/api/gemma', type: 'gemma-stream', model: 'gemini-2.5-flash' },
   { value: 'chatbot', label: 'AI Chat Bot', api: 'https://geminiai-render.onrender.com/api/chat/send', type: 'chatbot' },
   { value: 'easemate', label: 'Problem Solver', api: 'https://geminiai-render.onrender.com/api/easemate', type: 'easemate' },
   { value: 'borno', label: 'Academic Assistant', api: 'https://geminiai-render.onrender.com/api/bornoai', type: 'borno' },
@@ -57,6 +57,7 @@ function AskAIModal({ isOpen, onClose, questionText = '', stemText = '', imageUr
       const client = google.accounts.oauth2.initTokenClient({
         client_id: GOOGLE_CLIENT_ID,
         scope: 'https://www.googleapis.com/auth/drive.file',
+        prompt: 'select_account',
         callback: (response) => {
           if (response.error) {
             reject(new Error(response.error_description || 'Google Sign-In ব্যর্থ'));
@@ -104,25 +105,32 @@ function AskAIModal({ isOpen, onClose, questionText = '', stemText = '', imageUr
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Save failed');
+      if (!res.ok) {
+        // Token expired / invalid — clear and auto-retry once
+        const isAuthErr = (data.error || '').match(/credential|unauthorized|invalid.*token|folder.*error/i) || res.status === 401;
+        if (isAuthErr) {
+          updateGToken(null);
+          throw new Error('TOKEN_EXPIRED');
+        }
+        throw new Error(data.error || 'Save failed');
+      }
 
       setDriveSaveMsg('✅ Drive এ সেভ হয়েছে!');
       // Refresh gallery
       if (galleryRefreshRef.current) galleryRefreshRef.current();
     } catch (err) {
       console.error('Drive save error:', err);
-      if (err.message?.includes('popup_closed') || err.message?.includes('access_denied')) {
+      if (err.message === 'TOKEN_EXPIRED') {
+        setDriveSaveMsg('🔄 Token expire হয়েছে, আবার Sign-In করুন');
+        updateGToken(null);
+      } else if (err.message?.includes('popup_closed') || err.message?.includes('access_denied')) {
         setDriveSaveMsg('❌ Google Sign-In বাতিল হয়েছে');
       } else {
         setDriveSaveMsg('❌ ' + (err.message || 'সেভ ব্যর্থ হয়েছে'));
       }
-      // If token expired, clear it so next attempt re-authenticates
-      if (err.message?.includes('401') || err.message?.includes('invalid_grant')) {
-        updateGToken(null);
-      }
     } finally {
       setSavingToDrive(false);
-      setTimeout(() => setDriveSaveMsg(''), 4000);
+      setTimeout(() => setDriveSaveMsg(''), 5000);
     }
   };
 
