@@ -4,15 +4,12 @@ const AttendanceCalendar = ({ history }) => {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [stats, setStats] = useState({});
 
-    // Map history to a date-key object for O(1) lookup
-    // Key format: "YYYY-MM-DD"
-    // Value: status
     useEffect(() => {
         if (history) {
             const s = {};
             history.forEach(h => {
                 const dateStr = new Date(h.date).toISOString().split('T')[0];
-                s[dateStr] = h.status;
+                s[dateStr] = { status: h.status, reason: h.reason };
             });
             setStats(s);
         }
@@ -23,7 +20,6 @@ const AttendanceCalendar = ({ history }) => {
     };
 
     const getFirstDayOfMonth = (year, month) => {
-        // 0 = Sun, 1 = Mon ... 6 = Sat
         return new Date(year, month, 1).getDay();
     };
 
@@ -43,45 +39,35 @@ const AttendanceCalendar = ({ history }) => {
         setCurrentDate(new Date(year, month + 1, 1));
     };
 
-    // Generate calendar grid
     const calendarDays = [];
-    // Empty slots for previous month
     for (let i = 0; i < firstDay; i++) {
-        calendarDays.push(<div key={`empty-${i}`} className="p-2"></div>);
+        calendarDays.push(<div key={`empty-${i}`} className="p-1"></div>);
     }
-    // Days of current month
+
     for (let d = 1; d <= daysInMonth; d++) {
         const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-        const status = stats[dateStr];
-        if (status === 'present') {
-            // content logic removed
-        }
+        const record = stats[dateStr];
+        const status = record?.status;
+        const reason = record?.reason;
 
         calendarDays.push(
-            <div key={d} className="aspect-square p-1 relative group cursor-default">
-                {/* Only show day number if it has status, or maybe always show day number? 
-                    User asked for "tick on days taught". 
-                    Let's show day number unless it's a specialized icon, 
-                    OR overlay the icon. 
-                    Let's do: Circle background with Icon or Number.
-                 */}
+            <div key={d} className="aspect-square p-0.5 relative group cursor-default hover:z-50">
                 {status ? (
-                    <div className={`w-full h-full flex items-center justify-center rounded-lg shadow-sm
-                        ${status === 'present' ? 'bg-green-500 text-white' : ''}
-                        ${status === 'late' ? 'bg-yellow-500 text-white' : ''}
-                        ${status === 'absent' ? 'bg-red-500 text-white' : ''}
+                    <div className={`w-full h-full flex items-center justify-center rounded-full shadow-sm text-xs font-bold transition-transform hover:scale-105
+                        ${status === 'present' ? 'bg-green-500 text-white shadow-green-200 dark:shadow-none' : ''}
+                        ${status === 'late' ? 'bg-yellow-500 text-white shadow-yellow-200 dark:shadow-none' : ''}
+                        ${status === 'absent' ? 'bg-red-500 text-white shadow-red-200 dark:shadow-none' : ''}
                      `}>
-                        {status === 'present' && <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>}
-                        {status === 'late' && <span className="font-bold text-sm">L</span>}
-                        {status === 'absent' && <span className="font-bold text-sm">✕</span>}
-
-                        {/* Tooltip for date */}
-                        <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-black text-white text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
-                            {d} {monthNames[month]}
+                        {d}
+                        {/* Tooltip */}
+                        <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-[10px] py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none shadow-lg">
+                            {status === 'present' && 'উপস্থিত'}
+                            {status === 'late' && (reason ? `দেরি: ${reason}` : 'দেরি')}
+                            {status === 'absent' && (reason ? `অনুপস্থিত: ${reason}` : 'অনুপস্থিত')}
                         </div>
                     </div>
                 ) : (
-                    <div className="w-full h-full flex items-center justify-center rounded-lg hover:bg-base-200 transition-colors text-sm font-medium opacity-70">
+                    <div className="w-full h-full flex items-center justify-center rounded-full hover:bg-base-200 transition-colors text-xs font-medium opacity-50">
                         {d}
                     </div>
                 )}
@@ -90,30 +76,30 @@ const AttendanceCalendar = ({ history }) => {
     }
 
     return (
-        <div className="card bg-base-100 shadow-xl border border-base-200 mb-8">
-            <div className="card-body p-6">
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className="card-title text-lg">📅 উপস্থিতির ক্যালেন্ডার</h2>
-                    <div className="flex items-center gap-4">
-                        <button onClick={prevMonth} className="btn btn-sm btn-ghost btn-circle">❮</button>
-                        <span className="font-bold min-w-[100px] text-center">{monthNames[month]} {year}</span>
-                        <button onClick={nextMonth} className="btn btn-sm btn-ghost btn-circle">❯</button>
+        <div className="card bg-base-100 shadow-md border border-base-200 mb-8 max-w-sm mx-auto overflow-visible">
+            <div className="card-body p-4">
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="card-title text-base">📅 উপস্থিতির ক্যালেন্ডার</h2>
+                    <div className="flex items-center gap-2">
+                        <button onClick={prevMonth} className="btn btn-xs btn-ghost btn-circle">❮</button>
+                        <span className="font-bold text-sm min-w-[80px] text-center">{monthNames[month]} {year}</span>
+                        <button onClick={nextMonth} className="btn btn-xs btn-ghost btn-circle">❯</button>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-7 gap-2 text-center mb-2">
+                <div className="grid grid-cols-7 gap-1 text-center mb-1">
                     {daysOfWeek.map(day => (
-                        <div key={day} className="text-xs font-bold opacity-50 uppercase tracking-wide">{day}</div>
+                        <div key={day} className="text-[10px] font-bold opacity-50 uppercase tracking-wide">{day}</div>
                     ))}
                 </div>
-                <div className="grid grid-cols-7 gap-2">
+                <div className="grid grid-cols-7 gap-1">
                     {calendarDays}
                 </div>
 
-                <div className="flex justify-center gap-6 mt-6 text-xs opacity-70">
-                    <div className="flex items-center gap-2"><div className="w-3 h-3 bg-green-500 rounded-full"></div> উপস্থিত</div>
-                    <div className="flex items-center gap-2"><div className="w-3 h-3 bg-yellow-500 rounded-full"></div> দেরি</div>
-                    <div className="flex items-center gap-2"><div className="w-3 h-3 bg-red-500 rounded-full"></div> অনুপস্থিত</div>
+                <div className="flex justify-center gap-4 mt-4 text-[10px] opacity-70">
+                    <div className="flex items-center gap-1"><div className="w-2 h-2 bg-green-500 rounded-full"></div> উপস্থিত</div>
+                    <div className="flex items-center gap-1"><div className="w-2 h-2 bg-yellow-500 rounded-full"></div> দেরি</div>
+                    <div className="flex items-center gap-1"><div className="w-2 h-2 bg-red-500 rounded-full"></div> অনুপস্থিত</div>
                 </div>
             </div>
         </div>

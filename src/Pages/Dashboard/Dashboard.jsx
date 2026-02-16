@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../Context/AuthContext';
-import AttendanceCalendar from './AttendanceCalendar';
+
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -103,11 +103,6 @@ function Dashboard() {
               </div>
             </div>
           </div>
-
-          {/* Attendance Calendar */}
-          {summary?.attendanceHistory && (
-            <AttendanceCalendar history={summary.attendanceHistory} />
-          )}
 
           {/* 3. Classwork / Homework */}
           {summary?.latestWork && (

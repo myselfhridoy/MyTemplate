@@ -317,7 +317,8 @@ router.get('/summary/:studentId', async (req, res) => {
                 })(),
                 attendanceHistory: records.map(r => ({
                     date: r.date,
-                    status: r.status
+                    status: r.status,
+                    reason: r.reason
                 }))
             }
         });

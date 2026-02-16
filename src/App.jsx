@@ -41,6 +41,7 @@ import AttendancePage from './Pages/AttendancePage';
 import RoutinePage from './Pages/RoutinePage';
 import AdminRoute from './Components/AdminRoute';
 import PrivateRoute from './Components/PrivateRoute';
+import ProfilePage from './Pages/ProfilePage';
 
 export default class App extends Component {
   render() {
@@ -54,6 +55,7 @@ export default class App extends Component {
             <Route path="/attendance" element={<AdminRoute><AttendancePage /></AdminRoute>} />
             <Route path="/routine" element={<PrivateRoute><RoutinePage /></PrivateRoute>} />
             <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+            <Route path="/profile" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />
             <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
             <Route path="/example" element={<PrivateRoute><ExamplePage /></PrivateRoute>} />
             <Route path="/example-with-answer" element={<PrivateRoute><ExampleWithAnswer /></PrivateRoute>} />
