@@ -42,7 +42,7 @@ function AskAIModalMongoDB({ isOpen, onClose, questionText = '', stemText = '', 
     // ImgBB Upload
     const uploadToImgBB = async (dataUrl) => {
         const formData = new FormData();
-        formData.append('key', '0d098487210ac22af08200ba437acc3f');
+        formData.append('key', import.meta.env.VITE_IMGBB_API_KEY);
         // Convert Base64 dataURL to Blob
         const blob = await (await fetch(dataUrl)).blob();
         formData.append('image', blob);
