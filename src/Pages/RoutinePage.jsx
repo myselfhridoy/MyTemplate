@@ -42,7 +42,10 @@ const parseEndTime = (timeStr) => {
     return parseSingle(parts[1]);
 };
 
+import { useAuth } from '../Context/AuthContext';
+
 const RoutinePage = () => {
+    const { user } = useAuth();
     const [students, setStudents] = useState([]);
     const [timeSlots, setTimeSlots] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -60,6 +63,13 @@ const RoutinePage = () => {
     };
 
     const days = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+
+    // Redirect inactive students
+    useEffect(() => {
+        if (user && !user.isAdmin && user.status && user.status.toLowerCase() === 'inactive') {
+            window.location.href = '/'; // Simple redirect to home
+        }
+    }, [user]);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -275,7 +285,11 @@ const RoutinePage = () => {
                                         {days.map(day => {
                                             const studentsInGroup = [];
                                             group.slots.forEach(slot => {
-                                                const matches = students.filter(s => s.routine && s.routine[day] === slot.label);
+                                                const matches = students.filter(s =>
+                                                    s.routine &&
+                                                    s.routine[day] === slot.label &&
+                                                    (!s.status || s.status.toLowerCase() === 'active') // Ensure only active (or legitimate legacy)
+                                                );
                                                 matches.forEach(s => studentsInGroup.push({ ...s, slotLabel: slot.label }));
                                             });
 

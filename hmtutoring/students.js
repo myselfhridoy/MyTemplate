@@ -130,7 +130,7 @@ router.get('/public/routine', async (req, res) => {
     try {
         const students = await studentsCollection.find(
             { status: 'active', studentType: 'private' },
-            { projection: { username: 1, routine: 1, _id: 1 } }
+            { projection: { username: 1, routine: 1, _id: 1, status: 1 } }
         ).sort({ username: 1 }).toArray();
         res.json({ success: true, students });
     } catch (error) {

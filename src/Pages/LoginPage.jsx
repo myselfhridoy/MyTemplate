@@ -32,7 +32,7 @@ const LoginPage = () => {
             } else {
                 // Master Admin Login (Env Variables)
                 if (formData.email === import.meta.env.VITE_ADMIN_EMAIL && formData.password === import.meta.env.VITE_ADMIN_PASS) {
-                    login({ username: 'Master Admin', email: import.meta.env.VITE_ADMIN_EMAIL, isAdmin: true });
+                    login({ username: 'Master Admin', email: import.meta.env.VITE_ADMIN_EMAIL, isAdmin: true, _id: 'master-admin' });
                     navigate('/admin');
                 } else {
                     setError(data.message || 'Login failed');

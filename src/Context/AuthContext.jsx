@@ -11,7 +11,13 @@ export const AuthProvider = ({ children }) => {
         const storedUser = localStorage.getItem('hmtutoring_user');
         if (storedUser) {
             try {
-                setUser(JSON.parse(storedUser));
+                let parsedUser = JSON.parse(storedUser);
+                // Fix: Ensure Master Admin has an ID if missing (for legacy sessions)
+                if (parsedUser.username === 'Master Admin' && !parsedUser._id) {
+                    parsedUser._id = 'master-admin';
+                    localStorage.setItem('hmtutoring_user', JSON.stringify(parsedUser));
+                }
+                setUser(parsedUser);
             } catch (error) {
                 console.error("Failed to parse stored user", error);
                 localStorage.removeItem('hmtutoring_user');

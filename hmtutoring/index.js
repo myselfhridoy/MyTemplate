@@ -12,11 +12,13 @@ app.use(express.json());
 const studentRoutes = require('./students');
 const attendanceRoutes = require('./attendance');
 const timeslotRoutes = require('./timeslots');
+const savedAnswerRoutes = require('./saved_answers');
 
 // Mount Routes
 app.use('/api/students', studentRoutes);      // For Auth & Student CRUD
 app.use('/api/attendance', attendanceRoutes); // For Attendance
 app.use('/api/timeslots', timeslotRoutes);    // For TimeSlots
+app.use('/api/saved_answers', savedAnswerRoutes); // For Saved Answers
 
 // Root Route
 app.get('/', (req, res) => {

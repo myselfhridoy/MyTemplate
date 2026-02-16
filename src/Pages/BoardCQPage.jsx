@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MathJaxContext, MathJax } from 'better-react-mathjax';
 import mappingData from '../Components/Mapping/Mapping.json';
-import AskAIModal from '../Components/AskAI/AskAIModal';
+import AskAIModalMongoDB from '../Components/AskAI/AskAIModalMongoDB';
 import { toPng } from 'html-to-image';
 
 const API_BASE = 'https://geminiai-render.onrender.com/api/nctb-questions/board-questions';
@@ -924,7 +924,8 @@ function BoardCQPage() {
       )}
 
       {/* Ask AI Modal */}
-      <AskAIModal
+      {/* Ask AI Modal */}
+      <AskAIModalMongoDB
         isOpen={askAI.open}
         onClose={() => setAskAI({ open: false, questionText: '', stemText: '', imageUrl: '', source: '', marks: '', finalAnswer: '', steps: '' })}
         questionText={askAI.questionText}

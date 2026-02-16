@@ -135,7 +135,10 @@ function Navbar() {
                     <li><Link to="/attendance">Attendance Tracker</Link></li>
                   </>
                 )}
-                <li><Link to="/routine">Class Routine</Link></li>
+                {/* Only show Routine for active students (or admins) */}
+                {(!user?.status || user?.status.toLowerCase() === 'active' || user?.isAdmin) && (
+                  <li><Link to="/routine">Class Routine</Link></li>
+                )}
                 <li><Link to="/profile">Profile</Link></li>
                 <li><a onClick={logout}>Logout</a></li>
               </ul>
