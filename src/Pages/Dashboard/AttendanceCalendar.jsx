@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 const AttendanceCalendar = ({ history }) => {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [stats, setStats] = useState({});
+    const [activeTooltip, setActiveTooltip] = useState(null);
 
     useEffect(() => {
         if (history) {
@@ -33,10 +34,12 @@ const AttendanceCalendar = ({ history }) => {
 
     const prevMonth = () => {
         setCurrentDate(new Date(year, month - 1, 1));
+        setActiveTooltip(null);
     };
 
     const nextMonth = () => {
         setCurrentDate(new Date(year, month + 1, 1));
+        setActiveTooltip(null);
     };
 
     const calendarDays = [];
@@ -51,16 +54,26 @@ const AttendanceCalendar = ({ history }) => {
         const reason = record?.reason;
 
         calendarDays.push(
-            <div key={d} className="aspect-square p-0.5 relative group cursor-default hover:z-50">
+            <div
+                key={d}
+                className="aspect-square p-0.5 relative group cursor-pointer hover:z-50"
+                onClick={() => {
+                    if (status) {
+                        setActiveTooltip(activeTooltip === dateStr ? null : dateStr);
+                    }
+                }}
+            >
                 {status ? (
-                    <div className={`w-full h-full flex items-center justify-center rounded-full shadow-sm text-xs font-bold transition-transform hover:scale-105
+                    <div className={`w-full h-full flex items-center justify-center rounded-full shadow-sm text-xs font-bold transition-transform hover:scale-105 active:scale-95
                         ${status === 'present' ? 'bg-green-500 text-white shadow-green-200 dark:shadow-none' : ''}
                         ${status === 'late' ? 'bg-yellow-500 text-white shadow-yellow-200 dark:shadow-none' : ''}
                         ${status === 'absent' ? 'bg-red-500 text-white shadow-red-200 dark:shadow-none' : ''}
                      `}>
                         {d}
                         {/* Tooltip */}
-                        <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-[10px] py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none shadow-lg">
+                        <div className={`absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-[10px] py-1 px-2 rounded transition-opacity whitespace-nowrap z-50 pointer-events-none shadow-lg
+                            ${activeTooltip === dateStr ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 md:group-hover:opacity-100'}
+                        `}>
                             {status === 'present' && 'উপস্থিত'}
                             {status === 'late' && (reason ? `দেরি: ${reason}` : 'দেরি')}
                             {status === 'absent' && (reason ? `অনুপস্থিত: ${reason}` : 'অনুপস্থিত')}
