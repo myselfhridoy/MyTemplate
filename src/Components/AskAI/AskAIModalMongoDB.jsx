@@ -95,12 +95,12 @@ function AskAIModalMongoDB({ isOpen, onClose, questionText = '', stemText = '', 
                 throw new Error(data.message || 'Save failed');
             }
 
-            setDbSaveMsg('✅ সেভ হয়েছে! (Image Mode)');
+            setDbSaveMsg('✅ Saved successfully!');
             // Refresh gallery
             if (galleryRefreshRef.current) galleryRefreshRef.current();
         } catch (err) {
             console.error('Save error:', err);
-            setDbSaveMsg('❌ ' + (err.message || 'সেভ ব্যর্থ হয়েছে'));
+            setDbSaveMsg('❌ ' + (err.message || 'Save failed'));
         } finally {
             setSavingToDB(false);
             setTimeout(() => setDbSaveMsg(''), 5000);
@@ -443,6 +443,8 @@ ${userQuestion}`;
             answerClone.style.border = 'none';
             answerClone.style.padding = '0';
             answerClone.style.background = 'transparent';
+            answerClone.style.overflow = 'visible'; // Fix: Force remove scrollbars
+            answerClone.style.maxHeight = 'none';   // Fix: Remove max-height constraint
             answerSection.appendChild(answerClone);
             contentDiv.appendChild(answerSection);
         }
