@@ -30,9 +30,9 @@ const LoginPage = () => {
                 login(data.user);
                 navigate(data.user.isAdmin ? '/admin' : '/dashboard');
             } else {
-                // Master Admin Login (Hardcoded for safety/fallback)
-                if (formData.email === 'admin@gmail.com' && formData.password === '123456') {
-                    login({ username: 'Master Admin', email: 'admin@gmail.com', isAdmin: true });
+                // Master Admin Login (Env Variables)
+                if (formData.email === import.meta.env.VITE_ADMIN_EMAIL && formData.password === import.meta.env.VITE_ADMIN_PASS) {
+                    login({ username: 'Master Admin', email: import.meta.env.VITE_ADMIN_EMAIL, isAdmin: true });
                     navigate('/admin');
                 } else {
                     setError(data.message || 'Login failed');
