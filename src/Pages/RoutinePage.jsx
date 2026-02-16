@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import '@fontsource/anek-bangla'; // Defaults to weight 400
 import '@fontsource/anek-bangla/700.css'; // Weight 700
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 // Helper: Parse "4:30 PM - 5:30 PM" to minutes from midnight
 const parseTime = (timeStr) => {
@@ -44,6 +46,7 @@ const RoutinePage = () => {
     const [students, setStudents] = useState([]);
     const [timeSlots, setTimeSlots] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isDownloading, setIsDownloading] = useState(false);
 
     // Mapping English days to Bengali
     const dayMapping = {
@@ -85,6 +88,79 @@ const RoutinePage = () => {
         fetchData();
     }, []);
 
+    const handleDownloadPDF = async () => {
+        const input = document.getElementById('routine-content');
+        if (!input) return;
+
+        setIsDownloading(true);
+        try {
+            const canvas = await html2canvas(input, {
+                scale: 4, // Higher resolution for sharper text
+                useCORS: true,
+                logging: false,
+                backgroundColor: '#ffffff',
+                windowWidth: 1280, // Force desktop viewport
+                onclone: (clonedDoc) => {
+                    const clonedElement = clonedDoc.getElementById('routine-content');
+                    if (clonedElement) {
+                        // Force the width to be wide enough for the table
+                        clonedElement.style.width = '1000px';
+                        clonedElement.style.padding = '20px';
+
+                        // Explicitly fix header text sizes to prevent "explosion"
+                        const title = clonedElement.querySelector('h1');
+                        if (title) {
+                            title.style.fontSize = '24px'; // Fixed size
+                            title.style.lineHeight = '1.2';
+                            title.style.marginBottom = '5px';
+                            title.style.letterSpacing = 'normal';
+                        }
+                        const subtitle = clonedElement.querySelector('h2');
+                        if (subtitle) {
+                            subtitle.style.fontSize = '18px'; // Fixed size
+                            subtitle.style.marginTop = '0';
+                        }
+
+                        // Fix logo size in PDF
+                        const logo = clonedElement.querySelector('img');
+                        if (logo) {
+                            logo.style.height = '60px';
+                            logo.style.width = 'auto';
+                        }
+
+                        // Ensure the overflow container is visible
+                        const overflowContainer = clonedElement.querySelector('.overflow-x-auto');
+                        if (overflowContainer) {
+                            overflowContainer.style.overflow = 'visible';
+                            overflowContainer.style.width = '100%';
+                        }
+                    }
+                }
+            });
+
+            const imgData = canvas.toDataURL('image/png');
+            // Use Landscape ('l') for better fit of wide tables
+            const pdf = new jsPDF('l', 'mm', 'a4');
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
+            const imgWidth = canvas.width;
+            const imgHeight = canvas.height;
+            const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+
+            // Center the image
+            const imgX = (pdfWidth - imgWidth * ratio) / 2;
+            const imgY = (pdfHeight - imgHeight * ratio) / 2;
+
+            pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio);
+            pdf.save('HMT_Routine.pdf');
+        } catch (error) {
+            console.error("Error generating PDF:", error);
+            alert("Failed to generate PDF. Please try again.");
+        } finally {
+            setIsDownloading(false);
+        }
+    };
+
     // Group overlapping slots
     const groupedSlots = [];
     if (timeSlots.length > 0) {
@@ -123,34 +199,54 @@ const RoutinePage = () => {
 
     return (
         <div className="bg-white text-black p-1 sm:p-4 font-['Anek_Bangla']">
-            <div className="max-w-7xl mx-auto shadow-sm border border-black/10">
+            {/* Controls */}
+            <div className="max-w-7xl mx-auto mb-4 flex justify-end">
+                <button
+                    onClick={handleDownloadPDF}
+                    className="btn btn-primary btn-sm sm:btn-md shadow-lg gap-2 text-white font-bold"
+                    disabled={isDownloading}
+                >
+                    {isDownloading ? (
+                        <>
+                            <span className="loading loading-spinner loading-xs"></span>
+                            Generating PDF...
+                        </>
+                    ) : (
+                        <>
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                            Download Routine
+                        </>
+                    )}
+                </button>
+            </div>
 
+            <div id="routine-content" className="max-w-7xl mx-auto shadow-sm p-2 sm:p-4" style={{ backgroundColor: '#ffffff', borderColor: '#e5e7eb', borderWidth: '1px', borderStyle: 'solid', color: '#000000' }}>
                 {/* Header Section */}
-                <div className="border border-black border-b-0 p-4 relative flex flex-col md:flex-row items-center justify-center gap-4">
+                <div className="p-4 relative flex flex-col md:flex-row items-center justify-center gap-4" style={{ borderColor: '#000000', borderBottomWidth: '0px', borderWidth: '1px', borderStyle: 'solid' }}>
                     {/* Logo */}
                     <div className="md:absolute md:left-4">
-                        <img src="/HMT Logo.png" alt="H.M. Tutoring Logo" className="h-10 sm:h-14 w-auto object-contain" />
+                        <img src="/HMT Logo.png" alt="H.M. Tutoring Logo" className="h-14 sm:h-20 w-auto object-contain" />
                     </div>
 
                     {/* Centered Text */}
                     <div className="text-center">
-                        <h1 className="text-xl sm:text-2xl font-black uppercase tracking-widest text-gray-900">H.M. TUTORING</h1>
-                        <h2 className="text-base sm:text-lg font-bold underline decoration-2 underline-offset-8 mt-1 text-gray-800">শ্রেণি সময়সূচি</h2>
+                        <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-widest" style={{ color: '#111827', fontWeight: '900' }}>H.M. TUTORING</h1>
+                        <h2 className="text-lg sm:text-xl font-bold underline decoration-2 underline-offset-8 mt-2" style={{ color: '#1f2937', fontWeight: '700' }}>শ্রেণি সময়সূচি</h2>
                     </div>
                 </div>
 
                 {/* Table Container for Responsiveness */}
-                <div className="overflow-x-auto w-full border border-black">
+                <div className="overflow-x-auto w-full" style={{ borderColor: '#000000', borderWidth: '1px', borderStyle: 'solid' }}>
                     <table className="w-full border-collapse text-center table-fixed min-w-[800px]">
                         <thead>
                             {/* Day / Bar Row */}
-                            <tr className="bg-gray-50">
-                                <th className="border border-black p-2 w-[110px] sm:w-[160px] bg-gray-100 font-black text-sm sm:text-base align-middle sticky left-0 z-20 shadow-[2px_0_0_0_rgba(0,0,0,1)]">সময়</th>
-                                <th colSpan={7} className="border border-black p-0">
-                                    <div className="border-b border-black p-2 font-black text-sm sm:text-base bg-gray-100 uppercase tracking-tighter sm:tracking-normal">বার / দিন</div>
-                                    <div className="grid grid-cols-7 divide-x divide-black bg-white">
+                            <tr style={{ backgroundColor: '#f9fafb' }}>
+                                <th className="p-2 w-[110px] sm:w-[160px] font-black text-sm sm:text-base align-middle sticky left-0 z-20" style={{ backgroundColor: '#f3f4f6', borderColor: '#000000', borderWidth: '1px', borderStyle: 'solid', color: '#000000' }}>সময়</th>
+                                <th colSpan={7} className="p-0" style={{ borderColor: '#000000', borderWidth: '1px', borderStyle: 'solid' }}>
+                                    <div className="p-2 font-black text-sm sm:text-base uppercase tracking-tighter sm:tracking-normal" style={{ backgroundColor: '#f3f4f6', borderBottom: '1px solid #000000', color: '#000000' }}>বার / দিন</div>
+                                    <div className="grid grid-cols-7 divide-x" style={{ backgroundColor: '#ffffff', borderColor: '#000000' }}>
                                         {days.map(day => (
-                                            <div key={day} className="p-2 font-black text-xs sm:text-sm">{dayMapping[day]}</div>
+                                            <div key={day} className="p-2 font-black text-xs sm:text-sm" style={{ borderRight: '1px solid #000000', color: '#000000' }}>{dayMapping[day]}</div>
                                         ))}
                                     </div>
                                 </th>
@@ -158,22 +254,8 @@ const RoutinePage = () => {
                         </thead>
                         <tbody>
                             {groupedSlots.map((group, groupIndex) => {
-                                // Determine row label
-                                // Ideally show range: min(start) - max(end). 
-                                // Or just list distinct labels if they are disparate?
-                                // For simplicity, let's construct "Start - End" based on min start and max end
-                                // But format back to string is complex.
-                                // Easier: Just join the labels with <br/> or show the main label if 1 slot.
-                                // Assuming "4:30 - 5:30" and "5:00 - 6:00" -> "4:30 PM - 6:00 PM"
-                                // Let's rely on the first slot's start string and last slot's end string parts?
-                                // Bit risky. Let's just list the labels, separated by commas or newlines?
-                                // User wants it merged. "4:30 PM - 6:00 PM" is best.
-
-                                // Reconstruct time string from minutes is hard without a formatter.
-                                // Let's use the first slot's label start part and the slot with max end's label end part.
-                                // Find slot with max end
                                 const lastSlot = group.slots.reduce((prev, curr) => parseEndTime(curr.label) > parseEndTime(prev.label) ? curr : prev, group.slots[0]);
-                                const firstSlot = group.slots[0]; // Already sorted by start
+                                const firstSlot = group.slots[0];
 
                                 const startStr = firstSlot.label.split(' - ')[0];
                                 const endStr = lastSlot.label.split(' - ')[1];
@@ -181,7 +263,7 @@ const RoutinePage = () => {
 
                                 return (
                                     <tr key={groupIndex} className="hover:bg-gray-50/50 transition-colors">
-                                        <td className="border border-black p-2 font-black bg-white text-xs sm:text-sm whitespace-nowrap align-middle sticky left-0 z-10 shadow-[2px_0_0_0_rgba(0,0,0,1)]">
+                                        <td className="p-2 font-black text-xs sm:text-sm whitespace-nowrap align-middle sticky left-0 z-10" style={{ backgroundColor: '#ffffff', borderColor: '#000000', borderWidth: '1px', borderStyle: 'solid', color: '#000000' }}>
                                             {group.slots.length > 1 ? (
                                                 <div className="flex flex-col gap-0.5">
                                                     <span>{rowLabel}</span>
@@ -198,13 +280,13 @@ const RoutinePage = () => {
                                             });
 
                                             return (
-                                                <td key={`${day}-${groupIndex}`} className="border border-black p-1 align-middle h-16 min-w-[100px]">
+                                                <td key={`${day}-${groupIndex}`} className="p-1 align-middle h-16 min-w-[100px]" style={{ borderColor: '#000000', borderWidth: '1px', borderStyle: 'solid' }}>
                                                     <div className="flex flex-col gap-1.5 items-center justify-center">
                                                         {studentsInGroup.map(student => (
-                                                            <div key={student._id} className="text-[11px] sm:text-xs font-bold leading-tight flex flex-col items-center group/item cursor-help">
+                                                            <div key={student._id} className="text-[11px] sm:text-xs font-bold leading-tight flex flex-col items-center group/item cursor-help" style={{ color: '#000000' }}>
                                                                 <span>{student.username}</span>
                                                                 {group.slots.length > 1 && (
-                                                                    <span className="text-[9px] font-medium text-gray-500 whitespace-nowrap mt-0.5">
+                                                                    <span className="text-[9px] font-medium whitespace-nowrap mt-0.5" style={{ color: '#6b7280' }}>
                                                                         {student.slotLabel}
                                                                     </span>
                                                                 )}
@@ -222,7 +304,7 @@ const RoutinePage = () => {
                 </div>
 
                 {/* Footer */}
-                <div className="mt-2 text-right font-bold text-xs">
+                <div className="mt-2 text-right font-bold text-xs" style={{ color: '#000000' }}>
                     Effective From: {currentDate}
                 </div>
             </div>
