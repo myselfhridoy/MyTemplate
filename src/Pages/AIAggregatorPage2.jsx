@@ -44,7 +44,7 @@ export default function AIAggregatorPage2() {
   const Comp = selectedOption?.Comp;
   let renderedPage = null;
   if (Comp) {
-    renderedPage = <Comp 
+    renderedPage = <Comp
       classOverride={classOverride}
       subjectOverride={subjectOverride}
       chapterOverride={chapterOverride}

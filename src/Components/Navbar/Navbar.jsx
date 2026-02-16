@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../../Context/AuthContext';
 
 function Navbar() {
+  const { user, logout } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [themeKey, setThemeKey] = useState(0); // force re-render on theme change
   const [currentTheme, setCurrentTheme] = useState('light');
@@ -59,15 +61,24 @@ function Navbar() {
               <ul className="menu menu-sm dropdown-content bg-base-100 rounded-box z-1 mt-3 w-52 p-2 shadow">
                 <li><Link to="/creative-cq" onClick={() => setTimeout(() => handleMenuClick(), 50)}>প্রশ্ন ব্যাংক</Link></li>
                 <li><Link to="/board-cq" onClick={() => setTimeout(() => handleMenuClick(), 50)}>বোর্ড প্রশ্নব্যাংক</Link></li>
-                <li><Link to="/bookcontent" onClick={() => setTimeout(() => handleMenuClick(), 50)}>পাঠ্যবই</Link></li>
-                <li><Link to="/selftest" onClick={() => setTimeout(() => handleMenuClick(), 50)}>সেলফ টেস্ট</Link></li>
-                {/* <li><Link to="/ai-assistant" onClick={() => setTimeout(() => handleMenuClick(), 50)}>AI সহকারী</Link></li> */}
-                {/* <li><Link to="/unlimited-ai-qa" onClick={() => setTimeout(() => handleMenuClick(), 50)}>আনলিমিটেড AI প্রশ্ন-উত্তর</Link></li> */}
-                {/* <li><Link to="/ai-chat" onClick={() => setTimeout(() => handleMenuClick(), 50)}>AI Chat</Link></li> */}
-                {/* <li><Link to="/doubt-solve" onClick={() => setTimeout(() => handleMenuClick(), 50)}>ডাউট সলভ</Link></li> */}
+
+                {/* Admin Only Routes */}
+                {(user?.isAdmin || user?.username === 'admin') && (
+                  <>
+                    <li><Link to="/bookcontent" onClick={() => setTimeout(() => handleMenuClick(), 50)}>পাঠ্যবই</Link></li>
+                    <li><Link to="/selftest" onClick={() => setTimeout(() => handleMenuClick(), 50)}>সেলফ টেস্ট</Link></li>
+                  </>
+                )}
+
                 <li><Link to="/ai-aggregator" onClick={() => setTimeout(() => handleMenuClick(), 50)}>AI টিউটর</Link></li>
-                <li><Link to="/ai-aggregator-2" onClick={() => setTimeout(() => handleMenuClick(), 50)}>AI টিউটর (সকল শ্রেণি)</Link></li>
-                <li><Link to="/chatpdf" onClick={() => setTimeout(() => handleMenuClick(), 50)}>AI Chat PDF</Link></li>
+
+                {(user?.isAdmin || user?.username === 'admin') && (
+                  <>
+                    <li><Link to="/ai-aggregator-2" onClick={() => setTimeout(() => handleMenuClick(), 50)}>AI টিউটর (সকল শ্রেণি)</Link></li>
+                    <li><Link to="/chatpdf" onClick={() => setTimeout(() => handleMenuClick(), 50)}>AI Chat PDF</Link></li>
+                  </>
+                )}
+
                 <li><Link to="/tools" onClick={() => setTimeout(() => handleMenuClick(), 50)}>প্রয়োজনীয় টুলস</Link></li>
                 <li className="divider" />
                 <li><Link to="/privacy-policy" onClick={() => setTimeout(() => handleMenuClick(), 50)}>Privacy Policy</Link></li>
@@ -78,19 +89,19 @@ function Navbar() {
         </div>
         <div className="navbar-center">
           <Link to="/" className="btn btn-ghost px-2">
-            <span className="relative block h-12" style={{width:'100px', maxWidth:'100%'}} key={themeKey}>
+            <span className="relative block h-12" style={{ width: '100px', maxWidth: '100%' }} key={themeKey}>
               <img
                 src={currentTheme === 'dark' ? '/HMT Logo White.png' : '/HMT Logo.png'}
                 alt="HMT Logo"
                 className="absolute inset-0 h-12 object-contain"
-                style={{maxHeight:'48px', width:'180px', maxWidth:'100%'}}
+                style={{ maxHeight: '48px', width: '180px', maxWidth: '100%' }}
               />
             </span>
           </Link>
         </div>
         <div className="navbar-end">
           {/* Theme toggle button */}
-          <button 
+          <button
             className="btn btn-ghost btn-circle"
             onClick={toggleTheme}
           >
@@ -98,15 +109,40 @@ function Navbar() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
             </svg>
           </button>
-          <button className="btn btn-ghost btn-circle">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"> <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /> </svg>
-          </button>
-          <button className="btn btn-ghost btn-circle">
-            <div className="indicator">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"> <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /> </svg>
-              <span className="badge badge-xs badge-primary indicator-item"></span>
+
+          {user ? (
+            <div className="dropdown dropdown-end">
+              <label tabIndex={0} className="btn btn-ghost btn-circle avatar">
+                <div className="w-10 rounded-full border border-base-content/10">
+                  <img
+                    src={(user.isAdmin || user.username === 'admin')
+                      ? "https://img.icons8.com/3d-fluency/94/manager.png"
+                      : "https://img.icons8.com/3d-fluency/94/student-male--v3.png"}
+                    alt="user"
+                  />
+                </div>
+              </label>
+              <ul tabIndex={0} className="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-52">
+                <li>
+                  <a className="justify-between">
+                    {user.username}
+                    <span className="badge badge-primary badge-outline">{(user.isAdmin || user.username === 'admin') ? 'Admin' : 'Student'}</span>
+                  </a>
+                </li>
+                {(user?.isAdmin || user?.username === 'admin') && (
+                  <>
+                    <li><Link to="/admin">Admin Panel</Link></li>
+                    <li><Link to="/attendance">Attendance Tracker</Link></li>
+                  </>
+                )}
+                <li><Link to="/routine">Class Routine</Link></li>
+                <li><Link to="/profile">Profile</Link></li>
+                <li><a onClick={logout}>Logout</a></li>
+              </ul>
             </div>
-          </button>
+          ) : (
+            <Link to="/login" className="btn btn-primary btn-sm ml-2">Login</Link>
+          )}
         </div>
       </div>
     </div>

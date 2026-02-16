@@ -13,6 +13,7 @@
     "start": "node server/index.js"
   },
   "dependencies": {
+    "@fontsource/anek-bangla": "^5.2.7",
     "@tailwindcss/vite": "^4.1.11",
     "axios": "^1.12.2",
     "better-react-mathjax": "^2.3.0",

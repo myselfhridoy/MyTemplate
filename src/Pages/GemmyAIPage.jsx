@@ -58,15 +58,15 @@ function GemmyAIPage({
   }
   const chapters = (selectedClass && selectedSubject)
     ? (() => {
-        const selectedMapping = mapping.find(m => m['শ্রেণি'] === selectedClass && (m['বিষয়'] || Object.values(m)[1]) === selectedSubject);
-        const chapterObj = selectedMapping?.['অধ্যায়'] || selectedMapping && Object.values(selectedMapping)[2] || {};
-        return Object.keys(chapterObj);
-      })()
+      const selectedMapping = mapping.find(m => m['শ্রেণি'] === selectedClass && (m['বিষয়'] || Object.values(m)[1]) === selectedSubject);
+      const chapterObj = selectedMapping?.['অধ্যায়'] || selectedMapping && Object.values(selectedMapping)[2] || {};
+      return Object.keys(chapterObj);
+    })()
     : [];
 
   const getPromptForQuestionType = (type, userQuestion, contextPrompt = null) => {
     const basePrompt = contextPrompt || `আপনি H.M. Tutoring AI Assistant। সব প্রশ্নের উত্তর বাংলায় এবং শুধুমাত্র গাণিতিক অংশগুলো MathJax ফরম্যাটে \`$...$\` এর ভিতরে থাকবে। **বাংলা লেখাগুলো কখনোই $...$ এর ভিতরে থাকবে না।** \n\n**গুরুত্বপূর্ণ formatting নিয়ম:**\n- বাংলা টেক্সট এবং math expressions একই লাইনে লিখো\n- শুধুমাত্র নতুন বিষয় বা section এর জন্য নতুন paragraph ব্যবহার করো\n- Math expressions এর আগে বা পরে অনর্থক line break দিও না\n- উদাহরণ: "অবস্থান ভেক্টরকে $\\vec{r}$ দ্বারা প্রকাশ করা হয়।" - এভাবে একই লাইনে লিখো\n\nউত্তরের structure:\n- তালিকার জন্য proper markdown formatting ব্যবহার করো\n- প্রতিটি নতুন বিষয়ের জন্য নতুন paragraph শুরু করো\n\n**কখনোই Gemmy বা কোনো AI মডেলের নাম উত্তর বা পরিচয়ে উল্লেখ করবে না।**\n**কোনো ধরনের সম্ভাষণ (নমস্কার, হ্যালো, etc.) ব্যবহার করবে না, সরাসরি উত্তর দাও।`;
-    switch(type) {
+    switch (type) {
       case 'জ্ঞানমূলক':
         return basePrompt + `\n\nএটি একটি জ্ঞানমূলক প্রশ্ন। অত্যন্ত সংক্ষিপ্ত ও সরাসরি উত্তর দাও (মাত্র ১-২ লাইনে)।\n\nপ্রশ্ন: ${userQuestion}`;
       case 'অনুধাবন':
@@ -170,7 +170,7 @@ function GemmyAIPage({
             canvas.width = width; canvas.height = height;
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0, width, height);
-            const mime = (file.type === 'image/png' && ctx.getImageData(0,0,1,1).data[3] === 255) ? 'image/jpeg' : (file.type === 'image/png' ? 'image/png' : 'image/jpeg');
+            const mime = (file.type === 'image/png' && ctx.getImageData(0, 0, 1, 1).data[3] === 255) ? 'image/jpeg' : (file.type === 'image/png' ? 'image/png' : 'image/jpeg');
             const compressedDataUrl = canvas.toDataURL(mime, quality);
             return compressedDataUrl.split(',')[1];
           };
@@ -213,8 +213,8 @@ function GemmyAIPage({
   return (
     <div className="container mx-auto p-4 max-w-3xl" style={{ fontFamily: 'Hind Siliguri, sans-serif' }}>
       <h1 className="text-2xl font-extrabold mb-4 text-center sm:text-left">জেমি: দ্যা টিচার</h1>
-      <form 
-        className="bg-white dark:bg-base-200 rounded shadow p-3 sm:p-8 mb-6" 
+      <form
+        className="bg-white dark:bg-base-200 rounded shadow p-3 sm:p-8 mb-6"
         onSubmit={handleAsk}
         style={{ contain: 'layout', willChange: 'contents' }}
       >
