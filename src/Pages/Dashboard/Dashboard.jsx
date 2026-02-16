@@ -44,6 +44,14 @@ function Dashboard() {
     const { todayClass, nextClass } = summary.classSchedule;
 
     if (todayClass && todayClass.hasClass) {
+      if (todayClass.isFinished) {
+        return (
+          <div className="bg-green-100 dark:bg-green-900 border-l-4 border-green-500 text-green-700 dark:text-green-200 p-4 mb-6 rounded shadow-sm" role="alert">
+            <p className="font-bold">আজকে হৃদয় স্যারের পড়া শেষ হয়েছে ✅</p>
+            <p>সময়: {todayClass.time}</p>
+          </div>
+        );
+      }
       return (
         <div className="bg-green-100 dark:bg-green-900 border-l-4 border-green-500 text-green-700 dark:text-green-200 p-4 mb-6 rounded shadow-sm" role="alert">
           <p className="font-bold">আজকে হৃদয় স্যারের পড়া আছে</p>
@@ -55,10 +63,25 @@ function Dashboard() {
         'Sat': 'শনি', 'Sun': 'রবি', 'Mon': 'সোম', 'Tue': 'মঙ্গল', 'Wed': 'বুধ', 'Thu': 'বৃহঃ', 'Fri': 'শুক্র'
       };
       const banglaDay = dayMapping[nextClass.day] || nextClass.day;
+
+      const { upcomingMakeup } = summary.classSchedule;
+      // Show upcoming makeup if exists and NOT today
+      let makeupMsg = null;
+      if (upcomingMakeup && !summary.classSchedule.todayClass?.isMakeup) {
+        const mkDate = new Date(upcomingMakeup.date).toLocaleDateString('en-GB');
+        makeupMsg = (
+          <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-800/30 rounded border border-blue-200 dark:border-blue-700">
+            <p className="font-bold text-sm">🔔 এর আগে Makeup Class আছে:</p>
+            <p className="text-sm">{mkDate} ({upcomingMakeup.time})</p>
+          </div>
+        );
+      }
+
       return (
         <div className="bg-blue-100 dark:bg-blue-900 border-l-4 border-blue-500 text-blue-700 dark:text-blue-200 p-4 mb-6 rounded shadow-sm" role="alert">
           <p className="font-bold">আজকে হৃদয় স্যারের পড়া নেই</p>
           <p>পরবর্তী পড়া: {banglaDay}বার ({nextClass.time})</p>
+          {makeupMsg}
         </div>
       );
     } else {
@@ -95,10 +118,16 @@ function Dashboard() {
             </div>
             <div className="stats shadow bg-base-100 border border-base-200">
               <div className="stat">
-                <div className="stat-title text-sm">সর্বমোট অতিরিক্ত ক্লাস</div>
-                <div className="stat-value text-accent">{loadingSummary ? '...' : (summary?.totalExtra || 0)} <span className="text-sm font-normal text-base-content/60">দিন</span></div>
+                <div className="stat-title text-sm">সর্বমোট Extra ক্লাস</div>
+                <div className={`stat-value ${(summary?.totalExtra || 0) >= 0 ? 'text-accent' : 'text-error'}`}>
+                  {loadingSummary ? '...' : (
+                    (summary?.totalExtra || 0) >= 0
+                      ? `+${summary?.totalExtra || 0}`
+                      : `${summary?.totalExtra || 0}`
+                  )} <span className="text-sm font-normal text-base-content/60">দিন</span>
+                </div>
                 <div className="stat-desc">
-                  নির্ধারিত ({summary?.scheduleStats?.daysPerWeek || 0}দিন/সপ্তাহ এবং {summary?.scheduleStats?.daysPerMonth || 0}দিন/মাস) ক্লাসের বাইরে
+                  এই মাসে নির্ধারিত: {summary?.thisMonthExpected || (summary?.scheduleStats?.daysPerMonth || 0)} ক্লাস
                 </div>
               </div>
             </div>

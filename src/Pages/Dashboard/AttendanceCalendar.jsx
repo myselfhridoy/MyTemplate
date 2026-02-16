@@ -10,7 +10,7 @@ const AttendanceCalendar = ({ history }) => {
             const s = {};
             history.forEach(h => {
                 const dateStr = new Date(h.date).toISOString().split('T')[0];
-                s[dateStr] = { status: h.status, reason: h.reason };
+                s[dateStr] = { status: h.status, reason: h.reason, makeupDate: h.makeupDate, makeupTime: h.makeupTime };
             });
             setStats(s);
         }
@@ -51,7 +51,6 @@ const AttendanceCalendar = ({ history }) => {
         const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
         const record = stats[dateStr];
         const status = record?.status;
-        const reason = record?.reason;
 
         calendarDays.push(
             <div
@@ -67,6 +66,7 @@ const AttendanceCalendar = ({ history }) => {
                     <div className={`w-full h-full flex items-center justify-center rounded-full shadow-sm text-xs font-bold transition-transform hover:scale-105 active:scale-95
                         ${status === 'present' ? 'bg-green-500 text-white shadow-green-200 dark:shadow-none' : ''}
                         ${status === 'late' ? 'bg-yellow-500 text-white shadow-yellow-200 dark:shadow-none' : ''}
+                        ${status === 'makeup' ? 'bg-blue-500 text-white shadow-blue-200 dark:shadow-none' : ''}
                         ${status === 'absent' ? 'bg-red-500 text-white shadow-red-200 dark:shadow-none' : ''}
                      `}>
                         {d}
@@ -75,8 +75,9 @@ const AttendanceCalendar = ({ history }) => {
                             ${activeTooltip === dateStr ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 md:group-hover:opacity-100'}
                         `}>
                             {status === 'present' && 'উপস্থিত'}
-                            {status === 'late' && (reason ? `দেরি: ${reason}` : 'দেরি')}
-                            {status === 'absent' && (reason ? `অনুপস্থিত: ${reason}` : 'অনুপস্থিত')}
+                            {status === 'late' && (record.reason ? `দেরি: ${record.reason}` : 'দেরি')}
+                            {status === 'makeup' && (record.makeupDate ? `মেকাপ: ${new Date(record.makeupDate).toLocaleDateString('en-GB')}` : 'মেকাপ')}
+                            {status === 'absent' && (record.reason ? `অনুপস্থিত: ${record.reason}` : 'অনুপস্থিত')}
                         </div>
                     </div>
                 ) : (
@@ -111,7 +112,7 @@ const AttendanceCalendar = ({ history }) => {
 
                 <div className="flex justify-center gap-4 mt-4 text-[10px] opacity-70">
                     <div className="flex items-center gap-1"><div className="w-2 h-2 bg-green-500 rounded-full"></div> উপস্থিত</div>
-                    <div className="flex items-center gap-1"><div className="w-2 h-2 bg-yellow-500 rounded-full"></div> দেরি</div>
+                    <div className="flex items-center gap-1"><div className="w-2 h-2 bg-blue-500 rounded-full"></div> মেকাপ</div>
                     <div className="flex items-center gap-1"><div className="w-2 h-2 bg-red-500 rounded-full"></div> অনুপস্থিত</div>
                 </div>
             </div>

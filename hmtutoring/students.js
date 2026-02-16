@@ -82,7 +82,7 @@ router.post('/auth/login', async (req, res) => {
 // 2. Admin: Create Student
 router.post('/admin/create-student', async (req, res) => {
     // routine: { "Sat": "TimeSlotLabel" }
-    const { username, email, password, schedule, routine, studentType, status, ...otherInfo } = req.body;
+    const { username, email, password, schedule, routine, studentType, status, joinDate, ...otherInfo } = req.body;
     if (!username || !email || !password) return res.status(400).json({ success: false, message: "Missing credentials" });
 
     try {
@@ -97,6 +97,7 @@ router.post('/admin/create-student', async (req, res) => {
             routine: routine || {},
             studentType: studentType || 'private', // Default
             status: status || 'active',           // Default
+            joinDate: joinDate ? new Date(joinDate) : new Date(),
             createdAt: new Date(),
             ...otherInfo
         });
@@ -140,7 +141,7 @@ router.get('/public/routine', async (req, res) => {
 
 // 4. Admin: Update Student
 router.put('/admin/update-student', async (req, res) => {
-    const { _id, username, email, password, schedule, routine, studentType, status } = req.body;
+    const { _id, username, email, password, schedule, routine, studentType, status, joinDate } = req.body;
     if (!_id) {
         return res.status(400).json({ success: false, message: "Missing required fields" });
     }
@@ -154,6 +155,7 @@ router.put('/admin/update-student', async (req, res) => {
         if (routine) updateFields.routine = routine;
         if (studentType) updateFields.studentType = studentType;
         if (status) updateFields.status = status;
+        if (joinDate) updateFields.joinDate = new Date(joinDate);
 
         const result = await studentsCollection.updateOne(
             { _id: new ObjectId(_id) },
