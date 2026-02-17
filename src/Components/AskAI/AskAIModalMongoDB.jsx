@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import MathRendererWithContext from '../MathRenderer/MathRenderer';
 import { toPng } from 'html-to-image';
 import { sha256 } from 'js-sha256';

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import '@fontsource/anek-bangla'; // Defaults to weight 400
 import '@fontsource/anek-bangla/700.css'; // Weight 700
-import html2canvas from 'html2canvas';
+import { toPng } from 'html-to-image';
 import jsPDF from 'jspdf';
 
-// Helper: Parse "4:30 PM - 5:30 PM" to minutes from midnight
+// ... (helpers remain same)
+
 const parseTime = (timeStr) => {
     if (!timeStr) return 0;
     const parts = timeStr.split(' - ');
@@ -23,7 +24,6 @@ const parseTime = (timeStr) => {
     return parseSingle(parts[0]);
 };
 
-// Helper: Get end time in minutes
 const parseEndTime = (timeStr) => {
     if (!timeStr) return 0;
     const parts = timeStr.split(' - ');
@@ -104,68 +104,135 @@ const RoutinePage = () => {
 
         setIsDownloading(true);
         try {
-            const canvas = await html2canvas(input, {
-                scale: 4, // Higher resolution for sharper text
-                useCORS: true,
-                logging: false,
-                backgroundColor: '#ffffff',
-                windowWidth: 1280, // Force desktop viewport
-                onclone: (clonedDoc) => {
-                    const clonedElement = clonedDoc.getElementById('routine-content');
-                    if (clonedElement) {
-                        // Force the width to be wide enough for the table
-                        clonedElement.style.width = '1000px';
-                        clonedElement.style.padding = '20px';
+            // 1. Create a deep clone of the element
+            const clone = input.cloneNode(true);
 
-                        // Explicitly fix header text sizes to prevent "explosion"
-                        const title = clonedElement.querySelector('h1');
-                        if (title) {
-                            title.style.fontSize = '24px'; // Fixed size
-                            title.style.lineHeight = '1.2';
-                            title.style.marginBottom = '5px';
-                            title.style.letterSpacing = 'normal';
-                        }
-                        const subtitle = clonedElement.querySelector('h2');
-                        if (subtitle) {
-                            subtitle.style.fontSize = '18px'; // Fixed size
-                            subtitle.style.marginTop = '0';
-                        }
+            // 2. Create a wrapper to hold the clone off-screen but rendered
+            // We need it in the DOM for html-to-image to work correctly with styles/fonts
+            const wrapper = document.createElement('div');
+            wrapper.style.position = 'fixed';
+            wrapper.style.left = '-9999px';
+            wrapper.style.top = '0';
+            wrapper.style.width = '1200px'; // Force Desktop Width
+            wrapper.style.backgroundColor = '#ffffff'; // Ensure white background
+            wrapper.appendChild(clone);
+            document.body.appendChild(wrapper);
 
-                        // Fix logo size in PDF
-                        const logo = clonedElement.querySelector('img');
-                        if (logo) {
-                            logo.style.height = '60px';
-                            logo.style.width = 'auto';
-                        }
+            // 3. Enforce Desktop Styles on the Clone
+            // Fix Header Layout (Force Row instead of Column)
+            const header = clone.querySelector('#print-header');
+            if (header) {
+                header.style.position = 'relative';
+                header.style.width = '100%';
+                header.style.height = '120px'; // Give explicit height
+                header.style.display = 'flex';
+                header.style.flexDirection = 'row';
+                header.style.justifyContent = 'center'; // Center text content
+                header.style.alignItems = 'center';
+                header.style.borderBottomWidth = '0px';
+            }
 
-                        // Ensure the overflow container is visible
-                        const overflowContainer = clonedElement.querySelector('.overflow-x-auto');
-                        if (overflowContainer) {
-                            overflowContainer.style.overflow = 'visible';
-                            overflowContainer.style.width = '100%';
-                        }
-                    }
+            // Fix Logo Positioning (Force Absolute Left)
+            const logoWrapper = clone.querySelector('#print-logo');
+            if (logoWrapper) {
+                logoWrapper.style.setProperty('position', 'absolute', 'important');
+                logoWrapper.style.setProperty('left', '20px', 'important');
+                logoWrapper.style.setProperty('top', '50%', 'important');
+                logoWrapper.style.setProperty('transform', 'translateY(-50%)', 'important');
+                logoWrapper.style.setProperty('margin', '0', 'important');
+                logoWrapper.style.zIndex = '10';
+            }
+
+            // Fix Centered Text Container
+            const textContainer = clone.querySelector('.text-center');
+            if (textContainer) {
+                textContainer.style.textAlign = 'center';
+                textContainer.style.width = '100%';
+                textContainer.style.position = 'relative';
+                textContainer.style.zIndex = '1';
+
+                // Force H1 to be visible in PDF even if hidden on mobile
+                const h1 = textContainer.querySelector('h1');
+                if (h1) {
+                    h1.style.display = 'block';
+                    h1.style.fontSize = '30px'; // Ensure desktop size
                 }
+            }
+
+            // Fix Main Content Container
+            clone.style.width = '100%';
+            clone.style.maxWidth = 'none';
+            clone.style.padding = '20px';
+            clone.style.boxSizing = 'border-box';
+            clone.style.display = 'flex';
+            clone.style.flexDirection = 'column';
+            clone.style.alignItems = 'center';
+
+            // Ensure Table is full width and centered
+            const tableContainer = clone.querySelector('.overflow-x-auto');
+            if (tableContainer) {
+                tableContainer.style.overflow = 'visible';
+                tableContainer.style.width = '100%';
+                tableContainer.style.display = 'flex';
+                tableContainer.style.justifyContent = 'center';
+            }
+            const table = clone.querySelector('table');
+            if (table) {
+                table.style.margin = '0 auto';
+                table.style.width = '100%';
+            }
+
+            // 4. Capture the Clone
+            // Force a small delay to ensure rendering matches
+            await new Promise(r => setTimeout(r, 100));
+
+            const dataUrl = await toPng(clone, {
+                quality: 1,
+                pixelRatio: 3, // Balance quality/size
+                width: 1200,   // Explicitly tell toPng the width
+                style: {
+                    margin: '0',
+                    padding: '0',
+                },
+                backgroundColor: '#ffffff',
+                cacheBust: true,
             });
 
-            const imgData = canvas.toDataURL('image/png');
+            // 5. Clean up
+            document.body.removeChild(wrapper);
+
+            // 6. Generate PDF
             // Use Landscape ('l') for better fit of wide tables
             const pdf = new jsPDF('l', 'mm', 'a4');
             const pdfWidth = pdf.internal.pageSize.getWidth();
             const pdfHeight = pdf.internal.pageSize.getHeight();
-            const imgWidth = canvas.width;
-            const imgHeight = canvas.height;
-            const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+
+            const img = new Image();
+            img.src = dataUrl;
+            await new Promise(r => img.onload = r);
+
+            const imgWidth = img.width;
+            const imgHeight = img.height;
+
+            // Calculate ratio to fit within margins (5mm horizontal, 5mm vertical total for buffer)
+            const margin = 5;
+            const usableWidth = pdfWidth - (margin * 2);
+            const usableHeight = pdfHeight - (margin * 2);
+
+            const ratio = Math.min(usableWidth / imgWidth, usableHeight / imgHeight);
 
             // Center the image
             const imgX = (pdfWidth - imgWidth * ratio) / 2;
             const imgY = (pdfHeight - imgHeight * ratio) / 2;
 
-            pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio);
+            pdf.addImage(dataUrl, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio);
             pdf.save('HMT_Routine.pdf');
         } catch (error) {
             console.error("Error generating PDF:", error);
             alert("Failed to generate PDF. Please try again.");
+            // Try to clean up wrapper if error occurred before cleanup
+            const existingWrapper = document.querySelector('div[style*="left: -9999px"]');
+            if (existingWrapper) document.body.removeChild(existingWrapper);
         } finally {
             setIsDownloading(false);
         }
@@ -232,15 +299,15 @@ const RoutinePage = () => {
 
             <div id="routine-content" className="max-w-7xl mx-auto shadow-sm p-2 sm:p-4" style={{ backgroundColor: '#ffffff', borderColor: '#e5e7eb', borderWidth: '1px', borderStyle: 'solid', color: '#000000' }}>
                 {/* Header Section */}
-                <div className="p-4 relative flex flex-col md:flex-row items-center justify-center gap-4" style={{ borderColor: '#000000', borderBottomWidth: '0px', borderWidth: '1px', borderStyle: 'solid' }}>
+                <div id="print-header" className="p-4 relative flex flex-col md:flex-row items-center justify-center gap-4" style={{ borderColor: '#000000', borderBottomWidth: '0px', borderWidth: '1px', borderStyle: 'solid' }}>
                     {/* Logo */}
-                    <div className="md:absolute md:left-4">
-                        <img src="/HMT Logo.png" alt="H.M. Tutoring Logo" className="h-14 sm:h-20 w-auto object-contain" />
+                    <div id="print-logo" className="md:absolute md:left-4">
+                        <img src="/HMT Logo.png" alt="H.M. Tutoring Logo" className="h-14 sm:h-20 w-auto object-contain" crossOrigin="anonymous" />
                     </div>
 
                     {/* Centered Text */}
                     <div className="text-center">
-                        <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-widest" style={{ color: '#111827', fontWeight: '900' }}>H.M. TUTORING</h1>
+                        <h1 className="hidden sm:block text-2xl sm:text-3xl font-black uppercase tracking-widest" style={{ color: '#111827', fontWeight: '900' }}>H.M. TUTORING</h1>
                         <h2 className="text-lg sm:text-xl font-bold underline decoration-2 underline-offset-8 mt-2" style={{ color: '#1f2937', fontWeight: '700' }}>শ্রেণি সময়সূচি</h2>
                     </div>
                 </div>
@@ -251,7 +318,7 @@ const RoutinePage = () => {
                         <thead>
                             {/* Day / Bar Row */}
                             <tr style={{ backgroundColor: '#f9fafb' }}>
-                                <th className="p-2 w-[110px] sm:w-[160px] font-black text-sm sm:text-base align-middle sticky left-0 z-20" style={{ backgroundColor: '#f3f4f6', borderColor: '#000000', borderWidth: '1px', borderStyle: 'solid', color: '#000000' }}>সময়</th>
+                                <th className="p-2 w-[110px] sm:w-[200px] font-black text-sm sm:text-base align-middle sticky left-0 z-20" style={{ backgroundColor: '#f3f4f6', borderColor: '#000000', borderWidth: '1px', borderStyle: 'solid', color: '#000000' }}>সময়</th>
                                 <th colSpan={7} className="p-0" style={{ borderColor: '#000000', borderWidth: '1px', borderStyle: 'solid' }}>
                                     <div className="p-2 font-black text-sm sm:text-base uppercase tracking-tighter sm:tracking-normal" style={{ backgroundColor: '#f3f4f6', borderBottom: '1px solid #000000', color: '#000000' }}>বার / দিন</div>
                                     <div className="grid grid-cols-7 divide-x" style={{ backgroundColor: '#ffffff', borderColor: '#000000' }}>

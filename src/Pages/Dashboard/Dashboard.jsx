@@ -298,6 +298,29 @@ function Dashboard() {
           </div>
         )}
 
+        {/* PDF Generator ফিচার কার্ড - Admin Only */}
+        {(user?.isAdmin || user?.username === 'admin') && (
+          <div
+            className="group relative bg-gradient-to-br from-teal-100 via-teal-50 to-white dark:from-teal-900 dark:via-teal-950 dark:to-gray-900 rounded-xl shadow-lg border border-teal-200 dark:border-teal-800 p-4 flex flex-col items-center justify-between transition-transform hover:-translate-y-1 hover:shadow-2xl cursor-pointer overflow-hidden min-h-[220px]"
+            style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
+            onClick={() => navigate('/chapter-pdf')}
+          >
+            <div className="absolute top-0 right-0 opacity-10 text-[5rem] pointer-events-none select-none">🖨️</div>
+            <div className="flex flex-col items-center gap-2 z-10">
+              <div className="bg-teal-600/90 dark:bg-teal-700/80 rounded-full p-2 mb-1 shadow-lg">
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
+              </div>
+              <span className="text-lg font-bold text-teal-800 dark:text-teal-200 tracking-tight">PDF Generator</span>
+              <span className="text-gray-700 dark:text-gray-200 text-center text-sm font-medium">অধ্যায়ভিত্তিক বোর্ড প্রশ্ন ও উত্তর দিয়ে PDF তৈরি করুন।</span>
+            </div>
+            <button
+              className="btn btn-accent mt-4 w-full group-hover:scale-105 transition-transform text-base"
+              style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
+              onClick={e => { e.stopPropagation(); navigate('/chapter-pdf'); }}
+            >PDF Generator খুলুন</button>
+          </div>
+        )}
+
         {/* ChatPDF ফিচার কার্ড - Admin Only */}
         {(user?.isAdmin || user?.username === 'admin') && (
           <div
