@@ -20,6 +20,7 @@ import AIChatPage from './Pages/AIChatPage';
 import DoubtSolvePage from './Pages/DoubtSolvePage';
 import UnlimitedAIQAPage from './Pages/UnlimitedAIQAPage';
 import HMTAIPage from './Pages/HMTAI';
+import HMTAiPageNew from './Pages/HMTAiPage';
 import AIAggregatorPage from './Pages/AIAggregatorPage';
 import AIAggregatorPage2 from './Pages/AIAggregatorPage2';
 
@@ -70,6 +71,7 @@ export default class App extends Component {
             <Route path="/doubt-solve" element={<PrivateRoute><DoubtSolvePage /></PrivateRoute>} />
             <Route path="/unlimited-ai-qa" element={<PrivateRoute><UnlimitedAIQAPage /></PrivateRoute>} />
             <Route path="/hmt-ai" element={<PrivateRoute><HMTAIPage /></PrivateRoute>} />
+            <Route path="/hmtai-new" element={<PrivateRoute><HMTAiPageNew /></PrivateRoute>} />
             <Route path="/ai-aggregator" element={<PrivateRoute><AIAggregatorPage /></PrivateRoute>} />
             <Route path="/ai-aggregator-2" element={<AdminRoute><AIAggregatorPage2 /></AdminRoute>} />
             <Route path="/borno-ai" element={<PrivateRoute><BornoAIPage /></PrivateRoute>} />
