@@ -12,6 +12,7 @@ const AI_MODELS = [
     { value: 'merlin', label: 'মিস মার্লিন: দ্যা টিউটর', api: 'https://geminiai-render.onrender.com/api/merlin/v1/chat/completions', type: 'merlin' },
     { value: 'luzia', label: 'Luzia: দ্যা প্রফেসর', api: 'https://geminiai-render.onrender.com/api/luzia/ask', type: 'luzia' },
     { value: 'hmtai', label: 'H.M. Tutoring AI', api: 'https://geminiai-render.onrender.com/api/ai-free-api', type: 'hmtai' },
+    { value: 'hmtai-puter', label: 'HMT AI (Puter)', api: '#', type: 'puter', model: 'google/gemini-3-flash-preview' },
     { value: 'assistant', label: 'Knowledge Master', api: 'https://geminiai-render.onrender.com/api/gemma', type: 'gemma-stream', model: 'gemini-3-flash-preview' },
     { value: 'chatbot', label: 'AI Chat Bot', api: 'https://geminiai-render.onrender.com/api/chat/send', type: 'chatbot' },
     { value: 'easemate', label: 'Problem Solver', api: 'https://geminiai-render.onrender.com/api/easemate', type: 'easemate' },
@@ -221,6 +222,18 @@ function AskAIModalMongoDB({ isOpen, onClose, questionText = '', stemText = '', 
 ${userQuestion}`;
     };
 
+    const ensurePuterLoaded = async () => {
+        if (window.puter) return true;
+        return new Promise((resolve) => {
+            const script = document.createElement('script');
+            script.src = "https://js.puter.com/v2/";
+            script.async = true;
+            script.onload = () => resolve(true);
+            script.onerror = () => resolve(false);
+            document.body.appendChild(script);
+        });
+    };
+
     const handleAsk = async () => {
         if (!fullQuestion) return;
         setLoading(true);
@@ -232,7 +245,36 @@ ${userQuestion}`;
         try {
             let answerText = '';
 
-            if (modelConfig.type === 'formdata') {
+            if (modelConfig.type === 'puter') {
+                // Puter.js integration
+                const loaded = await ensurePuterLoaded();
+                if (!loaded) throw new Error('Puter.js load failed');
+
+                const modelName = modelConfig.model || 'google/gemini-3-flash-preview';
+                let response;
+
+                if (imageUrl) {
+                    const dataUri = await fetchImageAsDataUri(imageUrl);
+                    if (dataUri) {
+                        response = await window.puter.ai.chat(prompt, dataUri, { model: modelName });
+                    } else {
+                        response = await window.puter.ai.chat(prompt, { model: modelName });
+                    }
+                } else {
+                    response = await window.puter.ai.chat(prompt, { model: modelName });
+                }
+
+                if (typeof response === 'string') {
+                    answerText = response;
+                } else if (response?.message?.content) {
+                    answerText = response.message.content;
+                } else if (response?.text) {
+                    answerText = response.text;
+                } else {
+                    answerText = JSON.stringify(response);
+                }
+
+            } else if (modelConfig.type === 'formdata') {
                 // Gemmy API (FormData)
                 const formData = new FormData();
                 formData.append('text', prompt);

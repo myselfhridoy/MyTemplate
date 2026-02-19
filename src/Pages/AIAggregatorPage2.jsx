@@ -9,11 +9,13 @@ import AIChatBotPage from "./AIChatBotPage";
 import LuziaChatBotPage from "./LuziaChatBotPage";
 import GemmyAIPage from "./GemmyAIPage";
 import MerlineAIPage from "./MerlineAIPage";
+import HMTAiPage from "./HMTAiPage";
 
 const pageOptions = [
   { label: "জেমি: দ্যা টিচার", value: "gemmy", Comp: GemmyAIPage },
   { label: "মিস মার্লিন: দ্যা টিউটর", value: "merlin", Comp: MerlineAIPage },
   { label: "Luzia: দ্যা প্রফেসর", value: "luzia", Comp: LuziaChatBotPage },
+  { label: "HMT AI Assistant", value: "hmtai-puter", Comp: HMTAiPage },
   { label: "Knowledge Master", value: "assistant", Comp: AIAssistantPage },
   { label: "Concept Builder", value: "doubt", Comp: DoubtSolvePage },
   { label: "H.M. Tutoring AI", value: "hmtai", Comp: UnlimitedAIQAPage },
