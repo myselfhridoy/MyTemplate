@@ -6,12 +6,12 @@ const IMGBB_API_KEY = import.meta.env.VITE_IMGBB_API_KEY;
 
 // Reaction emojis config
 const REACTION_TYPES = [
-    { key: 'like', emoji: '👍', label: 'Like' },
-    { key: 'love', emoji: '❤️', label: 'Love' },
-    { key: 'haha', emoji: '😂', label: 'Haha' },
-    { key: 'wow', emoji: '😮', label: 'Wow' },
-    { key: 'sad', emoji: '😢', label: 'Sad' },
-    { key: 'angry', emoji: '😡', label: 'Angry' },
+    { key: 'like', emoji: '👍', label: 'Like', color: 'text-blue-500' },
+    { key: 'love', emoji: '❤️', label: 'Love', color: 'text-red-500' },
+    { key: 'haha', emoji: '😂', label: 'Haha', color: 'text-yellow-500' },
+    { key: 'wow', emoji: '😮', label: 'Wow', color: 'text-yellow-500' },
+    { key: 'sad', emoji: '😢', label: 'Sad', color: 'text-yellow-500' },
+    { key: 'angry', emoji: '😡', label: 'Angry', color: 'text-orange-500' },
 ];
 
 // Time ago helper
@@ -40,6 +40,7 @@ function NewsFeedPage() {
     const [hasMore, setHasMore] = useState(true);
 
     // Composer state
+    const [composerOpen, setComposerOpen] = useState(false);
     const [newPostText, setNewPostText] = useState('');
     const [newPostImage, setNewPostImage] = useState(null);
     const [imagePreview, setImagePreview] = useState(null);
@@ -163,6 +164,7 @@ function NewsFeedPage() {
                 setNewPostText('');
                 setNewPostImage(null);
                 setImagePreview(null);
+                setComposerOpen(false);
                 showToast('পোস্ট প্রকাশিত হয়েছে! ✅');
             }
         } catch (err) {
@@ -305,64 +307,240 @@ function NewsFeedPage() {
         fetchPosts(page + 1, true);
     };
 
-    return (
-        <div className="min-h-screen bg-base-200/50" style={{ fontFamily: "'Hind Siliguri', sans-serif" }}>
-            <div className="container mx-auto max-w-2xl py-6 px-3 sm:px-4">
-
-                {/* Page Header */}
-                <div className="flex items-center gap-3 mb-6">
-                    <div className="bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl p-2.5 shadow-lg">
-                        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
-                        </svg>
-                    </div>
-                    <div>
-                        <h1 className="text-xl sm:text-2xl font-bold text-base-content">নিউজ ফিড</h1>
-                        <p className="text-xs text-base-content/50">সবার সাথে শেয়ার করুন</p>
+    // =============================================
+    // Skeleton loader component (Facebook-style shimmer)
+    // =============================================
+    const PostSkeleton = () => (
+        <div className="fb-card animate-pulse">
+            <div className="p-4">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-base-300"></div>
+                    <div className="flex-1">
+                        <div className="h-3.5 bg-base-300 rounded w-32 mb-2"></div>
+                        <div className="h-2.5 bg-base-300 rounded w-20"></div>
                     </div>
                 </div>
+                <div className="mt-4 space-y-2">
+                    <div className="h-3 bg-base-300 rounded w-full"></div>
+                    <div className="h-3 bg-base-300 rounded w-4/5"></div>
+                </div>
+            </div>
+            <div className="h-52 bg-base-300"></div>
+            <div className="p-4">
+                <div className="flex gap-4">
+                    <div className="h-8 bg-base-300 rounded flex-1"></div>
+                    <div className="h-8 bg-base-300 rounded flex-1"></div>
+                    <div className="h-8 bg-base-300 rounded flex-1"></div>
+                </div>
+            </div>
+        </div>
+    );
 
-                {/* Post Composer Card */}
-                <div className="card bg-base-100 shadow-lg border border-base-300/50 mb-6">
-                    <div className="card-body p-4">
-                        <div className="flex gap-3">
-                            <div className="avatar">
-                                <div className="w-10 h-10 rounded-full border border-base-300">
-                                    <img src={getAvatar(user?.isAdmin ? 'Admin' : 'Student')} alt="avatar" />
-                                </div>
-                            </div>
-                            <div className="flex-1">
+    return (
+        <div className="min-h-screen bg-base-200" style={{ fontFamily: "'Hind Siliguri', sans-serif" }}>
+
+            {/* ===== Facebook-style CSS ===== */}
+            <style>{`
+                .nf-page .fb-card {
+                    background: var(--fallback-b1, oklch(var(--b1)));
+                    border-radius: 8px;
+                    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+                    margin-bottom: 16px;
+                    overflow: hidden;
+                }
+                .nf-page .fb-divider {
+                    height: 1px;
+                    background: var(--fallback-b3, oklch(var(--b3)));
+                    margin: 0;
+                }
+                .nf-page .fb-action-btn {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 6px;
+                    flex: 1;
+                    padding: 8px 4px;
+                    border-radius: 6px;
+                    font-size: 14px;
+                    font-weight: 600;
+                    color: var(--fallback-bc, oklch(var(--bc) / 0.6));
+                    cursor: pointer;
+                    border: none;
+                    background: none;
+                    transition: background 0.15s;
+                }
+                .nf-page .fb-action-btn:hover {
+                    background: var(--fallback-b3, oklch(var(--b3)));
+                }
+                .nf-page .fb-action-btn.active {
+                    color: #1877f2;
+                }
+                .nf-page .fb-reaction-bar {
+                    position: absolute;
+                    bottom: calc(100% + 6px);
+                    left: -8px;
+                    background: var(--fallback-b1, oklch(var(--b1)));
+                    border-radius: 28px;
+                    box-shadow: 0 2px 12px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.05);
+                    padding: 4px 8px;
+                    display: flex;
+                    gap: 2px;
+                    z-index: 100;
+                    animation: fb-reaction-pop 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                }
+                .nf-page .fb-reaction-btn {
+                    font-size: 1.5rem;
+                    cursor: pointer;
+                    transition: transform 0.15s;
+                    padding: 2px 4px;
+                    border-radius: 50%;
+                    border: none;
+                    background: none;
+                    line-height: 1;
+                }
+                .nf-page .fb-reaction-btn:hover {
+                    transform: scale(1.35) translateY(-4px);
+                }
+                .nf-page .fb-comment-bubble {
+                    background: var(--fallback-b2, oklch(var(--b2)));
+                    border-radius: 18px;
+                    padding: 8px 12px;
+                }
+                .nf-page .fb-composer-input {
+                    background: var(--fallback-b2, oklch(var(--b2)));
+                    border: none;
+                    border-radius: 20px;
+                    padding: 8px 16px;
+                    width: 100%;
+                    font-size: 15px;
+                    outline: none;
+                    cursor: pointer;
+                    color: var(--fallback-bc, oklch(var(--bc) / 0.65));
+                    transition: background 0.15s;
+                }
+                .nf-page .fb-composer-input:hover {
+                    background: var(--fallback-b3, oklch(var(--b3)));
+                }
+                .nf-page .fb-composer-input:focus {
+                    background: var(--fallback-b2, oklch(var(--b2)));
+                    cursor: text;
+                }
+                .nf-page .fb-avatar {
+                    width: 40px;
+                    height: 40px;
+                    border-radius: 50%;
+                    object-fit: cover;
+                    border: 2px solid var(--fallback-b3, oklch(var(--b3)));
+                }
+                .nf-page .fb-avatar-sm {
+                    width: 32px;
+                    height: 32px;
+                    border-radius: 50%;
+                    object-fit: cover;
+                }
+                .nf-page .fb-avatar-xs {
+                    width: 28px;
+                    height: 28px;
+                    border-radius: 50%;
+                    object-fit: cover;
+                }
+                .nf-page .fb-emoji-stack {
+                    display: flex;
+                    margin-right: 4px;
+                }
+                .nf-page .fb-emoji-stack span {
+                    width: 20px;
+                    height: 20px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    border-radius: 50%;
+                    background: var(--fallback-b1, oklch(var(--b1)));
+                    border: 1.5px solid var(--fallback-b1, oklch(var(--b1)));
+                    font-size: 12px;
+                    margin-left: -4px;
+                }
+                .nf-page .fb-emoji-stack span:first-child {
+                    margin-left: 0;
+                }
+                .nf-page .fb-comment-input {
+                    background: var(--fallback-b2, oklch(var(--b2)));
+                    border: none;
+                    border-radius: 20px;
+                    padding: 8px 40px 8px 14px;
+                    width: 100%;
+                    font-size: 13px;
+                    outline: none;
+                    color: var(--fallback-bc, oklch(var(--bc)));
+                }
+                .nf-page .fb-comment-input::placeholder {
+                    color: var(--fallback-bc, oklch(var(--bc) / 0.45));
+                }
+
+                @keyframes fb-reaction-pop {
+                    0% { opacity: 0; transform: scale(0.7) translateY(8px); }
+                    100% { opacity: 1; transform: scale(1) translateY(0); }
+                }
+            `}</style>
+
+            <div className="nf-page container mx-auto max-w-[680px] py-4 px-3 sm:px-4">
+
+                {/* ===== Post Composer (Facebook Style) ===== */}
+                <div className="fb-card">
+                    <div className="p-3 sm:p-4">
+                        <div className="flex items-center gap-3">
+                            <img
+                                src={getAvatar(user?.isAdmin ? 'Admin' : 'Student')}
+                                alt="avatar"
+                                className="fb-avatar"
+                            />
+                            {!composerOpen ? (
+                                <button
+                                    className="fb-composer-input text-left"
+                                    onClick={() => setComposerOpen(true)}
+                                >
+                                    {`কি মনে হচ্ছে, ${user?.username || 'User'}?`}
+                                </button>
+                            ) : null}
+                        </div>
+
+                        {/* Expanded Composer */}
+                        {composerOpen && (
+                            <div className="mt-3">
                                 <textarea
-                                    className="textarea textarea-bordered w-full resize-none bg-base-200/50 focus:bg-base-100 transition-colors min-h-[60px] text-sm sm:text-base"
+                                    className="w-full bg-transparent border-none outline-none resize-none text-base-content/90 placeholder:text-base-content/40 min-h-[80px] text-[15px] leading-relaxed"
                                     placeholder={`কি মনে হচ্ছে, ${user?.username || 'User'}?`}
                                     value={newPostText}
                                     onChange={(e) => setNewPostText(e.target.value)}
-                                    rows={2}
+                                    autoFocus
+                                    rows={3}
                                 />
 
                                 {/* Image Preview */}
                                 {imagePreview && (
-                                    <div className="relative mt-2 inline-block">
+                                    <div className="relative mt-2 rounded-lg overflow-hidden border border-base-300">
                                         <img
                                             src={imagePreview}
                                             alt="preview"
-                                            className="max-h-48 rounded-lg border border-base-300 object-cover"
+                                            className="w-full max-h-72 object-cover"
                                         />
                                         <button
-                                            className="btn btn-circle btn-xs btn-error absolute top-1 right-1 shadow-lg"
+                                            className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center transition-colors text-lg"
                                             onClick={removeImage}
-                                        >✕</button>
+                                        >×</button>
                                     </div>
                                 )}
 
+                                {/* Composer Actions */}
+                                <div className="fb-divider mt-3"></div>
                                 <div className="flex items-center justify-between mt-3 gap-2">
-                                    <div className="flex gap-1">
+                                    <div className="flex items-center gap-1">
+                                        <span className="text-sm text-base-content/50 font-semibold mr-1">পোস্টে যোগ করুন:</span>
                                         {/* Image Upload */}
-                                        <label className="btn btn-ghost btn-sm gap-1 text-green-500 hover:bg-green-500/10 cursor-pointer">
-                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                        <label className="w-9 h-9 rounded-full hover:bg-green-500/10 flex items-center justify-center cursor-pointer transition-colors" title="ছবি">
+                                            <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                             </svg>
-                                            <span className="hidden sm:inline text-xs">ছবি</span>
                                             <input
                                                 type="file"
                                                 accept="image/*"
@@ -370,10 +548,14 @@ function NewsFeedPage() {
                                                 onChange={handleImageSelect}
                                             />
                                         </label>
+                                        <button className="w-9 h-9 rounded-full hover:bg-yellow-500/10 flex items-center justify-center transition-colors" title="ইমোজি">
+                                            <span className="text-xl">😊</span>
+                                        </button>
                                     </div>
 
                                     <button
-                                        className="btn btn-primary btn-sm px-6 shadow-md hover:shadow-lg transition-all"
+                                        className="px-5 py-1.5 rounded-lg text-sm font-bold text-white transition-all disabled:opacity-40"
+                                        style={{ background: (posting || uploadingImage || (!newPostText.trim() && !newPostImage)) ? '#a0a0a0' : '#1877f2' }}
                                         onClick={handleCreatePost}
                                         disabled={posting || uploadingImage || (!newPostText.trim() && !newPostImage)}
                                     >
@@ -382,308 +564,300 @@ function NewsFeedPage() {
                                                 <span className="loading loading-spinner loading-xs"></span>
                                                 {uploadingImage ? 'আপলোড...' : 'পোস্ট...'}
                                             </span>
-                                        ) : (
-                                            <span className="flex items-center gap-1">
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                                                </svg>
-                                                পোস্ট করুন
-                                            </span>
-                                        )}
+                                        ) : 'পোস্ট করুন'}
                                     </button>
                                 </div>
                             </div>
-                        </div>
+                        )}
                     </div>
                 </div>
 
-                {/* Feed Loading State */}
+                {/* ===== Loading Skeletons ===== */}
                 {loading && (
-                    <div className="flex flex-col items-center justify-center py-16 gap-3">
-                        <span className="loading loading-spinner loading-lg text-primary"></span>
-                        <span className="text-sm text-base-content/50">পোস্ট লোড হচ্ছে...</span>
+                    <div>
+                        <PostSkeleton />
+                        <PostSkeleton />
+                        <PostSkeleton />
                     </div>
                 )}
 
-                {/* Empty State */}
+                {/* ===== Empty State ===== */}
                 {!loading && posts.length === 0 && (
-                    <div className="card bg-base-100 shadow-md border border-base-300/50 p-10 text-center">
-                        <div className="text-5xl mb-4">📝</div>
+                    <div className="fb-card p-10 text-center">
+                        <div className="text-6xl mb-4">📝</div>
                         <h3 className="text-lg font-bold text-base-content/70">এখনো কোনো পোস্ট নেই</h3>
-                        <p className="text-sm text-base-content/50 mt-1">প্রথম পোস্ট করে ফিড শুরু করুন!</p>
+                        <p className="text-sm text-base-content/40 mt-2">প্রথম পোস্ট করে ফিড শুরু করুন!</p>
                     </div>
                 )}
 
-                {/* Posts Feed */}
-                <div className="space-y-4">
-                    {posts.map((post) => {
-                        const userReaction = getUserReaction(post.reactions);
-                        const totalReactions = getTotalReactions(post.reactions);
-                        const topEmojis = getTopReactionEmojis(post.reactions);
-                        const isAuthor = user?._id === post.authorId;
-                        const canDelete = isAuthor || user?.isAdmin;
+                {/* ===== Posts Feed ===== */}
+                {posts.map((post) => {
+                    const userReaction = getUserReaction(post.reactions);
+                    const totalReactions = getTotalReactions(post.reactions);
+                    const topEmojis = getTopReactionEmojis(post.reactions);
+                    const isAuthor = user?._id === post.authorId;
+                    const canDelete = isAuthor || user?.isAdmin;
+                    const commentCount = post.comments?.length || 0;
 
-                        return (
-                            <div key={post._id} className="card bg-base-100 shadow-md border border-base-300/50 hover:shadow-lg transition-shadow" id={post._id}>
-                                <div className="card-body p-4">
+                    return (
+                        <div key={post._id} className="fb-card" id={post._id}>
 
-                                    {/* Post Header */}
-                                    <div className="flex items-start justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <div className="avatar">
-                                                <div className="w-10 h-10 rounded-full border border-base-300">
-                                                    <img src={getAvatar(post.authorRole)} alt={post.authorName} />
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="font-bold text-sm text-base-content">{post.authorName}</span>
-                                                    <span className={`badge badge-xs ${post.authorRole === 'Admin' ? 'badge-primary' : 'badge-ghost'}`}>
-                                                        {post.authorRole === 'Admin' ? '🛡️ Admin' : '🎓 Student'}
-                                                    </span>
-                                                </div>
-                                                <span className="text-xs text-base-content/40">{timeAgo(post.createdAt)}</span>
-                                            </div>
-                                        </div>
-
-                                        {/* Delete Menu */}
-                                        {canDelete && (
-                                            <div className="dropdown dropdown-end">
-                                                <label tabIndex={0} className="btn btn-ghost btn-circle btn-xs opacity-40 hover:opacity-100">
-                                                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                                                        <circle cx="12" cy="5" r="2" />
-                                                        <circle cx="12" cy="12" r="2" />
-                                                        <circle cx="12" cy="19" r="2" />
-                                                    </svg>
-                                                </label>
-                                                <ul tabIndex={0} className="dropdown-content menu p-1 shadow-lg bg-base-100 rounded-lg w-40 border border-base-300 z-50">
-                                                    <li>
-                                                        <button
-                                                            className="text-error text-sm"
-                                                            onClick={() => handleDeletePost(post._id)}
-                                                        >
-                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                            </svg>
-                                                            মুছে ফেলুন
-                                                        </button>
-                                                    </li>
-                                                </ul>
-                                            </div>
+                            {/* === Post Header === */}
+                            <div className="flex items-start justify-between p-3 sm:px-4 pb-0">
+                                <div className="flex items-center gap-2.5">
+                                    <div className="relative">
+                                        <img src={getAvatar(post.authorRole)} alt={post.authorName} className="fb-avatar" />
+                                        {post.authorRole === 'Admin' && (
+                                            <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center border-2 border-base-100" title="Admin">
+                                                <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" /></svg>
+                                            </span>
                                         )}
                                     </div>
-
-                                    {/* Post Content */}
-                                    <p className="text-sm sm:text-base text-base-content mt-2 whitespace-pre-wrap leading-relaxed">
-                                        {post.content}
-                                    </p>
-
-                                    {/* Post Image */}
-                                    {post.imageUrl && (
-                                        <div className="mt-3 -mx-4">
-                                            <img
-                                                src={post.imageUrl}
-                                                alt="post"
-                                                className="w-full max-h-[500px] object-cover cursor-pointer hover:opacity-95 transition-opacity"
-                                                onClick={() => window.open(post.imageUrl, '_blank')}
-                                            />
+                                    <div>
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="font-semibold text-[15px] text-base-content hover:underline cursor-pointer">
+                                                {post.authorName}
+                                            </span>
+                                            {post.authorRole === 'Admin' && (
+                                                <span className="text-xs text-blue-500/80 font-medium">• Admin</span>
+                                            )}
                                         </div>
-                                    )}
+                                        <div className="flex items-center gap-1 text-xs text-base-content/40">
+                                            <span>{timeAgo(post.createdAt)}</span>
+                                            <span>·</span>
+                                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 16 16">
+                                                <path d="M8 0a8 8 0 100 16A8 8 0 008 0zM1.5 8a6.5 6.5 0 0113 0h-2.7A4.52 4.52 0 008.5 4.56V1.52A6.49 6.49 0 011.5 8zm6 6.48V11.4a4.52 4.52 0 003.3-3.4h2.7a6.49 6.49 0 01-6 6.48z" />
+                                            </svg>
+                                        </div>
+                                    </div>
+                                </div>
 
-                                    {/* Reaction Summary */}
-                                    {totalReactions > 0 && (
-                                        <div className="flex items-center gap-1.5 mt-3 px-1">
-                                            <div className="flex -space-x-1">
+                                {/* Three-dot menu */}
+                                {canDelete && (
+                                    <div className="dropdown dropdown-end">
+                                        <label tabIndex={0} className="w-9 h-9 rounded-full hover:bg-base-200 flex items-center justify-center cursor-pointer transition-colors">
+                                            <svg className="w-5 h-5 text-base-content/50" fill="currentColor" viewBox="0 0 24 24">
+                                                <circle cx="12" cy="5" r="2" />
+                                                <circle cx="12" cy="12" r="2" />
+                                                <circle cx="12" cy="19" r="2" />
+                                            </svg>
+                                        </label>
+                                        <ul tabIndex={0} className="dropdown-content menu p-1 shadow-xl bg-base-100 rounded-xl w-48 border border-base-300/50 z-50 mt-1">
+                                            <li>
+                                                <button
+                                                    className="text-error text-sm rounded-lg"
+                                                    onClick={() => handleDeletePost(post._id)}
+                                                >
+                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                    </svg>
+                                                    পোস্ট মুছে ফেলুন
+                                                </button>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* === Post Content === */}
+                            <div className="px-3 sm:px-4 py-2">
+                                <p className="text-[15px] text-base-content leading-relaxed whitespace-pre-wrap">
+                                    {post.content}
+                                </p>
+                            </div>
+
+                            {/* === Post Image === */}
+                            {post.imageUrl && (
+                                <div className="cursor-pointer" onClick={() => window.open(post.imageUrl, '_blank')}>
+                                    <img
+                                        src={post.imageUrl}
+                                        alt="post"
+                                        className="w-full max-h-[520px] object-cover hover:brightness-95 transition-all"
+                                    />
+                                </div>
+                            )}
+
+                            {/* === Reaction & Comment Counts === */}
+                            {(totalReactions > 0 || commentCount > 0) && (
+                                <div className="flex items-center justify-between px-4 py-2.5">
+                                    {totalReactions > 0 ? (
+                                        <div className="flex items-center gap-1 cursor-pointer hover:underline">
+                                            <div className="fb-emoji-stack">
                                                 {topEmojis.map((emoji, i) => (
-                                                    <span key={i} className="text-sm bg-base-200 rounded-full w-5 h-5 flex items-center justify-center border border-base-100 shadow-sm text-xs">
-                                                        {emoji}
-                                                    </span>
+                                                    <span key={i}>{emoji}</span>
                                                 ))}
                                             </div>
-                                            <span className="text-xs text-base-content/50">{totalReactions}</span>
-                                            {(post.comments?.length || 0) > 0 && (
-                                                <span className="text-xs text-base-content/40 ml-auto">
-                                                    {post.comments.length} মন্তব্য
-                                                </span>
-                                            )}
+                                            <span className="text-[13px] text-base-content/50">{totalReactions}</span>
                                         </div>
-                                    )}
-
-                                    {/* Divider */}
-                                    <div className="divider my-1 h-0"></div>
-
-                                    {/* Action Buttons */}
-                                    <div className="flex items-center justify-between gap-1">
-                                        {/* Like/React Button */}
-                                        <div className="relative flex-1">
-                                            <button
-                                                className={`btn btn-ghost btn-sm w-full gap-1.5 text-xs sm:text-sm ${userReaction ? 'text-blue-500 font-semibold' : ''}`}
-                                                onClick={() => handleReaction(post._id, 'like')}
-                                                onMouseEnter={() => setActiveReactionPicker(post._id)}
-                                                onMouseLeave={() => setTimeout(() => setActiveReactionPicker(prev => prev === post._id ? null : prev), 500)}
-                                            >
-                                                <span className="text-base">{userReaction ? userReaction.emoji : '👍'}</span>
-                                                <span className="hidden sm:inline">{userReaction ? userReaction.label : 'Like'}</span>
-                                            </button>
-
-                                            {/* Reaction Picker Popup */}
-                                            {activeReactionPicker === post._id && (
-                                                <div
-                                                    className="absolute bottom-full left-0 mb-1 bg-base-100 rounded-full shadow-xl border border-base-300 px-2 py-1.5 flex gap-0.5 z-50 animate-fade-in"
-                                                    onMouseEnter={() => setActiveReactionPicker(post._id)}
-                                                    onMouseLeave={() => setActiveReactionPicker(null)}
-                                                >
-                                                    {REACTION_TYPES.map((r) => (
-                                                        <button
-                                                            key={r.key}
-                                                            className="btn btn-ghost btn-circle btn-xs hover:scale-125 transition-transform text-lg tooltip tooltip-top"
-                                                            data-tip={r.label}
-                                                            onClick={(e) => { e.stopPropagation(); handleReaction(post._id, r.key); }}
-                                                        >
-                                                            {r.emoji}
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {/* Comment Button */}
+                                    ) : <div></div>}
+                                    {commentCount > 0 && (
                                         <button
-                                            className="btn btn-ghost btn-sm flex-1 gap-1.5 text-xs sm:text-sm"
+                                            className="text-[13px] text-base-content/50 hover:underline cursor-pointer"
                                             onClick={() => setExpandedComments(prev => ({ ...prev, [post._id]: !prev[post._id] }))}
                                         >
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                                            </svg>
-                                            <span className="hidden sm:inline">মন্তব্য</span>
+                                            {commentCount} মন্তব্য
                                         </button>
+                                    )}
+                                </div>
+                            )}
 
-                                        {/* Share Button */}
-                                        <button
-                                            className="btn btn-ghost btn-sm flex-1 gap-1.5 text-xs sm:text-sm"
-                                            onClick={() => handleShare(post._id)}
+                            {/* === Divider === */}
+                            <div className="mx-4"><div className="fb-divider"></div></div>
+
+                            {/* === Action Buttons (Like, Comment, Share) === */}
+                            <div className="flex items-center px-2 py-1">
+                                {/* Like / React */}
+                                <div className="relative flex-1">
+                                    <button
+                                        className={`fb-action-btn w-full ${userReaction ? 'active' : ''}`}
+                                        onClick={() => handleReaction(post._id, 'like')}
+                                        onMouseEnter={() => setActiveReactionPicker(post._id)}
+                                        onMouseLeave={() => setTimeout(() => setActiveReactionPicker(prev => prev === post._id ? null : prev), 600)}
+                                    >
+                                        <span className="text-lg leading-none">{userReaction ? userReaction.emoji : '👍'}</span>
+                                        <span className="text-[13px]">{userReaction ? userReaction.label : 'Like'}</span>
+                                    </button>
+
+                                    {/* Reaction Picker Popup */}
+                                    {activeReactionPicker === post._id && (
+                                        <div
+                                            className="fb-reaction-bar"
+                                            onMouseEnter={() => setActiveReactionPicker(post._id)}
+                                            onMouseLeave={() => setActiveReactionPicker(null)}
                                         >
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                                            </svg>
-                                            <span className="hidden sm:inline">শেয়ার</span>
-                                        </button>
-                                    </div>
-
-                                    {/* Comments Section */}
-                                    {expandedComments[post._id] && (
-                                        <div className="mt-2 space-y-3">
-
-                                            {/* Existing Comments */}
-                                            {post.comments && post.comments.length > 0 && (
-                                                <div className="space-y-2 max-h-64 overflow-y-auto px-1">
-                                                    {post.comments.map((comment) => (
-                                                        <div key={comment.commentId} className="flex gap-2">
-                                                            <div className="avatar">
-                                                                <div className="w-7 h-7 rounded-full border border-base-300">
-                                                                    <img src={getAvatar(comment.authorRole)} alt={comment.authorName} />
-                                                                </div>
-                                                            </div>
-                                                            <div className="bg-base-200 rounded-xl px-3 py-2 flex-1 min-w-0">
-                                                                <div className="flex items-center gap-1.5">
-                                                                    <span className="font-semibold text-xs text-base-content">{comment.authorName}</span>
-                                                                    <span className={`badge badge-xs ${comment.authorRole === 'Admin' ? 'badge-primary' : 'badge-ghost'} py-0`}>
-                                                                        {comment.authorRole === 'Admin' ? 'Admin' : 'Student'}
-                                                                    </span>
-                                                                </div>
-                                                                <p className="text-sm text-base-content/80 mt-0.5 break-words">{comment.text}</p>
-                                                                <span className="text-[10px] text-base-content/30 mt-1 block">{timeAgo(comment.createdAt)}</span>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-
-                                            {/* Comment Input */}
-                                            <div className="flex gap-2 items-end">
-                                                <div className="avatar">
-                                                    <div className="w-8 h-8 rounded-full border border-base-300">
-                                                        <img src={getAvatar(user?.isAdmin ? 'Admin' : 'Student')} alt="you" />
-                                                    </div>
-                                                </div>
-                                                <div className="flex-1 relative">
-                                                    <input
-                                                        type="text"
-                                                        className="input input-bordered input-sm w-full rounded-full bg-base-200/70 focus:bg-base-100 pr-10 text-sm transition-colors"
-                                                        placeholder="মন্তব্য লিখুন..."
-                                                        value={commentTexts[post._id] || ''}
-                                                        onChange={(e) => setCommentTexts(prev => ({ ...prev, [post._id]: e.target.value }))}
-                                                        onKeyDown={(e) => e.key === 'Enter' && handleAddComment(post._id)}
-                                                    />
-                                                    <button
-                                                        className="absolute right-1 top-1/2 -translate-y-1/2 btn btn-ghost btn-circle btn-xs text-primary"
-                                                        onClick={() => handleAddComment(post._id)}
-                                                        disabled={!commentTexts[post._id]?.trim() || commentingOn === post._id}
-                                                    >
-                                                        {commentingOn === post._id ? (
-                                                            <span className="loading loading-spinner loading-xs"></span>
-                                                        ) : (
-                                                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                                                                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
-                                                            </svg>
-                                                        )}
-                                                    </button>
-                                                </div>
-                                            </div>
+                                            {REACTION_TYPES.map((r) => (
+                                                <button
+                                                    key={r.key}
+                                                    className="fb-reaction-btn tooltip tooltip-top"
+                                                    data-tip={r.label}
+                                                    onClick={(e) => { e.stopPropagation(); handleReaction(post._id, r.key); }}
+                                                >
+                                                    {r.emoji}
+                                                </button>
+                                            ))}
                                         </div>
                                     )}
                                 </div>
-                            </div>
-                        );
-                    })}
-                </div>
 
-                {/* Load More */}
+                                {/* Comment */}
+                                <button
+                                    className="fb-action-btn"
+                                    onClick={() => setExpandedComments(prev => ({ ...prev, [post._id]: !prev[post._id] }))}
+                                >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 20.25c4.97 0 9-3.694 9-8.25s-4.03-8.25-9-8.25S3 7.444 3 12c0 2.104.859 4.023 2.273 5.48.432.447.74 1.04.586 1.641a4.483 4.483 0 01-.923 1.785A5.969 5.969 0 006 21c1.282 0 2.47-.402 3.445-1.087.81.22 1.668.337 2.555.337z" />
+                                    </svg>
+                                    <span className="text-[13px]">মন্তব্য</span>
+                                </button>
+
+                                {/* Share */}
+                                <button
+                                    className="fb-action-btn"
+                                    onClick={() => handleShare(post._id)}
+                                >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" />
+                                    </svg>
+                                    <span className="text-[13px]">শেয়ার</span>
+                                </button>
+                            </div>
+
+                            {/* === Comments Section === */}
+                            {expandedComments[post._id] && (
+                                <div className="px-3 sm:px-4 pb-3">
+                                    <div className="fb-divider mb-3"></div>
+
+                                    {/* Existing Comments */}
+                                    {post.comments && post.comments.length > 0 && (
+                                        <div className="space-y-3 max-h-80 overflow-y-auto mb-3">
+                                            {post.comments.map((comment) => (
+                                                <div key={comment.commentId} className="flex gap-2 items-start">
+                                                    <img src={getAvatar(comment.authorRole)} alt={comment.authorName} className="fb-avatar-xs mt-0.5" />
+                                                    <div>
+                                                        <div className="fb-comment-bubble">
+                                                            <span className="font-semibold text-[13px] text-base-content">
+                                                                {comment.authorName}
+                                                                {comment.authorRole === 'Admin' && (
+                                                                    <span className="text-blue-500 text-[11px] ml-1 font-normal">• Admin</span>
+                                                                )}
+                                                            </span>
+                                                            <p className="text-[13px] text-base-content/80 mt-0.5 leading-snug">{comment.text}</p>
+                                                        </div>
+                                                        <div className="flex items-center gap-3 mt-1 ml-3">
+                                                            <span className="text-[11px] text-base-content/35">{timeAgo(comment.createdAt)}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* Comment Input */}
+                                    <div className="flex gap-2 items-center">
+                                        <img src={getAvatar(user?.isAdmin ? 'Admin' : 'Student')} alt="you" className="fb-avatar-sm" />
+                                        <div className="flex-1 relative">
+                                            <input
+                                                type="text"
+                                                className="fb-comment-input"
+                                                placeholder="মন্তব্য লিখুন..."
+                                                value={commentTexts[post._id] || ''}
+                                                onChange={(e) => setCommentTexts(prev => ({ ...prev, [post._id]: e.target.value }))}
+                                                onKeyDown={(e) => e.key === 'Enter' && handleAddComment(post._id)}
+                                            />
+                                            <button
+                                                className="absolute right-2 top-1/2 -translate-y-1/2 text-blue-500 hover:text-blue-600 disabled:opacity-30 transition-colors"
+                                                onClick={() => handleAddComment(post._id)}
+                                                disabled={!commentTexts[post._id]?.trim() || commentingOn === post._id}
+                                            >
+                                                {commentingOn === post._id ? (
+                                                    <span className="loading loading-spinner loading-xs"></span>
+                                                ) : (
+                                                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                                        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+                                                    </svg>
+                                                )}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
+
+                {/* ===== Load More ===== */}
                 {hasMore && !loading && posts.length > 0 && (
-                    <div className="text-center mt-6 mb-10">
+                    <div className="text-center mt-2 mb-10">
                         <button
-                            className="btn btn-outline btn-primary btn-sm px-8"
+                            className="w-full fb-card py-3 text-center text-blue-500 font-semibold text-[15px] hover:brightness-95 transition-all"
                             onClick={loadMore}
                             disabled={loadingMore}
                         >
                             {loadingMore ? (
-                                <span className="flex items-center gap-2">
-                                    <span className="loading loading-spinner loading-xs"></span>
+                                <span className="flex items-center justify-center gap-2">
+                                    <span className="loading loading-spinner loading-sm"></span>
                                     লোড হচ্ছে...
                                 </span>
-                            ) : (
-                                'আরো দেখুন'
-                            )}
+                            ) : 'আরো পোস্ট দেখুন'}
                         </button>
                     </div>
                 )}
 
                 {!hasMore && posts.length > 0 && (
-                    <div className="text-center text-xs text-base-content/30 mt-6 mb-10 py-4">
+                    <div className="text-center text-[13px] text-base-content/25 mt-4 mb-10 py-6">
                         — সব পোস্ট দেখা হয়ে গেছে —
                     </div>
                 )}
             </div>
 
-            {/* Toast */}
+            {/* ===== Toast ===== */}
             {toast && (
-                <div className="toast toast-end toast-bottom z-50">
-                    <div className={`alert ${toast.type === 'error' ? 'alert-error' : 'alert-success'} shadow-lg text-sm`}>
-                        <span>{toast.msg}</span>
+                <div className="fixed bottom-6 right-6 z-[999] animate-fade-in">
+                    <div className={`px-5 py-3 rounded-xl shadow-2xl text-sm font-medium text-white ${toast.type === 'error' ? 'bg-red-500' : 'bg-green-500'}`}>
+                        {toast.msg}
                     </div>
                 </div>
             )}
-
-            {/* Inline CSS for animation */}
-            <style>{`
-        @keyframes fade-in {
-          from { opacity: 0; transform: translateY(4px) scale(0.95); }
-          to { opacity: 1; transform: translateY(0) scale(1); }
-        }
-        .animate-fade-in {
-          animation: fade-in 0.15s ease-out;
-        }
-      `}</style>
         </div>
     );
 }
