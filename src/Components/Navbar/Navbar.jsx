@@ -61,6 +61,7 @@ function Navbar() {
               <ul className="menu menu-sm dropdown-content bg-base-100 rounded-box z-1 mt-3 w-52 p-2 shadow">
                 <li><Link to="/creative-cq" onClick={() => setTimeout(() => handleMenuClick(), 50)}>প্রশ্ন ব্যাংক</Link></li>
                 <li><Link to="/board-cq" onClick={() => setTimeout(() => handleMenuClick(), 50)}>বোর্ড প্রশ্নব্যাংক</Link></li>
+                <li><Link to="/newsfeed" onClick={() => setTimeout(() => handleMenuClick(), 50)}>নিউজ ফিড</Link></li>
 
                 {/* Admin Only Routes */}
                 {(user?.isAdmin || user?.username === 'admin') && (
@@ -71,6 +72,7 @@ function Navbar() {
                   </>
                 )}
 
+                <li><Link to="/ai-chatbot" onClick={() => setTimeout(() => handleMenuClick(), 50)}>AI Chatbot</Link></li>
                 <li><Link to="/ai-aggregator" onClick={() => setTimeout(() => handleMenuClick(), 50)}>AI টিউটর</Link></li>
 
                 {(user?.isAdmin || user?.username === 'admin') && (

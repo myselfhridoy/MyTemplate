@@ -254,6 +254,27 @@ function Dashboard() {
           </div>
         )}
 
+        {/* AI Chatbot ফিচার কার্ড */}
+        <div
+          className="group relative bg-gradient-to-br from-purple-100 via-purple-50 to-white dark:from-purple-900 dark:via-purple-950 dark:to-gray-900 rounded-xl shadow-lg border border-purple-200 dark:border-purple-800 p-4 flex flex-col items-center justify-between transition-transform hover:-translate-y-1 hover:shadow-2xl cursor-pointer overflow-hidden min-h-[220px]"
+          style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
+          onClick={() => navigate('/ai-chatbot')}
+        >
+          <div className="absolute top-0 right-0 opacity-10 text-[5rem] pointer-events-none select-none">🤖</div>
+          <div className="flex flex-col items-center gap-2 z-10">
+            <div className="bg-purple-600/90 dark:bg-purple-700/80 rounded-full p-2 mb-1 shadow-lg">
+              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
+            </div>
+            <span className="text-lg font-bold text-purple-800 dark:text-purple-200 tracking-tight">AI Chatbot</span>
+            <span className="text-gray-700 dark:text-gray-200 text-center text-sm font-medium">উন্নত AI মডেলের সাথে চ্যাট করুন, ছবি এবং ফাইল শেয়ার করুন।</span>
+          </div>
+          <button
+            className="btn btn-secondary mt-4 w-full group-hover:scale-105 transition-transform text-base"
+            style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
+            onClick={e => { e.stopPropagation(); navigate('/ai-chatbot'); }}
+          >AI Chatbot খুলুন</button>
+        </div>
+
         {/* AI টিউটর ফিচার কার্ড */}
         <div
           className="group relative bg-gradient-to-br from-indigo-100 via-indigo-50 to-white dark:from-indigo-900 dark:via-indigo-950 dark:to-gray-900 rounded-xl shadow-lg border border-indigo-200 dark:border-indigo-800 p-4 flex flex-col items-center justify-between transition-transform hover:-translate-y-1 hover:shadow-2xl cursor-pointer overflow-hidden min-h-[220px]"
@@ -343,6 +364,27 @@ function Dashboard() {
             >ChatPDF খুলুন</button>
           </div>
         )}
+
+        {/* News Feed Card */}
+        <div
+          className="group relative bg-gradient-to-br from-sky-100 via-sky-50 to-white dark:from-sky-900 dark:via-sky-950 dark:to-gray-900 rounded-xl shadow-lg border border-sky-200 dark:border-sky-800 p-4 flex flex-col items-center justify-between transition-transform hover:-translate-y-1 hover:shadow-2xl cursor-pointer overflow-hidden min-h-[220px]"
+          style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
+          onClick={() => navigate('/newsfeed')}
+        >
+          <div className="absolute top-0 right-0 opacity-10 text-[5rem] pointer-events-none select-none">📰</div>
+          <div className="flex flex-col items-center gap-2 z-10">
+            <div className="bg-sky-600/90 dark:bg-sky-700/80 rounded-full p-2 mb-1 shadow-lg">
+              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" /></svg>
+            </div>
+            <span className="text-lg font-bold text-sky-800 dark:text-sky-200 tracking-tight">News Feed</span>
+            <span className="text-gray-700 dark:text-gray-200 text-center text-sm font-medium">Post, react, comment and share with everyone.</span>
+          </div>
+          <button
+            className="btn mt-4 w-full group-hover:scale-105 transition-transform text-base bg-sky-600 hover:bg-sky-700 text-white border-none"
+            style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
+            onClick={e => { e.stopPropagation(); navigate('/newsfeed'); }}
+          >News Feed</button>
+        </div>
 
         {/* প্রয়োজনীয় টুলস ফিচার কার্ড */}
         <div

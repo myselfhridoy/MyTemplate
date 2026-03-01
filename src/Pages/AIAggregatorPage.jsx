@@ -10,6 +10,7 @@ import LuziaChatBotPage from "./LuziaChatBotPage";
 import GemmyAIPage from "./GemmyAIPage";
 import MerlineAIPage from "./MerlineAIPage";
 import HMTAiPage from "./HMTAiPage";
+import PuterChatPage from "./PuterChatPage";
 
 const pageOptions = [
   { label: "জেমি: দ্যা টিচার", value: "gemmy" },

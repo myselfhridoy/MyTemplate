@@ -3,6 +3,7 @@ import { MathJaxContext, MathJax } from 'better-react-mathjax';
 import mappingData from '../Components/Mapping/Mapping.json';
 import AskAIModalMongoDB from '../Components/AskAI/AskAIModalMongoDB';
 import { toPng } from 'html-to-image';
+import MCQCard from '../Components/MCQCard/MCQCard';
 
 const API_BASE = 'https://geminiai-render.onrender.com/api/nctb-questions/board-questions';
 
@@ -11,7 +12,7 @@ function getBengaliNum(num) {
   return String(num).split('').map(d => '০১২৩৪৫৬৭৮৯'[d] ?? d).join('');
 }
 
-// Filter optionsza 
+// Filter options (CQ only)
 const filterOptions = [
   { value: 'cq', label: 'সৃজনশীল' },
   { value: 'ka', label: 'ক (জ্ঞানমূলক)' },
@@ -19,6 +20,8 @@ const filterOptions = [
   { value: 'ga', label: 'গ (প্রয়োগ)' },
   { value: 'gha', label: 'ঘ (উচ্চতর দক্ষতা)' },
 ];
+
+
 
 function BoardCQPage() {
   const pageSize = 15;
@@ -62,6 +65,9 @@ function BoardCQPage() {
   const qtypes = selectedSubjectObj ? (selectedSubjectObj.qtypes || []) : [];
   const chapters = selectedSubjectObj ? selectedSubjectObj.chapters : [];
 
+  // BMCQ mode detection
+  const isBMCQ = selectedQtype.toUpperCase() === 'BMCQ';
+
   // =============================================
   // Fetch board questions from API
   // =============================================
@@ -74,13 +80,17 @@ function BoardCQPage() {
       setLoading(true);
       setError(null);
       try {
-        const params = new URLSearchParams({
+        const paramObj = {
           class: selectedClass,
           subject: selectedSubject,
           qtype: selectedQtype,
           chapter: selectedChapter,
-          filter: selectedFilter,
-        });
+        };
+        // CQ mode তে filter পাঠাও, BMCQ তে নয়
+        if (!isBMCQ) {
+          paramObj.filter = selectedFilter;
+        }
+        const params = new URLSearchParams(paramObj);
         const res = await fetch(`${API_BASE}?${params}`);
         if (!res.ok) throw new Error('ডাটা লোড ব্যর্থ');
         const data = await res.json();
@@ -96,7 +106,7 @@ function BoardCQPage() {
       }
     };
     fetchData();
-  }, [selectedClass, selectedSubject, selectedQtype, selectedChapter, selectedFilter]);
+  }, [selectedClass, selectedSubject, selectedQtype, selectedChapter, selectedFilter, isBMCQ]);
 
   // Derived: unique sources from results (latest year first)
   // Helper: extract year from source string (supports both Bengali & English digits)
@@ -118,12 +128,20 @@ function BoardCQPage() {
   // Derived: unique topics from results (only for selected chapter), sorted by topic_code
   const topicMap = new Map();
   results.forEach(r => {
-    const sqs = r.sub_questions || (r.sub_question ? [r.sub_question] : []);
-    sqs.forEach(sq => {
-      if (sq.chapter_no === parseInt(selectedChapter) && sq.topic_name && !topicMap.has(sq.topic_name)) {
-        topicMap.set(sq.topic_name, sq.topic_code || '');
+    if (isBMCQ) {
+      // BMCQ: topic info is inside r.data
+      const d = r.data;
+      if (d && d.topic_name && !topicMap.has(d.topic_name)) {
+        topicMap.set(d.topic_name, d.topic_code || '');
       }
-    });
+    } else {
+      const sqs = r.sub_questions || (r.sub_question ? [r.sub_question] : []);
+      sqs.forEach(sq => {
+        if (sq.chapter_no === parseInt(selectedChapter) && sq.topic_name && !topicMap.has(sq.topic_name)) {
+          topicMap.set(sq.topic_name, sq.topic_code || '');
+        }
+      });
+    }
   });
   const topics = Array.from(topicMap.entries())
     .sort((a, b) => {
@@ -138,6 +156,10 @@ function BoardCQPage() {
 
   // Helper: get topic info from an item
   const getItemTopic = (item) => {
+    // BMCQ: topic is in item.data
+    if (isBMCQ && item.data) {
+      return { code: item.data.topic_code || '', name: item.data.topic_name || '' };
+    }
     if (item.sub_question) return { code: item.sub_question.topic_code || '', name: item.sub_question.topic_name || '' };
     // For CQ filter: topic comes from গ/ঘ sub_question matching the chapter
     if (item.sub_questions && item.sub_questions.length > 0) {
@@ -158,7 +180,9 @@ function BoardCQPage() {
   const filteredResults = results.filter(r => {
     if (selectedSource && r.source !== selectedSource) return false;
     if (selectedTopic) {
-      if (r.sub_questions) {
+      if (isBMCQ) {
+        if (!r.data || r.data.topic_name !== selectedTopic) return false;
+      } else if (r.sub_questions) {
         if (!r.sub_questions.some(sq => sq.topic_name === selectedTopic)) return false;
       } else if (r.sub_question) {
         if (r.sub_question.topic_name !== selectedTopic) return false;
@@ -702,8 +726,8 @@ function BoardCQPage() {
             <option value="question">শুধু প্রশ্ন</option>
           </select>
 
-          {/* ফিল্টার (cq / ka / kha / ga / gha) */}
-          {selectedClass && selectedSubject && selectedChapter && (
+          {/* ফিল্টার (cq / ka / kha / ga / gha) — শুধু CQ mode তে */}
+          {selectedClass && selectedSubject && selectedChapter && !isBMCQ && (
             <select
               className="select select-bordered"
               value={selectedFilter}
@@ -768,18 +792,21 @@ function BoardCQPage() {
                 <span className="text-sm text-gray-500">
                   মোট: {getBengaliNum(filteredResults.length)} টি প্রশ্ন পাওয়া গেছে
                 </span>
-                <button
-                  className="btn btn-sm btn-outline btn-info gap-1"
-                  onClick={generateSuggestion}
-                  disabled={suggestionLoading}
-                >
-                  {suggestionLoading ? (
-                    <span className="loading loading-spinner loading-xs"></span>
-                  ) : (
-                    '📊'
-                  )}
-                  সাজেশন দেখুন
-                </button>
+                {/* সাজেশন শুধু CQ mode তে */}
+                {!isBMCQ && (
+                  <button
+                    className="btn btn-sm btn-outline btn-info gap-1"
+                    onClick={generateSuggestion}
+                    disabled={suggestionLoading}
+                  >
+                    {suggestionLoading ? (
+                      <span className="loading loading-spinner loading-xs"></span>
+                    ) : (
+                      '📊'
+                    )}
+                    সাজেশন দেখুন
+                  </button>
+                )}
               </div>
             )}
 
@@ -787,17 +814,50 @@ function BoardCQPage() {
               {paginatedResults.length === 0 && (
                 <div className="text-center py-8">কোনো প্রশ্ন পাওয়া যায়নি</div>
               )}
-              {selectedFilter === 'cq'
-                ? paginatedResults.map((item, idx) => renderCard(item, idx))
-                : groupedByTopic.map((group, gi) => (
-                  <div key={gi}>
-                    <div className="sticky top-16 z-10 bg-base-200 dark:bg-base-300 rounded-lg px-4 py-2 mb-3 mt-4 shadow-sm border-l-4 border-primary">
-                      <span className="font-bold text-primary text-sm">{group.code ? `${group.code}: ` : ''}{group.name}</span>
-                      <span className="text-xs text-gray-500 ml-2">({getBengaliNum(group.items.length)} টি)</span>
+              {isBMCQ
+                ? (() => {
+                  let lastStem = null;
+                  let lastStemText = null;
+                  return paginatedResults.map((item, idx) => {
+                    const d = item.data;
+                    const hasStem = d && d.shared_stem && d.shared_stem.text;
+                    // উদ্দীপক একবারই দেখাবে — নতুন stem হলে দেখাও, আগেরটার রিপিট হলে লুকাও
+                    let showStem = false;
+                    if (hasStem) {
+                      showStem = d.shared_stem.text !== lastStemText;
+                      lastStem = d.shared_stem;
+                      lastStemText = d.shared_stem.text;
+                    }
+                    return (
+                      <MCQCard
+                        key={idx}
+                        item={item}
+                        idx={idx}
+                        currentPage={currentPage}
+                        pageSize={pageSize}
+                        viewType={viewType}
+                        openAnswerIdx={openAnswerIdx}
+                        setOpenAnswerIdx={setOpenAnswerIdx}
+                        setAskAI={setAskAI}
+                        renderText={renderText}
+                        getBengaliNum={getBengaliNum}
+                        fallbackStem={lastStem}
+                        showStem={showStem}
+                      />
+                    );
+                  });
+                })()
+                : selectedFilter === 'cq'
+                  ? paginatedResults.map((item, idx) => renderCard(item, idx))
+                  : groupedByTopic.map((group, gi) => (
+                    <div key={gi}>
+                      <div className="sticky top-16 z-10 bg-base-200 dark:bg-base-300 rounded-lg px-4 py-2 mb-3 mt-4 shadow-sm border-l-4 border-primary">
+                        <span className="font-bold text-primary text-sm">{group.code ? `${group.code}: ` : ''}{group.name}</span>
+                        <span className="text-xs text-gray-500 ml-2">({getBengaliNum(group.items.length)} টি)</span>
+                      </div>
+                      {group.items.map(({ item, idx }) => renderCard(item, idx))}
                     </div>
-                    {group.items.map(({ item, idx }) => renderCard(item, idx))}
-                  </div>
-                ))
+                  ))
               }
             </div>
 

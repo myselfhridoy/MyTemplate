@@ -6,15 +6,15 @@ import rehypeRaw from 'rehype-raw';
 
 const MathRenderer = ({ text }) => {
   if (!text) return null;
-  
+
   // Convert escaped \n to actual line breaks first (negative lookahead to preserve LaTeX like \neq, \nu, \newcommand)
   let processedText = text.replace(/\\n(?![a-zA-Z])/g, '\n');
-  
+
   // Minimal text processing - only fix very specific problematic cases
   processedText = processedText
     // Only fix list items that are split
     .replace(/([^\n])\n([ \t]*-[ \t]*)/g, '$1 $2'); // Fix list items only
-  
+
   // Custom function to process text with inline math
   const processInlineText = (text) => {
     // Split text by math expressions but keep them
@@ -24,12 +24,12 @@ const MathRenderer = ({ text }) => {
         // This is a math expression - use MathJax component
         const mathContent = part.slice(1, -1); // Remove the $ symbols
         return (
-          <MathJax 
-            key={index} 
+          <MathJax
+            key={index}
             inline
             dynamic
-            style={{ 
-              display: 'inline', 
+            style={{
+              display: 'inline',
               margin: '0 1px',
               fontSize: 'clamp(0.8rem, 2vw, 1rem)',
               maxWidth: '100%',
@@ -54,12 +54,33 @@ const MathRenderer = ({ text }) => {
 
   // Split by double line breaks to handle paragraphs
   const paragraphs = processedText.split('\n\n');
-  
+
   return (
-    <div style={{ lineHeight: '1.8', wordWrap: 'break-word', overflowWrap: 'break-word' }}>
+    <div style={{ lineHeight: '1.8', wordWrap: 'break-word', overflowWrap: 'anywhere', maxWidth: '100%' }}>
       {paragraphs.map((paragraph, index) => {
         if (typeof paragraph !== 'string' || !paragraph.trim()) return null;
         const trimmedParagraph = paragraph.trim();
+
+        // Header detection (H1, H2, H3)
+        const headerMatch = trimmedParagraph.match(/^(#{1,3})\s+(.*)/);
+        if (headerMatch) {
+          const level = headerMatch[1].length;
+          const content = headerMatch[2];
+          const HeaderTag = `h${level}`;
+          const fontSize = level === 1 ? '1.5rem' : level === 2 ? '1.25rem' : '1.1rem';
+
+          return (
+            <HeaderTag key={index} style={{
+              fontWeight: 'bold',
+              fontSize,
+              marginTop: '1rem',
+              marginBottom: '0.5rem',
+              color: 'inherit'
+            }}>
+              {processInlineText(content)}
+            </HeaderTag>
+          );
+        }
 
         // Table detection: if paragraph contains at least two table rows (| ... | ... |)
         let isTable = false;
@@ -85,107 +106,32 @@ const MathRenderer = ({ text }) => {
                     </table>
                   ),
                   thead: ({ children }) => <thead className="bg-base-200">{children}</thead>,
-                tbody: ({ children }) => <tbody>{children}</tbody>,
-                tr: ({ children }) => <tr className="border-b border-base-300">{children}</tr>,
-                th: ({ children }) => (
-                  <th className="px-4 py-2 font-bold bg-base-200 border border-base-300 text-base-content whitespace-nowrap">
-                    {processInlineText(
-                      React.Children.toArray(children)
-                        .map(child => typeof child === 'string' ? child : (child.props?.children ?? ''))
-                        .join('')
-                    )}
-                  </th>
-                ),
-                td: ({ children }) => (
-                  <td className="px-4 py-2 border border-base-300 text-base-content whitespace-nowrap">
-                    {processInlineText(
-                      React.Children.toArray(children)
-                        .map(child => typeof child === 'string' ? child : (child.props?.children ?? ''))
-                        .join('')
-                    )}
-                  </td>
-                ),
+                  tbody: ({ children }) => <tbody>{children}</tbody>,
+                  tr: ({ children }) => <tr className="border-b border-base-300">{children}</tr>,
+                  th: ({ children }) => (
+                    <th className="px-4 py-2 font-bold bg-base-200 border border-base-300 text-base-content whitespace-nowrap">
+                      {processInlineText(
+                        React.Children.toArray(children)
+                          .map(child => typeof child === 'string' ? child : (child.props?.children ?? ''))
+                          .join('')
+                      )}
+                    </th>
+                  ),
+                  td: ({ children }) => (
+                    <td className="px-4 py-2 border border-base-300 text-base-content whitespace-nowrap">
+                      {processInlineText(
+                        React.Children.toArray(children)
+                          .map(child => typeof child === 'string' ? child : (child.props?.children ?? ''))
+                          .join('')
+                      )}
+                    </td>
+                  ),
                 }}
               >
                 {trimmedParagraph}
               </ReactMarkdown>
             </div>
           );
-        }
-
-        // Bengali heading detection
-        if (/^\*\*[^*]+\*\*/.test(trimmedParagraph)) {
-          const headingMatch = trimmedParagraph.match(/^(\*\*[^*]+\*\*[:.।]?)\s*(.*)$/s);
-          if (headingMatch) {
-            const headingPart = headingMatch[1];
-            const contentPart = headingMatch[2].trim();
-            const isStandaloneHeading = !contentPart || contentPart === '';
-            let headingContent;
-            if (headingPart.includes('**:')) {
-              const match = headingPart.match(/^\*\*([^*]+)\*\*:/);
-              headingContent = match ? match[1] + ':' : headingPart;
-            } else if (headingPart.includes('**.')) {
-              const match = headingPart.match(/^\*\*([^*]+)\*\*\./);
-              headingContent = match ? match[1] + '.' : headingPart;
-            } else if (headingPart.includes('**।')) {
-              const match = headingPart.match(/^\*\*([^*]+)\*\*।/);
-              headingContent = match ? match[1] + '।' : headingPart;
-            } else {
-              const match = headingPart.match(/^\*\*([^*]+)\*\*/);
-              headingContent = match ? match[1] : headingPart;
-            }
-            const headingParts = headingContent.split(/(\$[^$]+\$)/g);
-            const renderedHeading = headingParts.map((part, partIdx) => {
-              if (part.startsWith('$') && part.endsWith('$')) {
-                const mathContent = part.slice(1, -1);
-                return (
-                  <MathJax 
-                    key={partIdx} 
-                    inline
-                    dynamic
-                    style={{ 
-                      display: 'inline', 
-                      margin: '0 1px',
-                      fontSize: 'clamp(0.9rem, 2.5vw, 1.1rem)',
-                      maxWidth: '100%'
-                    }}
-                  >
-                    {`$${mathContent}$`}
-                  </MathJax>
-                );
-              }
-              return <span key={partIdx}>{part}</span>;
-            });
-            const headingElement = (
-              <h3 key={`heading-${index}`} style={{ 
-                fontWeight: 'bold', 
-                color: '#3b82f6',
-                fontSize: 'clamp(1rem, 3vw, 1.1em)',
-                marginBottom: '0.5rem',
-                marginTop: index > 0 ? '1.5rem' : '0',
-                wordWrap: 'break-word',
-                overflowWrap: 'break-word'
-              }}>
-                {renderedHeading}
-              </h3>
-            );
-            if (isStandaloneHeading) {
-              return headingElement;
-            }
-            return (
-              <div key={index}>
-                {headingElement}
-                <p style={{ 
-                  marginBottom: index < paragraphs.length - 1 ? '1rem' : '0',
-                  lineHeight: '1.8',
-                  wordWrap: 'break-word',
-                  overflowWrap: 'break-word'
-                }}>
-                  {processInlineText(contentPart.trim())}
-                </p>
-              </div>
-            );
-          }
         }
 
         // List detection
@@ -228,7 +174,7 @@ const MathRenderer = ({ text }) => {
 
         // Regular paragraph
         return (
-          <div key={index} style={{ marginBottom: index < paragraphs.length - 1 ? '1rem' : '0', lineHeight: '1.8', wordWrap: 'break-word', overflowWrap: 'break-word' }}>
+          <div key={index} style={{ marginBottom: index < paragraphs.length - 1 ? '1rem' : '0', lineHeight: '1.8', wordWrap: 'break-word', overflowWrap: 'anywhere', maxWidth: '100%' }}>
             {processInlineText(paragraph.trim())}
           </div>
         );
@@ -237,34 +183,4 @@ const MathRenderer = ({ text }) => {
   );
 };
 
-// MathJax Context wrapper component
-const MathRendererWithContext = ({ text }) => {
-  return (
-    <MathJaxContext config={{
-      loader: { load: ["input/tex", "output/chtml"] },
-      tex: {
-        inlineMath: [['$', '$'], ['\\(', '\\)']],
-        displayMath: [['$$', '$$'], ['\\[', '\\]']]
-      },
-      chtml: {
-        displayAlign: 'left',
-        displayIndent: '0em',
-        scale: 1.1
-      },
-      options: {
-        renderActions: {
-          addMenu: [],
-          checkLoading: [],
-          addEvents: []
-        },
-        skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],
-        ignoreHtmlClass: 'tex2jax_ignore',
-        processHtmlClass: 'tex2jax_process'
-      }
-    }}>
-      <MathRenderer text={text} />
-    </MathJaxContext>
-  );
-};
-
-export default MathRendererWithContext;
+export default MathRenderer;

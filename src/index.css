@@ -25,20 +25,191 @@ body {
   margin: 0 1px !important;
 }
 
-.answer-content .MathJax_Display {
-  display: inline !important;
+.answer-content .MathJax_Display,
+.answer-content mjx-container[display="true"],
+.answer-content .katex-display {
+  display: block !important;
+  /* Ensure block for display math */
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 4px;
+  max-width: 100%;
   text-align: left !important;
   margin: 0 1px !important;
 }
 
 .answer-content mjx-container {
   display: inline !important;
+  /* Default to inline for containers */
   vertical-align: baseline !important;
   margin: 0 1px !important;
 }
 
-.answer-content mjx-container[display="true"] {
-  display: inline !important;
-  text-align: left !important;
-  margin: 0 1px !important;
+.answer-content pre {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.answer-content .katex {
+  max-width: 100%;
+}
+
+.answer-content::-webkit-scrollbar {
+  height: 4px;
+}
+
+/* === PuterChat UI Redesign Animations === */
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes float {
+
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes glow-pulse {
+
+  0%,
+  100% {
+    box-shadow: 0 0 8px rgba(124, 58, 237, 0.3);
+  }
+
+  50% {
+    box-shadow: 0 0 20px rgba(124, 58, 237, 0.6), 0 0 40px rgba(37, 99, 235, 0.2);
+  }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes typing-dot {
+
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+
+  30% {
+    transform: translateY(-6px);
+    opacity: 1;
+  }
+}
+
+.puter-shimmer {
+  background: linear-gradient(90deg, transparent 25%, rgba(124, 58, 237, 0.08) 50%, transparent 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.8s ease-in-out infinite;
+}
+
+.puter-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+.puter-glow {
+  animation: glow-pulse 2.5s ease-in-out infinite;
+}
+
+.puter-fade-in {
+  animation: fade-in-up 0.4s ease-out forwards;
+}
+
+.suggestion-card {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.suggestion-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(124, 58, 237, 0.15);
+}
+
+/* Typing dots stagger */
+.typing-dot-1 {
+  animation: typing-dot 1.4s ease-in-out infinite;
+}
+
+.typing-dot-2 {
+  animation: typing-dot 1.4s ease-in-out 0.2s infinite;
+}
+
+.typing-dot-3 {
+  animation: typing-dot 1.4s ease-in-out 0.4s infinite;
+}
+
+/* PuterChat scrollbar styling */
+.puter-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.puter-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.puter-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(124, 58, 237, 0.2);
+  border-radius: 10px;
+}
+
+.puter-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(124, 58, 237, 0.4);
+}
+
+/* PuterChat sidebar session active indicator */
+.puter-session-active {
+  position: relative;
+}
+
+.puter-session-active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 60%;
+  background: linear-gradient(to bottom, #7c3aed, #2563eb);
+  border-radius: 0 4px 4px 0;
+}
+
+/* Force white text in user message bubbles (overrides MathRenderer hardcoded colors) */
+.puter-user-msg,
+.puter-user-msg * {
+  color: #ffffff !important;
+}
+
+.puter-user-msg .MathJax,
+.puter-user-msg mjx-container {
+  color: #ffffff !important;
+}
+
+.puter-user-msg strong,
+.puter-user-msg h3,
+.puter-user-msg code {
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.12) !important;
 }
