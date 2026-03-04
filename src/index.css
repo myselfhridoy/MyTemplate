@@ -18,6 +18,22 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* MathJax container — prevent overflow on mobile, hide scrollbar */
+mjx-container {
+  overflow-x: auto !important;
+  max-width: 100% !important;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  /* Firefox */
+  -ms-overflow-style: none;
+  /* IE/Edge */
+}
+
+mjx-container::-webkit-scrollbar {
+  display: none;
+  /* Chrome/Safari */
+}
+
 /* MathJax inline math styling for better text flow */
 .answer-content .MathJax {
   display: inline !important;

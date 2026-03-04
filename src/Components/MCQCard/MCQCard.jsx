@@ -33,26 +33,26 @@ function MCQCard({
     const effectiveStem = ownStem || fallbackStem || null;
 
     return (
-        <div className="card bg-base-100 shadow-xl my-4 overflow-hidden">
-            <div className="card-body p-4 sm:p-6" style={{ wordBreak: 'break-word' }}>
+        <div className="card bg-base-100 shadow-xl my-3 sm:my-4 overflow-hidden">
+            <div className="card-body p-3 sm:p-5" style={{ wordBreak: 'break-word' }}>
                 {/* Header */}
-                <div className="flex flex-wrap items-center gap-2 mb-2">
-                    <h2 className="card-title text-lg font-bold whitespace-nowrap">
-                        {getBengaliNum(globalIdx)}। {item.source || ''}
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-2">
+                    <h2 className="card-title text-base sm:text-lg font-bold">
+                        {getBengaliNum(globalIdx)}।
                     </h2>
                     {d.question_no && (
-                        <span className="badge badge-sm badge-outline whitespace-nowrap">
-                            প্রশ্ন নং: {getBengaliNum(d.question_no)}
+                        <span className="badge badge-xs sm:badge-sm badge-outline whitespace-nowrap">
+                            প্রশ্ন: {getBengaliNum(d.question_no)}
                         </span>
                     )}
                     {d.mcq_type && (
-                        <span className={`badge badge-sm whitespace-nowrap ${d.mcq_type === 'Situation Set MCQ' ? 'badge-info' :
+                        <span className={`badge badge-xs sm:badge-sm whitespace-nowrap ${d.mcq_type === 'Situation Set MCQ' ? 'badge-info' :
                             d.mcq_type === 'Multiple Completion MCQ' ? 'badge-warning' :
                                 'badge-ghost'
                             }`}>
-                            {d.mcq_type === 'Situation Set MCQ' ? 'অনুচ্ছেদ MCQ' :
-                                d.mcq_type === 'Multiple Completion MCQ' ? 'বহুপূরণ MCQ' :
-                                    'সাধারণ MCQ'}
+                            {d.mcq_type === 'Situation Set MCQ' ? 'অনুচ্ছেদ' :
+                                d.mcq_type === 'Multiple Completion MCQ' ? 'বহুপূরণ' :
+                                    'সাধারণ'}
                         </span>
                     )}
                     <button
@@ -84,9 +84,9 @@ function MCQCard({
 
                 {/* Shared Stem / উদ্দীপক — শুধু প্রথম প্রশ্নে দেখাবে, রিপিট না */}
                 {showStem && effectiveStem && effectiveStem.text && (
-                    <div className="border-b pb-3 mb-3 bg-base-200/50 rounded-lg p-3">
+                    <div className="border-b pb-3 mb-3 bg-base-200/50 rounded-lg p-2 sm:p-3">
                         <span className="badge badge-xs badge-primary mb-1">উদ্দীপক</span>
-                        <div className="text-base mt-1">{renderText(effectiveStem.text)}</div>
+                        <div className="text-sm sm:text-base mt-1">{renderText(effectiveStem.text)}</div>
                         {effectiveStem.has_image && effectiveStem.image_url && (
                             <div className="flex justify-center mt-2">
                                 <img
@@ -102,7 +102,7 @@ function MCQCard({
 
                 {/* Question text */}
                 {d.question_text && (
-                    <div className="mb-3 font-semibold text-base">
+                    <div className="mb-3 font-semibold text-sm sm:text-base">
                         {renderText(d.question_text)}
                     </div>
                 )}
@@ -128,7 +128,7 @@ function MCQCard({
                         {d.mcq_type === 'Multiple Completion MCQ' && (
                             <div className="mb-2 font-semibold text-sm">নিচের কোনটি সঠিক?</div>
                         )}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
+                        <div className="grid grid-cols-1 gap-1.5 sm:gap-2 mb-3">
                             {MCQ_OPTION_LABELS.map(key => {
                                 const optionVal = d.options[key];
                                 if (optionVal === undefined || optionVal === null) return null;
@@ -136,16 +136,16 @@ function MCQCard({
                                 return (
                                     <div
                                         key={key}
-                                        className={`flex items-start gap-2 p-2.5 rounded-lg border transition-all duration-200 ${isCorrect
+                                        className={`flex items-start gap-1.5 sm:gap-2 p-2 sm:p-2.5 rounded-lg border transition-all duration-200 ${isCorrect
                                             ? 'border-success bg-success/10 shadow-sm'
                                             : 'border-base-300 hover:border-base-content/20'
                                             }`}
                                     >
-                                        <span className={`badge badge-sm mt-0.5 font-bold ${isCorrect ? 'badge-success text-white' : 'badge-outline'
+                                        <span className={`badge badge-xs sm:badge-sm mt-0.5 font-bold flex-shrink-0 ${isCorrect ? 'badge-success text-white' : 'badge-outline'
                                             }`}>
                                             {key}
                                         </span>
-                                        <span className="text-sm flex-1">{renderText(String(optionVal))}</span>
+                                        <span className="text-xs sm:text-sm flex-1">{renderText(String(optionVal))}</span>
                                         {isCorrect && (
                                             <span className="text-success text-sm">✓</span>
                                         )}
@@ -166,22 +166,22 @@ function MCQCard({
                             {isOpen ? '🔒 উত্তর লুকান' : '🔓 উত্তর দেখুন'}
                         </button>
                         {isOpen && (
-                            <div className="p-4 bg-success/5 rounded-lg border border-success/20 space-y-3">
+                            <div className="p-2.5 sm:p-4 bg-success/5 rounded-lg border border-success/20 space-y-2 sm:space-y-3">
                                 {/* Correct answer badge */}
-                                <div className="flex items-center gap-2">
-                                    <span className="badge badge-success text-white font-bold gap-1 py-3">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <span className="badge badge-success text-white font-bold gap-1 py-3 text-xs sm:text-sm">
                                         ✓ সঠিক উত্তর: {d.correct_answer}
                                     </span>
                                     {finalAnswer && (
-                                        <span className="text-sm font-semibold">{renderText(finalAnswer)}</span>
+                                        <span className="text-xs sm:text-sm font-semibold">{renderText(finalAnswer)}</span>
                                     )}
                                 </div>
 
                                 {/* Explanation */}
                                 {explanationText && (
                                     <div className="mt-2">
-                                        <span className="font-semibold text-sm text-success">ব্যাখ্যা:</span>
-                                        <div className="mt-1 text-sm leading-relaxed">
+                                        <span className="font-semibold text-xs sm:text-sm text-success">ব্যাখ্যা:</span>
+                                        <div className="mt-1 text-xs sm:text-sm leading-relaxed">
                                             {renderText(explanationText)}
                                         </div>
                                     </div>
