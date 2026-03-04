@@ -222,17 +222,6 @@ function AskAIModalMongoDB({ isOpen, onClose, questionText = '', stemText = '', 
 ${userQuestion}`;
     };
 
-    const ensurePuterLoaded = async () => {
-        if (window.puter) return true;
-        return new Promise((resolve) => {
-            const script = document.createElement('script');
-            script.src = "https://js.puter.com/v2/";
-            script.async = true;
-            script.onload = () => resolve(true);
-            script.onerror = () => resolve(false);
-            document.body.appendChild(script);
-        });
-    };
 
     const handleAsk = async () => {
         if (!fullQuestion) return;
@@ -246,10 +235,7 @@ ${userQuestion}`;
             let answerText = '';
 
             if (modelConfig.type === 'puter') {
-                // Puter.js integration
-                const loaded = await ensurePuterLoaded();
-                if (!loaded) throw new Error('Puter.js load failed');
-
+                // Puter.js integration (npm module handles auth automatically)
                 const modelName = modelConfig.model || 'google/gemini-3-flash-preview';
                 let response;
 

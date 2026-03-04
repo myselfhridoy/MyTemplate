@@ -26,23 +26,6 @@ function HMTAiPage({
     const [loading, setLoading] = useState(false);
     const [mapping, setMapping] = useState([]);
     const [mappingLoading, setMappingLoading] = useState(true);
-    const [puterLoaded, setPuterLoaded] = useState(false);
-
-    // Load Puter.js
-    useEffect(() => {
-        if (window.puter) {
-            setPuterLoaded(true);
-            return;
-        }
-        const script = document.createElement('script');
-        script.src = "https://js.puter.com/v2/";
-        script.async = true;
-        script.onload = () => {
-            console.log('Puter.js loaded');
-            setPuterLoaded(true);
-        };
-        document.body.appendChild(script);
-    }, []);
 
     useEffect(() => {
         if (classOverride !== undefined) setSelectedClass(classOverride);
@@ -141,10 +124,7 @@ function HMTAiPage({
             setAnswer("অনুগ্রহ করে শ্রেণি, বিষয়, অধ্যায় এবং প্রশ্নের ধরণ সিলেক্ট করুন।");
             return;
         }
-        if (!puterLoaded) {
-            setAnswer("AI সিস্টেম লোড হচ্ছে, অনুগ্রহ করে অপেক্ষা করুন...");
-            return;
-        }
+
 
         setLoading(true);
         setAnswer("");
@@ -255,10 +235,9 @@ function HMTAiPage({
                     <input type="file" accept="image/*" className="file-input file-input-bordered w-full text-sm" onChange={handleImageChange} />
                     {imagePreviewUrl && <div className="mt-2"><img src={imagePreviewUrl} alt="Uploaded" className="max-h-32 w-auto rounded shadow mx-auto block" /></div>}
                 </div>
-                <button className="btn btn-primary w-full text-sm sm:text-base" type="submit" disabled={loading || (!questionText.trim() && !imageFile) || !puterLoaded}>
+                <button className="btn btn-primary w-full text-sm sm:text-base" type="submit" disabled={loading || (!questionText.trim() && !imageFile)}>
                     {loading ? "লোড হচ্ছে..." : "উত্তর জানুন"}
                 </button>
-                {!puterLoaded && <p className="text-xs text-center mt-2 text-warning">Puter.js লোড হচ্ছে...</p>}
             </form>
             {answer && (
                 <div className="bg-base-100 rounded shadow p-3 sm:p-4 text-base sm:text-lg text-base-content overflow-hidden">

@@ -62,27 +62,10 @@ export default function PuterChat() {
     const [isLoading, setIsLoading] = useState(false);
     const [selectedModel, setSelectedModel] = useState('openai/gpt-4o-mini');
     const [files, setFiles] = useState([]);
-    const [puterLoaded, setPuterLoaded] = useState(false);
 
     const scrollAreaRef = useRef(null);
     const fileInputRef = useRef(null);
     const textareaRef = useRef(null);
-
-    // Load Puter.js
-    useEffect(() => {
-        if (window.puter) {
-            setPuterLoaded(true);
-            return;
-        }
-        const script = document.createElement('script');
-        script.src = "https://js.puter.com/v2/";
-        script.async = true;
-        script.onload = () => {
-            console.log('Puter.js loaded');
-            setPuterLoaded(true);
-        };
-        document.body.appendChild(script);
-    }, []);
 
     // Initial Load
     useEffect(() => {
@@ -202,17 +185,27 @@ export default function PuterChat() {
         setFiles(prev => prev.filter((_, i) => i !== index));
     };
 
-    const getBase64 = (file) => new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = reject;
-    });
-
     const handleSuggestionClick = (prompt) => {
         setInput(prompt);
         if (textareaRef.current) {
             textareaRef.current.focus();
+        }
+    };
+
+    // Retry wrapper matching the working HTML pattern — puter.ai.chat handles auth internally
+    const chatWithRetry = async (...args) => {
+        const maxRetries = 3;
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                return await window.puter.ai.chat(...args);
+            } catch (error) {
+                if (attempt < maxRetries) {
+                    console.log(`Puter API call failed, retrying... (${attempt}/${maxRetries})`);
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                } else {
+                    throw error;
+                }
+            }
         }
     };
 
@@ -224,21 +217,14 @@ export default function PuterChat() {
         if (!currentSession) return;
 
         let userMsgContent;
-        let imageBase64 = null;
         const currentFiles = [...files];
         const imageFile = currentFiles.find(f => f.type.startsWith('image/'));
 
         if (imageFile) {
-            try {
-                imageBase64 = await getBase64(imageFile);
-                userMsgContent = [
-                    { type: 'text', text: input || "Analyze this image" },
-                    { type: 'image_url', image_url: { url: imageBase64 } }
-                ];
-            } catch (err) {
-                console.error("Failed to process image:", err);
-                userMsgContent = input + "\n[Image upload failed]";
-            }
+            userMsgContent = [
+                { type: 'text', text: input || "Analyze this image" },
+                { type: 'image_url', image_url: { url: URL.createObjectURL(imageFile) } }
+            ];
         } else {
             userMsgContent = input;
         }
@@ -263,7 +249,8 @@ export default function PuterChat() {
         try {
             let response;
 
-            if (imageBase64) {
+            if (imageFile) {
+                // Use raw File object like the working HTML version
                 const historyText = updatedMessages.slice(0, -1).map(m => {
                     const role = m.role === 'user' ? 'User' : 'Assistant';
                     let content = '';
@@ -277,7 +264,8 @@ export default function PuterChat() {
                 }).join('\n\n');
 
                 const prompt = `${historyText}\n\nUser: ${input || "Analyze this image"}`;
-                response = await window.puter.ai.chat(prompt, imageBase64, { model: selectedModel });
+                // Pass raw File object directly — NOT base64
+                response = await chatWithRetry(prompt, imageFile, { model: selectedModel, stream: true });
 
             } else {
                 const apiMessages = updatedMessages.map(({ files, ...msg }) => {
@@ -294,12 +282,25 @@ export default function PuterChat() {
                     return { role: msg.role, content: contentStr };
                 });
 
-                response = await window.puter.ai.chat(apiMessages, { model: selectedModel });
+                response = await chatWithRetry(apiMessages, { model: selectedModel, stream: true });
+            }
+
+            // Handle streaming response (like the working HTML version)
+            let fullResponse = '';
+            if (response && typeof response[Symbol.asyncIterator] === 'function') {
+                for await (const part of response) {
+                    if (part?.text) {
+                        fullResponse += part.text;
+                    }
+                }
+            } else {
+                // Fallback for non-streaming response
+                fullResponse = typeof response === 'string' ? response : response?.message?.content || JSON.stringify(response);
             }
 
             const aiMsg = {
                 role: 'assistant',
-                content: typeof response === 'string' ? response : response?.message?.content || JSON.stringify(response)
+                content: fullResponse
             };
 
             setSessions(prev => prev.map(s => {
@@ -420,7 +421,7 @@ export default function PuterChat() {
     );
 
     return (
-        <div className="flex h-[calc(100dvh-64px)] w-full overflow-hidden relative bg-base-100">
+        <div className="flex h-[calc(100dvh-64px)] w-full overflow-hidden relative bg-base-100" style={{ touchAction: 'manipulation' }}>
             {/* ═══════════ Desktop Sidebar ═══════════ */}
             <div className={cn(
                 "hidden md:flex flex-col border-r border-base-content/5 bg-base-200/30 transition-all duration-300 ease-in-out",
@@ -453,7 +454,7 @@ export default function PuterChat() {
             {/* ═══════════ Main Chat Area ═══════════ */}
             <div className="flex-1 flex flex-col min-w-0 bg-base-100">
                 {/* ─── Header ─── */}
-                <div className="h-14 border-b border-base-content/5 flex items-center justify-between px-3 md:px-4 bg-base-100/80 backdrop-blur-md sticky top-0 z-10">
+                <div className="h-12 sm:h-14 border-b border-base-content/5 flex items-center justify-between px-2 sm:px-3 md:px-4 bg-base-100/80 backdrop-blur-md sticky top-0 z-10">
                     <div className="flex items-center gap-1.5">
                         {/* Mobile hamburger */}
                         <Button variant="ghost" size="icon" className="md:hidden h-9 w-9 rounded-lg" onClick={() => setMobileMenuOpen(true)}>
@@ -469,8 +470,8 @@ export default function PuterChat() {
 
                         {/* Model Selector */}
                         <Select value={selectedModel} onValueChange={setSelectedModel}>
-                            <SelectTrigger className="w-[180px] h-9 text-sm border-none shadow-none focus:ring-0 bg-base-content/5 hover:bg-base-content/8 rounded-lg transition-colors">
-                                <SelectValue placeholder="Select Model" />
+                            <SelectTrigger className="w-[130px] sm:w-[180px] h-8 sm:h-9 text-xs sm:text-sm border-none shadow-none focus:ring-0 bg-base-content/5 hover:bg-base-content/8 rounded-lg transition-colors">
+                                <SelectValue placeholder="Model" />
                             </SelectTrigger>
                             <SelectContent className="rounded-xl border-base-content/10 bg-base-100 shadow-xl">
                                 {MODEL_OPTIONS.map(model => (
@@ -486,41 +487,41 @@ export default function PuterChat() {
                     <div className="flex items-center gap-2 text-xs text-base-content/40">
                         <div className={cn(
                             "w-2 h-2 rounded-full transition-colors",
-                            puterLoaded ? "bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)]" : "bg-amber-400 animate-pulse"
+                            "bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)]"
                         )} />
-                        <span className="hidden sm:inline">{puterLoaded ? 'Ready' : 'Loading...'}</span>
+                        <span className="hidden sm:inline">Ready</span>
                     </div>
                 </div>
 
                 {/* ─── Messages Area ─── */}
                 <ScrollArea className="flex-1" ref={scrollAreaRef}>
-                    <div className="max-w-3xl mx-auto px-4 md:px-6 py-6 flex flex-col gap-5">
+                    <div className="max-w-3xl mx-auto px-2 sm:px-4 md:px-6 py-4 sm:py-6 flex flex-col gap-3 sm:gap-5">
                         {messages.length === 0 ? (
                             /* ═══ Empty State ═══ */
-                            <div className="flex flex-col items-center justify-center min-h-[55vh] text-center puter-fade-in">
+                            <div className="flex flex-col items-center justify-center min-h-[45vh] sm:min-h-[55vh] text-center puter-fade-in px-2">
                                 {/* Floating icon */}
-                                <div className="puter-float mb-6">
-                                    <div className="w-20 h-20 rounded-2xl border border-violet-500/10 flex items-center justify-center shadow-lg" style={{ background: 'linear-gradient(to bottom right, rgba(139,92,246,0.2), rgba(59,130,246,0.2))' }}>
-                                        <Sparkles className="h-9 w-9 text-violet-400/80" />
+                                <div className="puter-float mb-4 sm:mb-6">
+                                    <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-2xl border border-violet-500/10 flex items-center justify-center shadow-lg" style={{ background: 'linear-gradient(to bottom right, rgba(139,92,246,0.2), rgba(59,130,246,0.2))' }}>
+                                        <Sparkles className="h-7 w-7 sm:h-9 sm:w-9 text-violet-400/80" />
                                     </div>
                                 </div>
-                                <h3 className="text-2xl font-bold mb-2 bg-clip-text text-transparent" style={{ backgroundImage: 'linear-gradient(to right, #a78bfa, #60a5fa)' }}>
+                                <h3 className="text-xl sm:text-2xl font-bold mb-1.5 sm:mb-2 bg-clip-text text-transparent" style={{ backgroundImage: 'linear-gradient(to right, #a78bfa, #60a5fa)' }}>
                                     What can I help with?
                                 </h3>
-                                <p className="text-sm text-base-content/40 max-w-sm mb-8">
+                                <p className="text-xs sm:text-sm text-base-content/40 max-w-sm mb-5 sm:mb-8">
                                     Ask me anything — code, math, writing, analysis, and more.
                                 </p>
                                 {/* Suggestion Cards */}
-                                <div className="grid grid-cols-2 gap-3 w-full max-w-md">
+                                <div className="grid grid-cols-2 gap-2 sm:gap-3 w-full max-w-md">
                                     {SUGGESTION_CARDS.map((card) => (
                                         <button
                                             key={card.label}
                                             onClick={() => handleSuggestionClick(card.prompt)}
-                                            className="suggestion-card flex flex-col items-start gap-2.5 p-4 rounded-2xl border border-base-content/5 text-left cursor-pointer group"
+                                            className="suggestion-card flex flex-col items-start gap-1.5 sm:gap-2.5 p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-base-content/5 text-left cursor-pointer group"
                                             style={{ background: card.bg }}
                                         >
-                                            <card.icon className={cn("h-5 w-5", card.iconColor)} />
-                                            <span className="text-sm font-medium text-base-content/80 group-hover:text-base-content transition-colors">
+                                            <card.icon className={cn("h-4 w-4 sm:h-5 sm:w-5", card.iconColor)} />
+                                            <span className="text-xs sm:text-sm font-medium text-base-content/80 group-hover:text-base-content transition-colors">
                                                 {card.label}
                                             </span>
                                         </button>
@@ -549,9 +550,9 @@ export default function PuterChat() {
 
                                     <div
                                         className={cn(
-                                            "relative max-w-[75%] md:max-w-[70%] rounded-2xl px-4 py-3 md:px-5 md:py-3.5 overflow-hidden",
+                                            "relative max-w-[88%] sm:max-w-[80%] md:max-w-[70%] rounded-2xl px-3 py-2.5 sm:px-4 sm:py-3 md:px-5 md:py-3.5 overflow-hidden",
                                             msg.role === 'user'
-                                                ? "puter-user-msg rounded-br-md shadow-lg mr-1 md:mr-0"
+                                                ? "puter-user-msg rounded-br-md shadow-lg mr-1 md:mr-0 text-white"
                                                 : "bg-base-200/60 backdrop-blur-sm text-base-content rounded-bl-md border border-base-content/5"
                                         )}
                                         style={msg.role === 'user' ? { background: 'linear-gradient(to bottom right, #7c3aed, #2563eb)' } : undefined}
@@ -568,7 +569,7 @@ export default function PuterChat() {
                                             </div>
                                         )}
                                         {/* Message Content */}
-                                        <div className="answer-content text-sm leading-relaxed w-full min-w-0 break-words overflow-x-auto">
+                                        <div className="answer-content text-xs sm:text-sm leading-relaxed w-full min-w-0 break-words overflow-x-auto">
                                             <MathRenderer
                                                 text={typeof msg.content === 'string'
                                                     ? msg.content
@@ -610,7 +611,7 @@ export default function PuterChat() {
                 </ScrollArea>
 
                 {/* ─── Input Area ─── */}
-                <div className="p-3 md:p-4" style={{ background: 'linear-gradient(to top, var(--color-base-100) 0%, var(--color-base-100) 50%, transparent 100%)' }}>
+                <div className="p-2 sm:p-3 md:p-4 pb-[env(safe-area-inset-bottom,8px)]" style={{ background: 'linear-gradient(to top, var(--color-base-100) 0%, var(--color-base-100) 50%, transparent 100%)' }}>
                     <div className="max-w-3xl mx-auto">
                         {/* Attached Files */}
                         {files.length > 0 && (
@@ -630,7 +631,7 @@ export default function PuterChat() {
                         {/* Input Form */}
                         <form
                             onSubmit={handleSubmit}
-                            className="relative flex items-end gap-2 bg-base-200/50 backdrop-blur-xl p-1.5 rounded-2xl border border-base-content/8 focus-within:border-violet-500/30 focus-within:shadow-[0_0_15px_rgba(124,58,237,0.08)] transition-all duration-300"
+                            className="relative flex items-end gap-1.5 sm:gap-2 bg-base-200/50 backdrop-blur-xl p-1 sm:p-1.5 rounded-xl sm:rounded-2xl border border-base-content/8 focus-within:border-violet-500/30 focus-within:shadow-[0_0_15px_rgba(124,58,237,0.08)] transition-all duration-300"
                         >
                             <Button
                                 type="button"
@@ -652,7 +653,7 @@ export default function PuterChat() {
                             <Textarea
                                 ref={textareaRef}
                                 placeholder="Ask anything..."
-                                className="min-h-[24px] max-h-[200px] resize-none border-none focus-visible:ring-0 shadow-none bg-transparent py-2.5 px-2 w-full text-base md:text-sm placeholder:text-base-content/30"
+                                className="min-h-[24px] max-h-[150px] sm:max-h-[200px] resize-none border-none focus-visible:ring-0 shadow-none bg-transparent py-2 sm:py-2.5 px-1.5 sm:px-2 w-full text-sm md:text-sm placeholder:text-base-content/30"
                                 value={input}
                                 onChange={(e) => {
                                     setInput(e.target.value);
@@ -677,7 +678,7 @@ export default function PuterChat() {
                                         : "text-white shadow-lg shadow-violet-500/20 hover:shadow-violet-500/40 hover:scale-105"
                                 )}
                                 style={(!input.trim() && files.length === 0) ? {} : { background: 'linear-gradient(to right, #7c3aed, #2563eb)' }}
-                                disabled={isLoading || (!input.trim() && files.length === 0) || !puterLoaded}
+                                disabled={isLoading || (!input.trim() && files.length === 0)}
                             >
                                 <Send className="h-4 w-4" />
                             </Button>
