@@ -29,11 +29,12 @@ const MathRenderer = ({ text }) => {
             inline
             dynamic
             style={{
-              display: 'inline',
+              display: 'inline-block',
               margin: '0 1px',
-              fontSize: 'clamp(0.8rem, 2vw, 1rem)',
+              fontSize: 'clamp(0.75rem, 1.8vw, 1rem)',
               maxWidth: '100%',
-              overflowX: 'auto'
+              overflow: 'auto',
+              verticalAlign: 'middle'
             }}
           >
             {`$${mathContent}$`}
@@ -56,7 +57,7 @@ const MathRenderer = ({ text }) => {
   const paragraphs = processedText.split('\n\n');
 
   return (
-    <div style={{ lineHeight: '1.8', wordWrap: 'break-word', overflowWrap: 'anywhere', maxWidth: '100%' }}>
+    <div style={{ lineHeight: '1.8', wordWrap: 'break-word', overflowWrap: 'anywhere', maxWidth: '100%', overflowX: 'auto' }}>
       {paragraphs.map((paragraph, index) => {
         if (typeof paragraph !== 'string' || !paragraph.trim()) return null;
         const trimmedParagraph = paragraph.trim();
@@ -174,7 +175,7 @@ const MathRenderer = ({ text }) => {
 
         // Regular paragraph
         return (
-          <div key={index} style={{ marginBottom: index < paragraphs.length - 1 ? '1rem' : '0', lineHeight: '1.8', wordWrap: 'break-word', overflowWrap: 'anywhere', maxWidth: '100%' }}>
+          <div key={index} style={{ marginBottom: index < paragraphs.length - 1 ? '1rem' : '0', lineHeight: '1.8', wordWrap: 'break-word', overflowWrap: 'anywhere', maxWidth: '100%', overflowX: 'auto' }}>
             {processInlineText(paragraph.trim())}
           </div>
         );

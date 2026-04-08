@@ -495,7 +495,7 @@ export default function PuterChat() {
 
                 {/* ─── Messages Area ─── */}
                 <ScrollArea className="flex-1" ref={scrollAreaRef}>
-                    <div className="max-w-3xl mx-auto px-2 sm:px-4 md:px-6 py-4 sm:py-6 flex flex-col gap-3 sm:gap-5">
+                    <div className="max-w-3xl mx-auto px-2 sm:px-4 md:px-6 py-4 sm:py-6 flex flex-col gap-3 sm:gap-5 overflow-x-hidden">
                         {messages.length === 0 ? (
                             /* ═══ Empty State ═══ */
                             <div className="flex flex-col items-center justify-center min-h-[45vh] sm:min-h-[55vh] text-center puter-fade-in px-2">
@@ -534,14 +534,14 @@ export default function PuterChat() {
                                 <div
                                     key={idx}
                                     className={cn(
-                                        "flex gap-3 w-full puter-fade-in",
+                                        "flex gap-2 sm:gap-3 w-full puter-fade-in",
                                         msg.role === 'user' ? "justify-end" : "justify-start"
                                     )}
                                     style={{ animationDelay: `${Math.min(idx * 50, 300)}ms` }}
                                 >
                                     {/* AI Avatar */}
                                     {msg.role !== 'user' && (
-                                        <div className="shrink-0 mt-1">
+                                        <div className="shrink-0 mt-1 hidden sm:block">
                                             <div className="w-8 h-8 rounded-xl border border-violet-500/10 flex items-center justify-center" style={{ background: 'linear-gradient(to bottom right, rgba(139,92,246,0.2), rgba(59,130,246,0.2))' }}>
                                                 <Sparkles className="h-3.5 w-3.5 text-violet-400" />
                                             </div>
@@ -550,10 +550,10 @@ export default function PuterChat() {
 
                                     <div
                                         className={cn(
-                                            "relative max-w-[88%] sm:max-w-[80%] md:max-w-[70%] rounded-2xl px-3 py-2.5 sm:px-4 sm:py-3 md:px-5 md:py-3.5 overflow-hidden",
+                                            "relative rounded-2xl px-3 py-2.5 sm:px-4 sm:py-3 md:px-5 md:py-3.5",
                                             msg.role === 'user'
-                                                ? "puter-user-msg rounded-br-md shadow-lg mr-1 md:mr-0 text-white"
-                                                : "bg-base-200/60 backdrop-blur-sm text-base-content rounded-bl-md border border-base-content/5"
+                                                ? "max-w-[85%] sm:max-w-[80%] md:max-w-[70%] puter-user-msg rounded-br-md shadow-lg text-white"
+                                                : "w-full sm:w-[80%] md:w-[70%] bg-base-200/60 backdrop-blur-sm text-base-content rounded-bl-md border border-base-content/5"
                                         )}
                                         style={msg.role === 'user' ? { background: 'linear-gradient(to bottom right, #7c3aed, #2563eb)' } : undefined}
                                     >
@@ -569,7 +569,10 @@ export default function PuterChat() {
                                             </div>
                                         )}
                                         {/* Message Content */}
-                                        <div className="answer-content text-xs sm:text-sm leading-relaxed w-full min-w-0 break-words overflow-x-auto">
+                                        <div className={cn(
+                                            "answer-content text-xs sm:text-sm leading-relaxed w-full min-w-0",
+                                            msg.role !== 'user' && "overflow-x-auto"
+                                        )} style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
                                             <MathRenderer
                                                 text={typeof msg.content === 'string'
                                                     ? msg.content
@@ -582,7 +585,7 @@ export default function PuterChat() {
 
                                     {/* User Avatar */}
                                     {msg.role === 'user' && (
-                                        <div className="shrink-0 mt-1">
+                                        <div className="shrink-0 mt-1 hidden sm:block">
                                             <div className="w-8 h-8 rounded-xl flex items-center justify-center shadow-md" style={{ background: 'linear-gradient(to bottom right, #7c3aed, #2563eb)' }}>
                                                 <User className="h-3.5 w-3.5 text-white" />
                                             </div>

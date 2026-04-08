@@ -3,28 +3,43 @@ import { useAuth } from '../Context/AuthContext';
 
 const API_BASE = 'https://geminiai-render.onrender.com/api';
 
+// Helper to parse time string like "4:00 PM" or "4:00 PM - 5:00 PM" into minutes for sorting
+const parseTimeForSort = (timeStr) => {
+    if (!timeStr) return 9999; // No time = end of list
+    const parts = timeStr.split(' - ');
+    if (parts.length === 0) return 9999;
+    const t = parts[0].trim();
+    const match = t.match(/(\d+):(\d+)\s*(AM|PM)/i);
+    if (!match) return 9999;
+    let hours = parseInt(match[1]);
+    const minutes = parseInt(match[2]);
+    const modifier = match[3].toUpperCase();
+    if (modifier === 'PM' && hours !== 12) hours += 12;
+    if (modifier === 'AM' && hours === 12) hours = 0;
+    return hours * 60 + minutes;
+};
+
 // Modern Card Component for Student
 const StudentCard = ({ student, attendanceForm, updateStudentField, onMakeupClick }) => {
     const data = attendanceForm[student._id] || {};
     return (
         <div className="card bg-base-100 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300">
-            <div className="card-body p-6">
+            <div className="card-body p-3 sm:p-4 md:p-6">
                 {/* Header: Name, Actions */}
-                <div className="flex justify-between items-start mb-4">
-                    <div>
-                        <h3 className="card-title text-lg font-bold text-base-content/90">{student.username}</h3>
-                        {student.email && <div className="badge badge-ghost badge-sm mt-1 bg-base-200/50">{student.email}</div>}
+                <div className="flex justify-between items-start gap-2 mb-2 sm:mb-4">
+                    <div className="min-w-0 flex-1">
+                        <h3 className="card-title text-base sm:text-lg font-bold text-base-content/90 truncate">{student.username}</h3>
+                        {student.email && <div className="badge badge-ghost badge-xs sm:badge-sm mt-1 bg-base-200/50 max-w-full truncate">{student.email}</div>}
                     </div>
-                    <div className="join shadow-sm rounded-lg overflow-hidden">
+                    <div className="join shadow-sm rounded-lg overflow-hidden shrink-0">
                         <button
-                            className={`join-item btn btn-sm px-3 font-bold transition-all ${data.status === 'present' ? 'btn-success text-white' : 'btn-ghost hover:bg-success/20 text-success'}`}
+                            className={`join-item btn btn-xs sm:btn-sm px-2 sm:px-3 font-bold transition-all ${data.status === 'present' ? 'btn-success text-white' : 'btn-ghost hover:bg-success/20 text-success'}`}
                             onClick={() => updateStudentField(student._id, 'status', 'present')}
                         >P</button>
                         <button
-                            className={`join-item btn btn-sm px-3 font-bold transition-all ${data.status === 'makeup' ? 'btn-info text-white' : 'btn-ghost hover:bg-info/20 text-info'}`}
+                            className={`join-item btn btn-xs sm:btn-sm px-2 sm:px-3 font-bold transition-all ${data.status === 'makeup' ? 'btn-info text-white' : 'btn-ghost hover:bg-info/20 text-info'}`}
                             onClick={() => {
                                 if (data.status === 'makeup') {
-                                    // Toggle off
                                     updateStudentField(student._id, 'status', 'unmarked');
                                 } else {
                                     onMakeupClick(student._id);
@@ -32,7 +47,7 @@ const StudentCard = ({ student, attendanceForm, updateStudentField, onMakeupClic
                             }}
                         >M</button>
                         <button
-                            className={`join-item btn btn-sm px-3 font-bold transition-all ${data.status === 'absent' ? 'btn-error text-white' : 'btn-ghost hover:bg-error/20 text-error'}`}
+                            className={`join-item btn btn-xs sm:btn-sm px-2 sm:px-3 font-bold transition-all ${data.status === 'absent' ? 'btn-error text-white' : 'btn-ghost hover:bg-error/20 text-error'}`}
                             onClick={() => updateStudentField(student._id, 'status', 'absent')}
                         >A</button>
                     </div>
@@ -40,25 +55,25 @@ const StudentCard = ({ student, attendanceForm, updateStudentField, onMakeupClic
 
                 {/* Makeup Info */}
                 {data.status === 'makeup' && data.makeupDate && (
-                    <div className="alert alert-info py-2 px-3 text-xs shadow-inner rounded-lg mb-3">
-                        <div className="flex items-center gap-2">
+                    <div className="alert alert-info py-1.5 sm:py-2 px-2 sm:px-3 text-xs shadow-inner rounded-lg mb-2 sm:mb-3">
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                            <span className="font-semibold">Makeup: {new Date(data.makeupDate).toLocaleDateString('en-GB')} {data.makeupTime && `(${data.makeupTime})`}</span>
+                            <span className="font-semibold truncate">Makeup: {new Date(data.makeupDate).toLocaleDateString('en-GB')} {data.makeupTime && `(${data.makeupTime})`}</span>
                         </div>
                         <button
-                            className="btn btn-xs btn-ghost btn-circle"
+                            className="btn btn-xs btn-ghost btn-circle shrink-0"
                             onClick={() => onMakeupClick(student._id)}
                         >✎</button>
                     </div>
                 )}
 
                 {/* Inputs */}
-                <div className="space-y-3">
+                <div className="space-y-2 sm:space-y-3">
                     <div className="form-control w-full">
                         <input
                             type="text"
                             placeholder="Classwork"
-                            className="input input-sm input-bordered w-full rounded-lg hover:border-primary/50 focus:border-primary bg-base-200/50 transition-colors"
+                            className="input input-xs sm:input-sm input-bordered w-full rounded-lg hover:border-primary/50 focus:border-primary bg-base-200/50 transition-colors"
                             value={data.classwork || ''}
                             onChange={(e) => updateStudentField(student._id, 'classwork', e.target.value)}
                         />
@@ -67,7 +82,7 @@ const StudentCard = ({ student, attendanceForm, updateStudentField, onMakeupClic
                         <input
                             type="text"
                             placeholder="Homework"
-                            className="input input-sm input-bordered w-full rounded-lg hover:border-primary/50 focus:border-primary bg-base-200/50 transition-colors"
+                            className="input input-xs sm:input-sm input-bordered w-full rounded-lg hover:border-primary/50 focus:border-primary bg-base-200/50 transition-colors"
                             value={data.homework || ''}
                             onChange={(e) => updateStudentField(student._id, 'homework', e.target.value)}
                         />
@@ -77,7 +92,7 @@ const StudentCard = ({ student, attendanceForm, updateStudentField, onMakeupClic
                             <input
                                 type="text"
                                 placeholder="Reason/Note..."
-                                className="input input-sm input-bordered input-warning w-full rounded-lg bg-warning/10"
+                                className="input input-xs sm:input-sm input-bordered input-warning w-full rounded-lg bg-warning/10"
                                 value={data.reason || ''}
                                 onChange={(e) => updateStudentField(student._id, 'reason', e.target.value)}
                             />
@@ -237,8 +252,17 @@ const AttendancePage = () => {
             (s.studentType === 'private' || !s.studentType)
         );
 
+        // Sort scheduled students by their time slot for the selected day
+        const scheduledStudents = relevantStudents
+            .filter(s => s.schedule?.includes(dayName))
+            .sort((a, b) => {
+                const timeA = parseTimeForSort(a.routine?.[dayName]);
+                const timeB = parseTimeForSort(b.routine?.[dayName]);
+                return timeA - timeB;
+            });
+
         return {
-            scheduled: relevantStudents.filter(s => s.schedule?.includes(dayName)),
+            scheduled: scheduledStudents,
             others: relevantStudents.filter(s =>
                 !s.schedule?.includes(dayName) &&
                 s.username.toLowerCase().includes(searchTerm.toLowerCase())
@@ -341,18 +365,18 @@ const AttendancePage = () => {
     });
 
     return (
-        <div className="min-h-screen bg-base-200 p-4 pb-24 md:p-8 font-['Hind_Siliguri']">
-            <div className="max-w-7xl mx-auto space-y-8">
+        <div className="min-h-screen bg-base-200 px-2 py-4 pb-24 sm:p-4 md:p-8 font-['Hind_Siliguri']">
+            <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 md:space-y-8">
 
                 {/* Header */}
-                <div className="navbar bg-base-100/60 backdrop-blur-md rounded-2xl shadow-lg border border-white/20 px-6 py-4">
-                    <div className="flex-1">
-                        <a className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary cursor-pointer">Attendance Tracker</a>
+                <div className="navbar bg-base-100/60 backdrop-blur-md rounded-xl sm:rounded-2xl shadow-lg border border-white/20 px-3 py-2 sm:px-6 sm:py-4 gap-2">
+                    <div className="flex-1 min-w-0">
+                        <a className="text-lg sm:text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary cursor-pointer truncate">Attendance Tracker</a>
                     </div>
-                    <div className="flex-none gap-2">
-                        <div className="tabs tabs-boxed bg-base-200/50 p-1 rounded-xl">
-                            <a className={`tab px-6 rounded-lg transition-all ${activeTab === 'daily' ? 'tab-active bg-primary text-white shadow-md' : 'hover:bg-base-300'}`} onClick={() => setActiveTab('daily')}>Daily</a>
-                            <a className={`tab px-6 rounded-lg transition-all ${activeTab === 'report' ? 'tab-active bg-primary text-white shadow-md' : 'hover:bg-base-300'}`} onClick={() => setActiveTab('report')}>Report</a>
+                    <div className="flex-none">
+                        <div className="tabs tabs-boxed bg-base-200/50 p-1 rounded-lg sm:rounded-xl">
+                            <a className={`tab tab-sm sm:tab-md px-3 sm:px-6 rounded-lg transition-all ${activeTab === 'daily' ? 'tab-active bg-primary text-white shadow-md' : 'hover:bg-base-300'}`} onClick={() => setActiveTab('daily')}>Daily</a>
+                            <a className={`tab tab-sm sm:tab-md px-3 sm:px-6 rounded-lg transition-all ${activeTab === 'report' ? 'tab-active bg-primary text-white shadow-md' : 'hover:bg-base-300'}`} onClick={() => setActiveTab('report')}>Report</a>
                         </div>
                     </div>
                 </div>
@@ -361,24 +385,24 @@ const AttendancePage = () => {
                 {activeTab === 'daily' && (
                     <div className="space-y-8">
                         {/* Top Controls Bar */}
-                        <div className="flex flex-col md:flex-row gap-6 items-center justify-between bg-base-100 p-6 rounded-2xl shadow-xl border border-white/10">
-                            <div className="flex items-center gap-6 w-full md:w-auto">
-                                <div className="form-control w-full md:w-auto">
+                        <div className="flex flex-col md:flex-row gap-3 sm:gap-6 items-center justify-between bg-base-100 p-3 sm:p-4 md:p-6 rounded-xl sm:rounded-2xl shadow-xl border border-white/10">
+                            <div className="flex items-center gap-3 sm:gap-6 w-full md:w-auto">
+                                <div className="form-control flex-1 md:flex-none md:w-auto">
                                     <input
                                         type="date"
-                                        className="input input-lg input-bordered font-mono bg-base-200/50 rounded-xl focus:outline-none focus:ring-2 ring-primary/50"
+                                        className="input input-md sm:input-lg input-bordered font-mono bg-base-200/50 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 ring-primary/50 w-full"
                                         value={selectedDate}
                                         onChange={(e) => setSelectedDate(e.target.value)}
                                     />
                                 </div>
                                 <div className="hidden md:block h-12 w-px bg-base-300"></div>
-                                <div className="text-2xl font-bold text-base-content/70 whitespace-nowrap">
+                                <div className="text-lg sm:text-2xl font-bold text-base-content/70 whitespace-nowrap">
                                     {new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long' })}
                                 </div>
                             </div>
 
                             <button
-                                className="btn btn-primary btn-lg w-full md:w-auto min-w-[200px] shadow-lg shadow-primary/30 rounded-xl hover:-translate-y-1 transition-transform"
+                                className="btn btn-primary btn-md sm:btn-lg w-full md:w-auto min-w-0 sm:min-w-[200px] shadow-lg shadow-primary/30 rounded-lg sm:rounded-xl hover:-translate-y-1 transition-transform"
                                 onClick={handleMarkAttendance}
                                 disabled={loading}
                             >
@@ -387,27 +411,27 @@ const AttendancePage = () => {
                         </div>
 
                         {/* Summary Stats */}
-                        <div className="stats shadow-lg w-full bg-base-100 border border-white/10 overflow-hidden">
-                            <div className="stat hover:bg-base-200/50 transition-colors">
-                                <div className="stat-title font-bold text-success/80">Present</div>
-                                <div className="stat-value text-success">
+                        <div className="stats stats-vertical sm:stats-horizontal shadow-lg w-full bg-base-100 border border-white/10 overflow-hidden rounded-xl sm:rounded-2xl">
+                            <div className="stat py-3 sm:py-4 px-4 sm:px-6 hover:bg-base-200/50 transition-colors">
+                                <div className="stat-title font-bold text-success/80 text-xs sm:text-sm">Present</div>
+                                <div className="stat-value text-success text-2xl sm:text-3xl">
                                     {Object.values(attendanceForm).filter(r => r.status === 'present').length}
                                 </div>
-                                <div className="stat-desc font-medium">Students present today</div>
+                                <div className="stat-desc font-medium text-xs">Students present today</div>
                             </div>
-                            <div className="stat hover:bg-base-200/50 transition-colors">
-                                <div className="stat-title font-bold text-info/80">Makeup</div>
-                                <div className="stat-value text-info">
+                            <div className="stat py-3 sm:py-4 px-4 sm:px-6 hover:bg-base-200/50 transition-colors">
+                                <div className="stat-title font-bold text-info/80 text-xs sm:text-sm">Makeup</div>
+                                <div className="stat-value text-info text-2xl sm:text-3xl">
                                     {Object.values(attendanceForm).filter(r => r.status === 'makeup').length}
                                 </div>
-                                <div className="stat-desc font-medium">Rescheduled classes</div>
+                                <div className="stat-desc font-medium text-xs">Rescheduled classes</div>
                             </div>
-                            <div className="stat hover:bg-base-200/50 transition-colors">
-                                <div className="stat-title font-bold text-error/80">Absent</div>
-                                <div className="stat-value text-error">
+                            <div className="stat py-3 sm:py-4 px-4 sm:px-6 hover:bg-base-200/50 transition-colors">
+                                <div className="stat-title font-bold text-error/80 text-xs sm:text-sm">Absent</div>
+                                <div className="stat-value text-error text-2xl sm:text-3xl">
                                     {Object.values(attendanceForm).filter(r => r.status === 'absent').length}
                                 </div>
-                                <div className="stat-desc font-medium">Students absent</div>
+                                <div className="stat-desc font-medium text-xs">Students absent</div>
                             </div>
                         </div>
 
@@ -428,8 +452,8 @@ const AttendancePage = () => {
 
                         {/* Scheduled Section */}
                         <div className="animate-fade-in-up delay-100">
-                            <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
-                                <span className="badge badge-primary badge-lg shadow-md">{scheduled.length}</span>
+                            <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 flex items-center gap-2 sm:gap-3">
+                                <span className="badge badge-primary badge-md sm:badge-lg shadow-md">{scheduled.length}</span>
                                 <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">Scheduled Today</span>
                             </h2>
                             {scheduled.length === 0 ? (
@@ -438,7 +462,7 @@ const AttendancePage = () => {
                                     <span>No students scheduled for this day. Relax!</span>
                                 </div>
                             ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
                                     {scheduled.map(student => (
                                         <StudentCard
                                             key={student._id}
