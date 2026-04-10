@@ -421,7 +421,7 @@ function DoubtSolvePage({
 
   // Call internal proxy endpoint so API key is never exposed in browser
   // Image support disabled; use text model
-  const chosenModel = 'gemma-3-27b-it';
+  const chosenModel = 'gemma-4-31b-it';
       const body = JSON.stringify({ parts, model: chosenModel });
       // Use Vercel Edge API endpoint for Gemma
       const GEMMA_API_URL = 'https://geminiai-render.onrender.com/api/gemma';
