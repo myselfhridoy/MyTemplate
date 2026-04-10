@@ -426,7 +426,7 @@ function AIAssistantPage({
       // Call internal proxy endpoint so API key is never exposed in browser
       const isImagePresent = !!imageFile;
       // If only text (no image) use lighter model for cost & speed; if image present use multimodal capable model
-      const chosenModel = isImagePresent ? 'gemini-2.5-flash' : 'gemini-2.5-flash-lite';
+      const chosenModel = isImagePresent ? 'gemini-2.5-flash' : 'gemma-4-31b-it';
       const body = JSON.stringify({ parts, model: chosenModel });
       // Default: use local proxy
       async function callProxy(url) {
