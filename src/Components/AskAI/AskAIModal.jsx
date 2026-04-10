@@ -16,7 +16,7 @@ const AI_MODELS = [
   { value: 'hmtai', label: 'H.M. Tutoring AI', api: 'https://geminiai-render.onrender.com/api/ai-free-api', type: 'hmtai' },
   { value: 'easemate', label: 'Problem Solver', api: 'https://geminiai-render.onrender.com/api/easemate', type: 'easemate' },
   { value: 'borno', label: 'Academic Assistant', api: 'https://geminiai-render.onrender.com/api/bornoai', type: 'borno' },
-  { value: 'doubt', label: 'Concept Builder', api: 'https://geminiai-render.onrender.com/api/gemma', type: 'gemma-stream', model: 'gemini-2.5-flash-lite' },
+  { value: 'doubt', label: 'Concept Builder', api: 'https://geminiai-render.onrender.com/api/gemma', type: 'gemma-stream', model: 'gemma-4-31b-it' },
 ];
 
 function AskAIModal({ isOpen, onClose, questionText = '', stemText = '', imageUrl = '', source = '', marks = '', finalAnswer = '', steps = '', subjectName = '', chapterName = '', className = '' }) {
@@ -313,7 +313,7 @@ ${userQuestion}`;
         formData.append('conversation_id', crypto.randomUUID?.() || Date.now().toString());
         formData.append('message_id', crypto.randomUUID?.() || Date.now().toString());
         formData.append('content', prompt);
-        formData.append('model', 'gemini-2.5-flash');
+        formData.append('model', 'gemini-3.1-flash-preview');
         formData.append('max_mode', 'true');
         if (imageUrl) {
           const imageFile = await fetchImageAsFile(imageUrl);
@@ -342,7 +342,7 @@ ${userQuestion}`;
         // Gemma/Knowledge Master/Concept Builder (JSON + SSE stream)
         const parts = [{ text: prompt }];
         // Image support for gemini models (not gemma)
-        if (imageUrl && modelConfig.model !== 'gemini-2.5-flash-lite') {
+        if (imageUrl && modelConfig.model !== 'gemma-4-31b-it') {
           const dataUri = await fetchImageAsDataUri(imageUrl);
           if (dataUri) {
             const [meta, base64] = dataUri.split(',');
