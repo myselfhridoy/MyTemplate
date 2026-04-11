@@ -29,7 +29,7 @@ const MathRenderer = ({ text }) => {
             inline
             dynamic
             style={{
-              display: 'inline-block',
+              display: 'inline',
               margin: '0 1px',
               fontSize: 'clamp(0.75rem, 1.8vw, 1rem)',
               maxWidth: '100%',
