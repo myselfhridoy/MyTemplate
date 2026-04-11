@@ -340,33 +340,50 @@ ${userQuestion}`;
                     } catch { /* skip non-JSON lines */ }
                 }
             } else if (modelConfig.type === 'gemma-stream') {
-                // Gemma/Knowledge Master/Concept Builder (JSON + SSE stream)
-                const parts = [{ text: prompt }];
-                // Image support for gemini models (not gemma)
-                if (imageUrl && modelConfig.model !== 'gemma-4-31b-it') {
-                    const dataUri = await fetchImageAsDataUri(imageUrl);
-                    if (dataUri) {
-                        const [meta, base64] = dataUri.split(',');
-                        const mimeType = meta.match(/:(.*?);/)?.[1] || 'image/jpeg';
-                        parts.push({ inlineData: { mimeType, data: base64 } });
-                    }
+    // Gemma/Knowledge Master/Concept Builder (JSON + SSE stream)
+    const parts = [{ text: prompt }];
+
+    // Image support for gemini models (not gemma)
+    if (imageUrl && modelConfig.model !== 'gemma-4-31b-it') {
+        const dataUri = await fetchImageAsDataUri(imageUrl);
+        if (dataUri) {
+            const [meta, base64] = dataUri.split(',');
+            const mimeType = meta.match(/:(.*?);/)?.[1] || 'image/jpeg';
+            parts.push({ inlineData: { mimeType, data: base64 } });
+        }
+    }
+
+    const resp = await fetch(modelConfig.api, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'text/event-stream'
+        },
+        body: JSON.stringify({
+            parts,
+            model: modelConfig.model,
+        }),
+    });
+
+    if (!resp.ok) throw new Error('API Error: ' + resp.status);
+
+    const ct = resp.headers.get('Content-Type') || '';
+
+    if (ct.includes('application/json')) {
+        const data = await resp.json();
+        const partsArr = data?.candidates?.[0]?.content?.parts;
+
+        if (Array.isArray(partsArr)) {
+            for (const p of partsArr) {
+                if (p?.thought === true) continue;   // thought বাদ
+                if (typeof p?.text === 'string' && p.text.length > 0) {
+                    answerText += p.text;
                 }
-                const resp = await fetch(modelConfig.api, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
-                    body: JSON.stringify({ parts, model: modelConfig.model }),
-                });
-                if (!resp.ok) throw new Error('API Error: ' + resp.status);
-                const ct = resp.headers.get('Content-Type') || '';
-                if (ct.includes('application/json')) {
-                    const data = await resp.json();
-                    const partsArr = data?.candidates?.[0]?.content?.parts;
-                    if (Array.isArray(partsArr)) {
-                        for (const p of partsArr) { if (p?.text) answerText += p.text; }
-                    }
-                } else {
-                    answerText = await parseSSEStream(resp);
-                }
+            }
+        }
+    } else {
+        answerText = await parseSSEStream(resp);
+    }
             } else if (modelConfig.type === 'chatbot') {
                 // AI Chat Bot (FormData)
                 const formData = new FormData();
