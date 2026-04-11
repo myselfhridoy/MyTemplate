@@ -33,7 +33,7 @@ const MathRenderer = ({ text }) => {
               margin: '0 1px',
               fontSize: 'clamp(0.75rem, 1.8vw, 1rem)',
               maxWidth: '100%',
-              overflow: 'auto',
+              //overflow: 'auto',
               overflow: 'hidden',
               verticalAlign: 'middle'
             }}
