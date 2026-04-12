@@ -196,7 +196,7 @@ function AskAIModalMongoDB({ isOpen, onClose, questionText = '', stemText = '', 
                     const parts = json?.candidates?.[0]?.content?.parts;
                     if (Array.isArray(parts)) {
                         for (const p of parts) {
-                            if (p?.text) answerText += p.text;
+                            if (p?.text && !p.thought) answerText += p.text;
                         }
                     }
                 } catch { /* skip */ }

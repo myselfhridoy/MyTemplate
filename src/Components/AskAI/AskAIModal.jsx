@@ -222,7 +222,7 @@ function AskAIModal({ isOpen, onClose, questionText = '', stemText = '', imageUr
           const parts = json?.candidates?.[0]?.content?.parts;
           if (Array.isArray(parts)) {
             for (const p of parts) {
-              if (p?.text) answerText += p.text;
+              if (p?.text && !p.thought) answerText += p.text;
             }
           }
         } catch { /* skip */ }
@@ -361,7 +361,7 @@ ${userQuestion}`;
           const data = await resp.json();
           const partsArr = data?.candidates?.[0]?.content?.parts;
           if (Array.isArray(partsArr)) {
-            for (const p of partsArr) { if (p?.text) answerText += p.text; }
+            for (const p of partsArr) { if (p?.text && !p.thought) answerText += p.text; }
           }
         } else {
           answerText = await parseSSEStream(resp);

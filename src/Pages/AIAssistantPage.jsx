@@ -480,7 +480,7 @@ function AIAssistantPage({
             if (Array.isArray(partsArr)) {
               let appended = false;
               for (const p of partsArr) {
-                if (p && typeof p.text === 'string' && p.text.length > 0) {
+                if (p && typeof p.text === 'string' && p.text.length > 0 && !p.thought) {
                   answerText += p.text;
                   appended = true;
                 }
