@@ -1,187 +1,98 @@
 import React from 'react';
-import { MathJaxContext, MathJax } from 'better-react-mathjax';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
 import rehypeRaw from 'rehype-raw';
+import 'katex/dist/katex.min.css'; // Add KaTeX CSS so rendered math shows correctly
+
+// Shared markdown component styles
+const components = {
+  p: ({ children }) => <p style={{ margin: '0.4rem 0', lineHeight: '1.7' }}>{children}</p>,
+  strong: ({ children }) => <strong style={{ fontWeight: 700, color: 'inherit' }}>{children}</strong>,
+  em: ({ children }) => <em style={{ fontStyle: 'italic', opacity: 0.9 }}>{children}</em>,
+  code: ({ inline, className, children, ...props }) => {
+    if (inline) {
+      return <code style={{ background: 'rgba(255,255,255,0.08)', padding: '1px 5px', borderRadius: '4px', fontSize: '0.85em', fontFamily: 'monospace' }} {...props}>{children}</code>;
+    }
+    return (
+      <pre style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '0.75rem', margin: '0.5rem 0', overflowX: 'auto', fontSize: '0.8rem', maxWidth: '100%', scrollbarWidth: 'none' }}>
+        <code className={className} {...props}>{children}</code>
+      </pre>
+    );
+  },
+  h1: ({ children }) => <h1 style={{ fontWeight: 'bold', fontSize: '1.3rem', margin: '0.8rem 0 0.4rem', color: 'inherit' }}>{children}</h1>,
+  h2: ({ children }) => <h2 style={{ fontWeight: 'bold', fontSize: '1.15rem', margin: '0.7rem 0 0.3rem', color: 'inherit' }}>{children}</h2>,
+  h3: ({ children }) => <h3 style={{ fontWeight: 'bold', fontSize: '1.05rem', margin: '0.6rem 0 0.25rem', color: 'inherit' }}>{children}</h3>,
+  h4: ({ children }) => <h4 style={{ fontWeight: 'bold', fontSize: '0.95rem', margin: '0.5rem 0 0.2rem', color: 'inherit' }}>{children}</h4>,
+  ul: ({ children }) => <ul style={{ paddingLeft: '1.2rem', margin: '0.3rem 0', listStyleType: 'disc' }}>{children}</ul>,
+  ol: ({ children, start }) => <ol start={start} style={{ paddingLeft: '1.4rem', margin: '0.3rem 0', listStyleType: 'decimal', counterReset: start ? `list-item ${start - 1}` : undefined }}>{children}</ol>,
+  li: ({ children }) => (
+    <li style={{ marginBottom: '0.2rem', lineHeight: '1.6', paddingLeft: '0.2rem' }}>
+      {children}
+    </li>
+  ),
+  blockquote: ({ children }) => (
+    <blockquote style={{ borderLeft: '3px solid rgba(124,58,237,0.4)', paddingLeft: '0.75rem', margin: '0.5rem 0', opacity: 0.85, fontStyle: 'italic' }}>
+      {children}
+    </blockquote>
+  ),
+  a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: '#818cf8', textDecoration: 'underline' }}>{children}</a>,
+  table: ({ children }) => (
+    <div style={{ overflowX: 'auto', maxWidth: '100%', scrollbarWidth: 'none', margin: '0.5rem 0' }}>
+      <table style={{ borderCollapse: 'collapse', fontSize: '0.8rem', minWidth: '100%' }}>
+        {children}
+      </table>
+    </div>
+  ),
+  thead: ({ children }) => <thead style={{ background: 'rgba(255,255,255,0.05)' }}>{children}</thead>,
+  tbody: ({ children }) => <tbody>{children}</tbody>,
+  tr: ({ children }) => <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>{children}</tr>,
+  th: ({ children }) => <th style={{ padding: '0.4rem 0.6rem', fontWeight: 'bold', textAlign: 'left', whiteSpace: 'nowrap' }}>{children}</th>,
+  td: ({ children }) => <td style={{ padding: '0.4rem 0.6rem', whiteSpace: 'nowrap' }}>{children}</td>,
+  hr: () => <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.1)', margin: '0.75rem 0' }} />,
+};
+
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return <div className="text-error text-sm p-4 border border-error/20 rounded-md">Failed to render parsed content. Try reloading.</div>;
+    }
+    return this.props.children;
+  }
+}
 
 const MathRenderer = ({ text }) => {
   if (!text) return null;
 
-  // Convert escaped \n to actual line breaks first (negative lookahead to preserve LaTeX like \neq, \nu, \newcommand)
-  let processedText = text.replace(/\\n(?![a-zA-Z])/g, '\n');
+  // Convert escaped \n to actual line breaks
+  let processed = text.replace(/\\n(?![a-zA-Z])/g, '\n');
 
-  // Minimal text processing - only fix very specific problematic cases
-  processedText = processedText
-    // Only fix list items that are split
-    .replace(/([^\n])\n([ \t]*-[ \t]*)/g, '$1 $2'); // Fix list items only
-
-  // Custom function to process text with inline math
-  const processInlineText = (text) => {
-    // Split text by math expressions but keep them
-    const parts = text.split(/(\$[^$]+\$)/g);
-    return parts.map((part, index) => {
-      if (part.startsWith('$') && part.endsWith('$')) {
-        // This is a math expression - use MathJax component
-        const mathContent = part.slice(1, -1); // Remove the $ symbols
-        return (
-          <MathJax
-            key={index}
-            inline
-            dynamic
-            style={{
-              display: 'inline',
-              margin: '0 1px',
-              fontSize: 'clamp(0.75rem, 1.8vw, 1rem)',
-              maxWidth: '100%',
-              //overflow: 'auto',
-              overflow: 'hidden',
-              verticalAlign: 'middle'
-            }}
-          >
-            {`$${mathContent}$`}
-          </MathJax>
-        );
-      } else {
-        // This is regular text - handle single newlines as line breaks
-        const lines = part.split('\n');
-        return lines.map((line, lineIndex) => (
-          <React.Fragment key={lineIndex}>
-            {lineIndex > 0 && <br />}
-            {line}
-          </React.Fragment>
-        ));
-      }
-    });
-  };
-
-  // Split by double line breaks to handle paragraphs
-  const paragraphs = processedText.split('\n\n');
+  // Convert single newlines to Markdown line breaks (two trailing spaces + newline)
+  // This ensures ক, খ, গ, ঘ etc. appear on separate lines
+  processed = processed.replace(/(?<!\n)\n(?!\n)/g, '  \n');
 
   return (
-    <div style={{ lineHeight: '1.8', wordWrap: 'break-word', overflowWrap: 'anywhere', maxWidth: '100%', overflowX: 'auto' }}>
-      {paragraphs.map((paragraph, index) => {
-        if (typeof paragraph !== 'string' || !paragraph.trim()) return null;
-        const trimmedParagraph = paragraph.trim();
-
-        // Header detection (H1, H2, H3)
-        const headerMatch = trimmedParagraph.match(/^(#{1,3})\s+(.*)/);
-        if (headerMatch) {
-          const level = headerMatch[1].length;
-          const content = headerMatch[2];
-          const HeaderTag = `h${level}`;
-          const fontSize = level === 1 ? '1.5rem' : level === 2 ? '1.25rem' : '1.1rem';
-
-          return (
-            <HeaderTag key={index} style={{
-              fontWeight: 'bold',
-              fontSize,
-              marginTop: '1rem',
-              marginBottom: '0.5rem',
-              color: 'inherit'
-            }}>
-              {processInlineText(content)}
-            </HeaderTag>
-          );
-        }
-
-        // Table detection: if paragraph contains at least two table rows (| ... | ... |)
-        let isTable = false;
-        if (typeof trimmedParagraph === 'string' && /\|(.+)\|/.test(trimmedParagraph)) {
-          const tableRows = trimmedParagraph.split('\n').filter(l => /^\|(.+)\|$/.test(l));
-          isTable = tableRows.length >= 2;
-        }
-        if (isTable) {
-          return (
-            <div style={{ overflowX: 'auto', maxWidth: '100%' }}>
-              <ReactMarkdown
-                key={index}
-                remarkPlugins={[remarkGfm]}
-                rehypePlugins={[rehypeRaw]}
-                components={{
-                  p: ({ children }) => <>{children}</>,
-                  strong: ({ ...props }) => <strong className="font-bold text-primary" {...props} />,
-                  em: ({ ...props }) => <em className="italic text-secondary" {...props} />,
-                  code: ({ ...props }) => <code className="bg-base-200 px-1 rounded" {...props} />,
-                  table: ({ children }) => (
-                    <table className="min-w-full border border-base-300 rounded overflow-hidden my-3 text-sm" style={{ borderCollapse: 'collapse', tableLayout: 'auto', minWidth: '100%' }}>
-                      {children}
-                    </table>
-                  ),
-                  thead: ({ children }) => <thead className="bg-base-200">{children}</thead>,
-                  tbody: ({ children }) => <tbody>{children}</tbody>,
-                  tr: ({ children }) => <tr className="border-b border-base-300">{children}</tr>,
-                  th: ({ children }) => (
-                    <th className="px-4 py-2 font-bold bg-base-200 border border-base-300 text-base-content whitespace-nowrap">
-                      {processInlineText(
-                        React.Children.toArray(children)
-                          .map(child => typeof child === 'string' ? child : (child.props?.children ?? ''))
-                          .join('')
-                      )}
-                    </th>
-                  ),
-                  td: ({ children }) => (
-                    <td className="px-4 py-2 border border-base-300 text-base-content whitespace-nowrap">
-                      {processInlineText(
-                        React.Children.toArray(children)
-                          .map(child => typeof child === 'string' ? child : (child.props?.children ?? ''))
-                          .join('')
-                      )}
-                    </td>
-                  ),
-                }}
-              >
-                {trimmedParagraph}
-              </ReactMarkdown>
-            </div>
-          );
-        }
-
-        // List detection
-        const hasActualBullets = /^\s*[-•*]\s/.test(paragraph) || /\n\s*[-•*]\s/.test(paragraph);
-        const isListParagraph = hasActualBullets;
-        if (isListParagraph) {
-          const parts = paragraph.split(/(?=\n\s*[-•*]\s)/);
-          return (
-            <div key={index} style={{ marginBottom: index < paragraphs.length - 1 ? '1rem' : '0', lineHeight: '1.8' }}>
-              {parts.map((part, partIndex) => {
-                const trimmedPart = part.trim();
-                if (/^\s*[-•*]\s/.test(trimmedPart)) {
-                  const cleanItem = trimmedPart.replace(/^\s*[-•*]\s*/, '').trim();
-                  return (
-                    <div key={partIndex} style={{ marginBottom: '0.3rem', paddingLeft: '1rem', lineHeight: '1.6' }}>
-                      {processInlineText(cleanItem)}
-                    </div>
-                  );
-                } else {
-                  if (!trimmedPart) return null;
-                  const isSubheading = trimmedPart.endsWith(':') && !trimmedPart.includes('\n');
-                  if (isSubheading) {
-                    return (
-                      <div key={partIndex} style={{ marginBottom: '0.5rem', marginTop: partIndex > 0 ? '1rem' : '0', fontWeight: 'bold', color: 'inherit' }}>
-                        {processInlineText(trimmedPart)}
-                      </div>
-                    );
-                  } else {
-                    return (
-                      <p key={partIndex} style={{ marginBottom: '0.5rem', lineHeight: '1.8' }}>
-                        {processInlineText(trimmedPart)}
-                      </p>
-                    );
-                  }
-                }
-              })}
-            </div>
-          );
-        }
-
-        // Regular paragraph
-        return (
-          <div key={index} style={{ marginBottom: index < paragraphs.length - 1 ? '1rem' : '0', lineHeight: '1.8', wordWrap: 'break-word', overflowWrap: 'anywhere', maxWidth: '100%', overflowX: 'auto' }}>
-            {processInlineText(paragraph.trim())}
-          </div>
-        );
-      }).filter(Boolean)}
-    </div>
+    <ErrorBoundary>
+      <div className="math-markdown-content" style={{ lineHeight: '1.7', maxWidth: '100%', overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm, remarkMath]}
+          rehypePlugins={[rehypeRaw, rehypeKatex]}
+          components={components}
+        >
+          {processed}
+        </ReactMarkdown>
+      </div>
+    </ErrorBoundary>
   );
 };
 

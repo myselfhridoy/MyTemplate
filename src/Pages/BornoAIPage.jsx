@@ -277,7 +277,7 @@ function BornoAIPage() {
         </button>
       </form>
       {answer && (
-        <div className="bg-base-100 rounded shadow p-3 sm:p-4 text-base sm:text-lg text-base-content overflow-x-auto">
+        <div className="bg-base-100 rounded shadow p-3 sm:p-4 text-base sm:text-lg text-base-content" style={{ overflowX: 'hidden', maxWidth: '100%' }}>
           <span className="font-bold">উত্তর:</span>
           <div style={{ marginTop: '0.5rem', lineHeight: '1.8', wordSpacing: '0.1em' }}>
             <KatexRenderer text={answer} />

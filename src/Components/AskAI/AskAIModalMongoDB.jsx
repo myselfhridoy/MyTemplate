@@ -602,7 +602,7 @@ ${userQuestion}`;
                 {/* Answer */}
                 {answer && (
                     <>
-                        <div ref={visibleAnswerRef} className="border rounded-lg p-4 bg-base-100" style={{ whiteSpace: 'pre-line', overflowX: 'auto' }}>
+                        <div ref={visibleAnswerRef} className="border rounded-lg p-4 bg-base-100" style={{ overflowX: 'hidden', maxWidth: '100%' }}>
                             <span className="font-semibold text-success block mb-2">উত্তর:</span>
                             {(() => {
                                 const svgRegex = /(<svg[\s\S]*?<\/svg>)/gi;

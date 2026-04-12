@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Send, Paperclip, Bot, User, Trash2, Image as ImageIcon, FileText, X, Plus, MessageSquare, Menu, ChevronLeft, Sparkles, Code, Calculator, PenTool, BarChart3 } from 'lucide-react';
 import MathRenderer from './MathRenderer/MathRenderer';
 import { cn } from '../lib/utils';
@@ -50,6 +50,126 @@ function getSessionDateGroup(timestamp) {
     return 'Older';
 }
 
+// Extract image URL from message content (for preview)
+function getImageUrl(msg) {
+    if (Array.isArray(msg.content)) {
+        const imgPart = msg.content.find(c => c.type === 'image_url');
+        if (imgPart?.image_url?.url) return imgPart.image_url.url;
+    }
+    return null;
+}
+
+// Memoized message bubble to prevent re-renders on input change
+const MessageBubble = React.memo(({ msg, idx }) => {
+    const isUser = msg.role === 'user';
+    const imageUrl = isUser ? getImageUrl(msg) : null;
+
+    return (
+        <div
+            className={cn(
+                "flex gap-2 sm:gap-3 puter-fade-in w-full",
+                isUser ? "justify-end pl-4 sm:pl-10" : "justify-start pr-4 sm:pr-10"
+            )}
+            style={{ animationDelay: `${Math.min(idx * 50, 300)}ms` }}
+        >
+            {/* AI Avatar */}
+            {!isUser && (
+                <div className="shrink-0 mt-1 hidden sm:block">
+                    <div className="w-8 h-8 rounded-xl border border-violet-500/10 flex items-center justify-center" style={{ background: 'linear-gradient(to bottom right, rgba(139,92,246,0.2), rgba(59,130,246,0.2))' }}>
+                        <Sparkles className="h-3.5 w-3.5 text-violet-400" />
+                    </div>
+                </div>
+            )}
+
+            <div
+                className={cn(
+                    "relative rounded-2xl min-w-0 overflow-hidden",
+                    isUser
+                        ? "puter-user-msg rounded-br-md shadow-lg text-white"
+                        : "bg-base-200/60 backdrop-blur-sm text-base-content rounded-bl-md border border-base-content/5"
+                )}
+                style={{
+                    ...(isUser ? { background: 'linear-gradient(135deg, #7c3aed, #2563eb)' } : {})
+                }}
+            >
+                {/* Image Preview */}
+                {imageUrl && (
+                    <div style={{ padding: '6px 6px 0' }}>
+                        <img
+                            src={imageUrl}
+                            alt="Uploaded"
+                            style={{
+                                width: '100%',
+                                maxHeight: '200px',
+                                objectFit: 'cover',
+                                borderRadius: '12px',
+                                display: 'block',
+                            }}
+                        />
+                    </div>
+                )}
+
+                {/* File Badges (non-image files) */}
+                {msg.files && msg.files.length > 0 && !imageUrl && (
+                    <div style={{ padding: '8px 12px 0', display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                        {msg.files.map((f, i) => (
+                            <div key={i} style={{
+                                background: 'rgba(255,255,255,0.1)',
+                                borderRadius: '8px',
+                                padding: '4px 8px',
+                                fontSize: '10px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                maxWidth: '100%',
+                                overflow: 'hidden',
+                            }}>
+                                {f.type.startsWith('image/') ? <ImageIcon className="h-3 w-3 shrink-0" /> : <FileText className="h-3 w-3 shrink-0" />}
+                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100px', opacity: 0.8 }}>{f.name}</span>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {/* Message Content */}
+                <div
+                    className="answer-content text-xs sm:text-sm"
+                    style={{
+                        padding: '10px 12px',
+                        lineHeight: '1.7',
+                        width: '100%',
+                        minWidth: 0,
+                        boxSizing: 'border-box',
+                        overflowX: 'auto',
+                        overflowY: 'hidden',
+                        overflowWrap: 'anywhere',
+                        wordBreak: 'break-word',
+                        scrollbarWidth: 'none',
+                    }}
+                >
+                    <MathRenderer
+                        text={typeof msg.content === 'string'
+                            ? msg.content
+                            : (Array.isArray(msg.content)
+                                ? msg.content.find(c => c.type === 'text' || c.type === 'input_text')?.text || msg.content.find(c => c.type === 'text')?.text || ''
+                                : '')}
+                    />
+                </div>
+            </div>
+
+            {/* User Avatar */}
+            {isUser && (
+                <div className="shrink-0 mt-1 hidden sm:block">
+                    <div className="w-8 h-8 rounded-xl flex items-center justify-center shadow-md" style={{ background: 'linear-gradient(to bottom right, #7c3aed, #2563eb)' }}>
+                        <User className="h-3.5 w-3.5 text-white" />
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+});
+MessageBubble.displayName = 'MessageBubble';
+
 export default function PuterChat() {
     // Session State
     const [sessions, setSessions] = useState([]);
@@ -60,7 +180,9 @@ export default function PuterChat() {
     // Chat State
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [selectedModel, setSelectedModel] = useState('openai/gpt-4o-mini');
+    const [selectedModel, setSelectedModel] = useState(() => {
+        return localStorage.getItem('puter-chat-model') || 'openai/gpt-4o-mini';
+    });
     const [files, setFiles] = useState([]);
 
     const scrollAreaRef = useRef(null);
@@ -104,6 +226,28 @@ export default function PuterChat() {
                 createNewSession();
             }
         }
+
+        // Restore files
+        const savedFiles = localStorage.getItem('puter-chat-files');
+        if (savedFiles) {
+            try {
+                const parsedFiles = JSON.parse(savedFiles);
+                const restoredFiles = parsedFiles.map(f => {
+                    const arr = f.dataUrl.split(',');
+                    const mime = arr[0].match(/:(.*?);/)[1];
+                    const bstr = atob(arr[1]);
+                    let n = bstr.length;
+                    const u8arr = new Uint8Array(n);
+                    while (n--) {
+                        u8arr[n] = bstr.charCodeAt(n);
+                    }
+                    return new File([u8arr], f.name, { type: mime });
+                });
+                setFiles(restoredFiles);
+            } catch (e) {
+                console.error("Failed to parse saved files", e);
+            }
+        }
     }, []);
 
     // Persist Sessions
@@ -112,6 +256,34 @@ export default function PuterChat() {
             localStorage.setItem('puter-chat-sessions', JSON.stringify(sessions));
         }
     }, [sessions]);
+
+    // Persist Model
+    useEffect(() => {
+        localStorage.setItem('puter-chat-model', selectedModel);
+    }, [selectedModel]);
+
+    // Persist Files (as base64)
+    useEffect(() => {
+        const saveFiles = async () => {
+            if (files.length === 0) {
+                localStorage.removeItem('puter-chat-files');
+                return;
+            }
+            try {
+                const fileData = await Promise.all(files.map(file => {
+                    return new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onload = (e) => resolve({ name: file.name, type: file.type, dataUrl: e.target.result });
+                        reader.readAsDataURL(file);
+                    });
+                }));
+                localStorage.setItem('puter-chat-files', JSON.stringify(fileData));
+            } catch (e) {
+                console.warn("Storage quota exceeded or error saving files", e);
+            }
+        };
+        saveFiles();
+    }, [files]);
 
     // Auto-scroll logic
     useEffect(() => {
@@ -328,7 +500,7 @@ export default function PuterChat() {
     };
 
     const currentSession = getCurrentSession();
-    const messages = currentSession?.messages || [];
+    const messages = useMemo(() => currentSession?.messages || [], [currentSession?.messages]);
 
     // Group sessions by date
     const groupedSessions = sessions.reduce((groups, session) => {
@@ -452,7 +624,7 @@ export default function PuterChat() {
             )}
 
             {/* ═══════════ Main Chat Area ═══════════ */}
-            <div className="flex-1 flex flex-col min-w-0 bg-base-100">
+            <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden bg-base-100">
                 {/* ─── Header ─── */}
                 <div className="h-12 sm:h-14 border-b border-base-content/5 flex items-center justify-between px-2 sm:px-3 md:px-4 bg-base-100/80 backdrop-blur-md sticky top-0 z-10">
                     <div className="flex items-center gap-1.5">
@@ -531,67 +703,7 @@ export default function PuterChat() {
                         ) : (
                             /* ═══ Message List ═══ */
                             messages.map((msg, idx) => (
-                                <div
-                                    key={idx}
-                                    className={cn(
-                                        "flex gap-2 sm:gap-3 w-full puter-fade-in",
-                                        msg.role === 'user' ? "justify-end" : "justify-start"
-                                    )}
-                                    style={{ animationDelay: `${Math.min(idx * 50, 300)}ms` }}
-                                >
-                                    {/* AI Avatar */}
-                                    {msg.role !== 'user' && (
-                                        <div className="shrink-0 mt-1 hidden sm:block">
-                                            <div className="w-8 h-8 rounded-xl border border-violet-500/10 flex items-center justify-center" style={{ background: 'linear-gradient(to bottom right, rgba(139,92,246,0.2), rgba(59,130,246,0.2))' }}>
-                                                <Sparkles className="h-3.5 w-3.5 text-violet-400" />
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    <div
-                                        className={cn(
-                                            "relative rounded-2xl px-3 py-2.5 sm:px-4 sm:py-3 md:px-5 md:py-3.5",
-                                            msg.role === 'user'
-                                                ? "max-w-[85%] sm:max-w-[80%] md:max-w-[70%] puter-user-msg rounded-br-md shadow-lg text-white"
-                                                : "w-full sm:w-[80%] md:w-[70%] bg-base-200/60 backdrop-blur-sm text-base-content rounded-bl-md border border-base-content/5"
-                                        )}
-                                        style={msg.role === 'user' ? { background: 'linear-gradient(to bottom right, #7c3aed, #2563eb)' } : undefined}
-                                    >
-                                        {/* File Badges */}
-                                        {msg.files && msg.files.length > 0 && (
-                                            <div className="flex flex-wrap gap-1.5 mb-2.5">
-                                                {msg.files.map((f, i) => (
-                                                    <div key={i} className="bg-white/10 backdrop-blur-sm px-2.5 py-1 rounded-lg text-[11px] flex items-center gap-1.5">
-                                                        {f.type.startsWith('image/') ? <ImageIcon className="h-3 w-3" /> : <FileText className="h-3 w-3" />}
-                                                        <span className="truncate max-w-[120px] opacity-80">{f.name}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                        {/* Message Content */}
-                                        <div className={cn(
-                                            "answer-content text-xs sm:text-sm leading-relaxed w-full min-w-0",
-                                            msg.role !== 'user' && "overflow-x-auto"
-                                        )} style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
-                                            <MathRenderer
-                                                text={typeof msg.content === 'string'
-                                                    ? msg.content
-                                                    : (Array.isArray(msg.content)
-                                                        ? msg.content.find(c => c.type === 'text' || c.type === 'input_text')?.text || msg.content.find(c => c.type === 'text')?.text || ''
-                                                        : '')}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    {/* User Avatar */}
-                                    {msg.role === 'user' && (
-                                        <div className="shrink-0 mt-1 hidden sm:block">
-                                            <div className="w-8 h-8 rounded-xl flex items-center justify-center shadow-md" style={{ background: 'linear-gradient(to bottom right, #7c3aed, #2563eb)' }}>
-                                                <User className="h-3.5 w-3.5 text-white" />
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
+                                <MessageBubble key={idx} msg={msg} idx={idx} />
                             ))
                         )}
 
@@ -616,18 +728,39 @@ export default function PuterChat() {
                 {/* ─── Input Area ─── */}
                 <div className="p-2 sm:p-3 md:p-4 pb-[env(safe-area-inset-bottom,8px)]" style={{ background: 'linear-gradient(to top, var(--color-base-100) 0%, var(--color-base-100) 50%, transparent 100%)' }}>
                     <div className="max-w-3xl mx-auto">
-                        {/* Attached Files */}
+                        {/* Attached Files Preview */}
                         {files.length > 0 && (
-                            <div className="flex gap-2 px-2 mb-2 overflow-x-auto">
-                                {files.map((file, i) => (
-                                    <div key={i} className="relative group bg-base-200/80 backdrop-blur-sm border border-base-content/5 px-3 py-2 rounded-xl text-xs flex items-center gap-2 shadow-sm">
-                                        {file.type.startsWith('image/') ? <ImageIcon className="h-4 w-4 text-violet-400" /> : <FileText className="h-4 w-4 text-blue-400" />}
-                                        <span className="max-w-[130px] truncate text-base-content/70">{file.name}</span>
-                                        <button type="button" onClick={() => removeFile(i)} className="ml-0.5 text-base-content/30 hover:text-error transition-colors">
-                                            <X className="h-3 w-3" />
-                                        </button>
-                                    </div>
-                                ))}
+                            <div className="flex flex-wrap gap-2 px-2 pb-2">
+                                {files.map((file, i) => {
+                                    const isImage = file.type.startsWith('image/');
+                                    // Make sure we have a valid dataUrl or blob URL to show preview
+                                    const previewUrl = file.dataUrl || URL.createObjectURL(file);
+                                    return (
+                                        <div key={i} className="relative group bg-base-200/90 backdrop-blur-md border border-base-content/10 rounded-xl flex items-center shadow-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200 pointer-events-auto" style={{ maxWidth: 'calc(100vw - 2rem)' }}>
+                                            {isImage ? (
+                                                <div className="h-12 w-12 sm:h-14 sm:w-14 shrink-0 bg-base-300">
+                                                    <img src={previewUrl} alt="Preview" className="h-full w-full object-cover" />
+                                                </div>
+                                            ) : (
+                                                <div className="h-12 w-12 sm:h-14 sm:w-14 shrink-0 bg-base-300 flex items-center justify-center">
+                                                    <FileText className="h-5 w-5 text-blue-400" />
+                                                </div>
+                                            )}
+                                            <div className="px-3 py-2 flex flex-col justify-center min-w-0 pr-8">
+                                                <span className="text-xs sm:text-sm font-medium text-base-content truncate max-w-[120px] sm:max-w-[200px]">{file.name}</span>
+                                                <span className="text-[10px] text-base-content/50 uppercase">{file.type.split('/')[1] || 'FILE'}</span>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => removeFile(i)}
+                                                className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 bg-black/20 hover:bg-error/80 text-white rounded-full transition-colors backdrop-blur-md"
+                                                aria-label="Remove attached file"
+                                            >
+                                                <X className="h-3 w-3" />
+                                            </button>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         )}
 
@@ -656,7 +789,7 @@ export default function PuterChat() {
                             <Textarea
                                 ref={textareaRef}
                                 placeholder="Ask anything..."
-                                className="min-h-[24px] max-h-[150px] sm:max-h-[200px] resize-none border-none focus-visible:ring-0 shadow-none bg-transparent py-2 sm:py-2.5 px-1.5 sm:px-2 w-full text-sm md:text-sm placeholder:text-base-content/30"
+                                className="min-h-[24px] max-h-[150px] sm:max-h-[200px] resize-none border-none focus-visible:ring-0 shadow-none bg-transparent py-2 sm:py-2.5 px-1.5 sm:px-2 w-full text-sm md:text-sm text-base-content placeholder:text-base-content/30 caret-base-content"
                                 value={input}
                                 onChange={(e) => {
                                     setInput(e.target.value);

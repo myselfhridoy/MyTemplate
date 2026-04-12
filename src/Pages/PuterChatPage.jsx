@@ -3,7 +3,7 @@ import PuterChat from '../Components/PuterChat';
 
 export default function PuterChatPage() {
     return (
-        <div className="w-full min-h-[calc(100dvh-64px)]">
+        <div className="w-full min-h-[calc(100dvh-64px)] overflow-x-hidden">
             <PuterChat />
         </div>
     );

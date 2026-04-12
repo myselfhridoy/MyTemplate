@@ -24,14 +24,11 @@ mjx-container {
   max-width: 100% !important;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
-  /* Firefox */
   -ms-overflow-style: none;
-  /* IE/Edge */
 }
 
 mjx-container::-webkit-scrollbar {
   display: none;
-  /* Chrome/Safari */
 }
 
 /* MathJax inline math styling for better text flow */
@@ -71,7 +68,21 @@ mjx-container::-webkit-scrollbar {
 }
 
 .answer-content::-webkit-scrollbar {
-  height: 4px;
+  display: none;
+}
+
+/* Force answer-content to contain all children */
+.answer-content {
+  max-width: 100% !important;
+  overflow-x: auto;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.answer-content>* {
+  max-width: 100% !important;
 }
 
 /* === PuterChat UI Redesign Animations === */
@@ -228,4 +239,98 @@ mjx-container::-webkit-scrollbar {
 .puter-user-msg code {
   color: #ffffff !important;
   background: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* Mobile-specific adjustments */
+@media (max-width: 640px) {
+  .answer-content pre {
+    font-size: 0.65rem;
+    padding: 0.5rem;
+  }
+
+  .answer-content mjx-container {
+    font-size: 0.85rem !important;
+  }
+
+  .answer-content .MathJax {
+    font-size: 0.85rem !important;
+  }
+
+  .suggestion-card:hover {
+    transform: none;
+    box-shadow: none;
+  }
+}
+
+/* ========== Math / KaTeX overflow containment ========== */
+
+/* MathRenderer & KatexRenderer wrappers — contain all math overflow */
+.math-markdown-content,
+.markdown-content {
+  max-width: 100% !important;
+  overflow-x: auto;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.math-markdown-content::-webkit-scrollbar,
+.markdown-content::-webkit-scrollbar {
+  display: none;
+}
+
+/* KaTeX inline math — prevent overflow */
+.math-markdown-content .katex,
+.markdown-content .katex {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.math-markdown-content .katex::-webkit-scrollbar,
+.markdown-content .katex::-webkit-scrollbar {
+  display: none;
+}
+
+/* KaTeX display math ($$...$$) — scrollable but no scrollbar */
+.math-markdown-content .katex-display,
+.markdown-content .katex-display,
+.answer-content .katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding-bottom: 4px;
+}
+
+.math-markdown-content .katex-display::-webkit-scrollbar,
+.markdown-content .katex-display::-webkit-scrollbar,
+.answer-content .katex-display::-webkit-scrollbar {
+  display: none;
+}
+
+/* KaTeX .katex-html — the actual rendered math wrapper */
+.math-markdown-content .katex-html,
+.markdown-content .katex-html,
+.answer-content .katex-html {
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.math-markdown-content .katex-html::-webkit-scrollbar,
+.markdown-content .katex-html::-webkit-scrollbar,
+.answer-content .katex-html::-webkit-scrollbar {
+  display: none;
+}
+
+/* All children of math wrappers should respect max-width */
+.math-markdown-content > *,
+.markdown-content > * {
+  max-width: 100% !important;
 }

@@ -87,7 +87,7 @@ const matrixCSS = `
 `;
 
 const KatexRenderer = ({ text }) => (
-  <div className="markdown-content">
+  <div className="markdown-content" style={{ maxWidth: '100%', overflowX: 'auto', overflowWrap: 'anywhere', wordBreak: 'break-word', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
     <style dangerouslySetInnerHTML={{ __html: matrixCSS }} />
     {renderWithKatex(text)}
   </div>
