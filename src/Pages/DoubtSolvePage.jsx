@@ -18,9 +18,8 @@ function DoubtSolvePage({
   useEffect(() => { if (chapterOverride !== undefined) setSelectedChapter(chapterOverride); }, [chapterOverride]);
   useEffect(() => { if (questionTypeOverride !== undefined) setQuestionType(questionTypeOverride); }, [questionTypeOverride]);
   const [questionText, setQuestionText] = useState("");
-  // image input disabled for now
-  // const [imageFile, setImageFile] = useState(null);
-  // const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
   const [answer, setAnswer] = useState("");
   const [loading, setLoading] = useState(false);
   const [mapping, setMapping] = useState([]);
@@ -29,9 +28,11 @@ function DoubtSolvePage({
   // Cleanup function to prevent memory leaks
   useEffect(() => {
     return () => {
-    // Cleanup image preview URL on component unmount (image support disabled)
+      if (imagePreviewUrl) {
+        URL.revokeObjectURL(imagePreviewUrl);
+      }
     };
-  }, []);
+  }, [imagePreviewUrl]);
 
   // Question types
   const questionTypes = [
@@ -239,13 +240,16 @@ function DoubtSolvePage({
     return <MathRendererWithContext text={answer} />;
   }, [answer]);
 
-  // image handler disabled because image UI is commented out
-  // const handleImageChange = (e) => {
-  //   if (answer) setAnswer("");
-  //   if (imagePreviewUrl) { URL.revokeObjectURL(imagePreviewUrl); setImagePreviewUrl(null); }
-  //   const file = e.target.files[0]; setImageFile(file);
-  //   if (file) { const previewUrl = URL.createObjectURL(file); setImagePreviewUrl(previewUrl); }
-  // };
+  const handleImageChange = (e) => {
+    if (answer) setAnswer("");
+    if (imagePreviewUrl) { URL.revokeObjectURL(imagePreviewUrl); setImagePreviewUrl(null); }
+    const file = e.target.files[0];
+    setImageFile(file);
+    if (file) {
+      const previewUrl = URL.createObjectURL(file);
+      setImagePreviewUrl(previewUrl);
+    }
+  };
 
   const handleAsk = async (e) => {
     e.preventDefault();
@@ -316,18 +320,68 @@ function DoubtSolvePage({
 **কখনোই Gemini বা কোনো AI মডেলের নাম উত্তর বা পরিচয়ে উল্লেখ করবে না।**
 **কোনো ধরনের সম্ভাষণ (নমস্কার, হ্যালো, etc.) ব্যবহার করবে না, সরাসরি উত্তর দাও।`;
 
-  // Image support disabled: always build prompt from condensed text only
-  // (To re-enable, restore imageFile checks and include extraInstruction for images)
+  // Build prompt — if image is present, add extra instruction
   const usedQuestion = condenseQuestion(questionText, 1200);
-  const prompt = getPromptForQuestionType(questionType, usedQuestion, contextPrompt);
-  parts.push({ text: prompt });
+  if (imageFile) {
+    let extraInstruction = "";
+    if (questionType === 'সৃজনশীল') {
+      extraInstruction = `\n\nছবিতে সৃজনশীল প্রশ্নের নির্দিষ্ট অংশ (যেমন 'খ অংশ', 'গ অংশ', 'ঘ অংশ') জানতে চাওয়া হয়েছে। শুধুমাত্র সেই অংশের উত্তর দাও।`;
+    } else {
+      extraInstruction = "\n\nআরো তথ্যের জন্য দেওয়া ছবিটিও দেখুন এবং প্রশ্ন ও ছবি দুইটি মিলিয়ে সম্পূর্ণ উত্তর দিন।";
+    }
+    const prompt = getPromptForQuestionType(questionType, usedQuestion + extraInstruction, contextPrompt);
+    parts.push({ text: prompt });
+  } else {
+        const prompt = getPromptForQuestionType(questionType, usedQuestion, contextPrompt);
+        parts.push({ text: prompt });
+      }
+      }
+
+      // Compress & convert image to base64 for API
+      if (imageFile) {
+        async function compressToBase64(file, { maxWidth = 1280, maxHeight = 1280, quality = 0.75 } = {}) {
+          if (!file.type.startsWith('image/')) throw new Error('Not an image');
+          const dataUrl = await new Promise((resolve, reject) => {
+            const r = new FileReader();
+            r.onload = () => resolve(r.result);
+            r.onerror = reject;
+            r.readAsDataURL(file);
+          });
+          const img = await new Promise((resolve, reject) => {
+            const i = new Image();
+            i.onload = () => resolve(i);
+            i.onerror = reject;
+            i.src = dataUrl;
+          });
+          let { width, height } = img;
+          const scale = Math.min(1, maxWidth / width, maxHeight / height);
+          if (scale < 1) { width = Math.round(width * scale); height = Math.round(height * scale); }
+          const canvas = document.createElement('canvas');
+          canvas.width = width; canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          const mime = (file.type === 'image/png' && ctx.getImageData(0,0,1,1).data[3] === 255) ? 'image/jpeg' : (file.type === 'image/png' ? 'image/png' : 'image/jpeg');
+          const compressedDataUrl = canvas.toDataURL(mime, quality);
+          return compressedDataUrl.split(',')[1];
+        }
+        let base64;
+        try {
+          base64 = await compressToBase64(imageFile);
+        } catch (e) {
+          console.warn('Compression failed, sending original:', e);
+          const fallback = await new Promise((resolve, reject) => { const fr = new FileReader(); fr.onload = () => resolve(fr.result.split(',')[1]); fr.onerror = reject; fr.readAsDataURL(imageFile); });
+          base64 = fallback;
+        }
+        parts.push({
+          inlineData: {
+            mimeType: imageFile.type,
+            data: base64
+          }
+        });
       }
       
-  // Image processing disabled (image UI removed).
-  // To re-enable, restore the compression routine and push inlineData into parts.
-      
-  // If only image (no text), add a basic prompt with context (image support disabled)
-  if (!questionText.trim() /* && imageFile */) {
+  // If only image (no text), add a basic prompt with context
+  if (!questionText.trim() && imageFile) {
         let contextPrompt = "";
         if (questionType === 'সৃজনশীল') {
           contextPrompt = `আপনি H.M. Tutoring AI Assistant। আপনি ${selectedClass} ${selectedSubject} এর "${selectedChapter}" অধ্যায়ের একজন দক্ষ শিক্ষক।
@@ -406,10 +460,8 @@ function DoubtSolvePage({
 **কখনোই Gemini বা কোনো AI মডেলের নাম উত্তর বা পরিচয়ে উল্লেখ করবে না।**
 **কোনো ধরনের সম্ভাষণ (নমস্কার, হ্যালো, etc.) ব্যবহার করবে না, সরাসরি উত্তর দাও।**`;
         }
-  // Add text prompt to parts array for image-only scenario (image disabled)
-  const condensed = condenseQuestion(questionText || '', 1200);
-  const finalContext = condensed ? contextPrompt + '\n\nUser question summary: ' + condensed : contextPrompt;
-  parts.push({ text: finalContext });
+  // Add text prompt to parts array for image-only scenario
+  parts.push({ text: contextPrompt });
       }
       
       // Check if we have content to process
@@ -420,7 +472,7 @@ function DoubtSolvePage({
       }
 
   // Call internal proxy endpoint so API key is never exposed in browser
-  // Image support disabled; use text model
+  // Use gemma-4-31b-it as it now supports image understanding
   const chosenModel = 'gemma-4-31b-it';
       const body = JSON.stringify({ parts, model: chosenModel });
       // Use Vercel Edge API endpoint for Gemma
@@ -509,7 +561,7 @@ function DoubtSolvePage({
             selectedChapter,
             questionType,
             questionText,
-            "", // imageBase64 (not supported)
+            "", // imageBase64 (logged separately if needed)
             answerTextForSheet
           ];
           fetch('https://geminiai-render.onrender.com/api/googleSheetLogger/log', {
@@ -632,13 +684,11 @@ function DoubtSolvePage({
               onChange={handleTextChange}
             />
           </div>
-          {/*
           <div className="mb-4">
             <label className="block mb-1 font-semibold text-sm">অথবা ছবি আপলোড করুন:</label>
             <input type="file" accept="image/*" className="file-input file-input-bordered w-full text-sm" onChange={handleImageChange} />
             {imagePreviewUrl && <div className="mt-2"><img src={imagePreviewUrl} alt="Uploaded" className="max-h-32 w-auto rounded shadow mx-auto block" /></div>}
           </div>
-          */}
           {/* Show AdSense ad while loading */}
           {loading && (
             <div className="mb-4 flex justify-center">
@@ -651,7 +701,7 @@ function DoubtSolvePage({
               ></ins>
             </div>
           )}
-          <button className="btn btn-primary w-full text-sm sm:text-base" type="submit" disabled={loading || !questionText.trim()}>
+          <button className="btn btn-primary w-full text-sm sm:text-base" type="submit" disabled={loading || (!questionText.trim() && !imageFile)}>
             {loading ? "লোড হচ্ছে..." : "উত্তর জানুন"}
           </button>
         </form>

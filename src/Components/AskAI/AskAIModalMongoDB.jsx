@@ -344,7 +344,7 @@ ${userQuestion}`;
     const parts = [{ text: prompt }];
 
     // Image support for gemini models (not gemma)
-    if (imageUrl && modelConfig.model !== 'gemma-4-31b-it') {
+    if (imageUrl) {
         const dataUri = await fetchImageAsDataUri(imageUrl);
         if (dataUri) {
             const [meta, base64] = dataUri.split(',');
@@ -602,7 +602,7 @@ ${userQuestion}`;
                 {/* Answer */}
                 {answer && (
                     <>
-                        <div ref={visibleAnswerRef} className="border rounded-lg p-4 bg-base-100" style={{ overflowX: 'hidden', maxWidth: '100%' }}>
+                        <div ref={visibleAnswerRef} className="border rounded-lg p-4 bg-base-100" style={{ overflowX: 'hidden', maxWidth: '100%', whiteSpace: 'pre-wrap' }}>
                             <span className="font-semibold text-success block mb-2">উত্তর:</span>
                             {(() => {
                                 const svgRegex = /(<svg[\s\S]*?<\/svg>)/gi;

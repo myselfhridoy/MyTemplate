@@ -266,7 +266,8 @@ mjx-container::-webkit-scrollbar {
 
 /* MathRenderer & KatexRenderer wrappers — contain all math overflow */
 .math-markdown-content,
-.markdown-content {
+.markdown-content,
+.answer-content {
   max-width: 100% !important;
   overflow-x: auto;
   overflow-wrap: anywhere;
@@ -276,7 +277,8 @@ mjx-container::-webkit-scrollbar {
 }
 
 .math-markdown-content::-webkit-scrollbar,
-.markdown-content::-webkit-scrollbar {
+.markdown-content::-webkit-scrollbar,
+.answer-content::-webkit-scrollbar {
   display: none;
 }
 
