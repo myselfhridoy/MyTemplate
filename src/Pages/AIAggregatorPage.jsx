@@ -11,6 +11,7 @@ import GemmyAIPage from "./GemmyAIPage";
 import MerlineAIPage from "./MerlineAIPage";
 import HMTAiPage from "./HMTAiPage";
 import PuterChatPage from "./PuterChatPage";
+import MathGPTPage from "./MathGPTPage";
 
 const pageOptions = [
   { label: "জেমি: দ্যা টিচার", value: "gemmy" },
@@ -24,6 +25,7 @@ const pageOptions = [
   { label: "Academic Assistant", value: "borno" },
   { label: "AI Chat Bot", value: "chatbot" },
   { label: "Problem Solver", value: "chat" },
+  { label: "Math GPT", value: "mathgpt" }
 ];
 
 const pageMap = {
@@ -38,10 +40,11 @@ const pageMap = {
   borno: <BornoAIPage />,
   chatbot: <AIChatBotPage />,
   chat: <AIChatPage />,
+  mathgpt: <MathGPTPage />
 };
 
 export default function AIAggregatorPage() {
-  const [selected, setSelected] = useState("gemmy"); // এখানে "gemmy" ডিফল্ট করে দেওয়া হয়েছে
+  const [selected, setSelected] = useState("gemmy"); // এখানে "gemmy" ডিফল্ট করে দেওয়া হয়েছে
   return (
     <div className="container mx-auto max-w-3xl p-4">
       <div className="mb-4">

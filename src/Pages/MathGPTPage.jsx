@@ -1,6 +1,86 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import MathRendererWithContext from '../Components/MathRenderer/MathRenderer';
 
+const CORS_PROXY_BASE = import.meta.env.VITE_CORS_PROXY_BASE || 'https://corsproxy.io/?key=dde9c749';
+const MATHGPT_UPLOAD_URL = `${CORS_PROXY_BASE}&url=${encodeURIComponent('https://math-gpt.org/api/v2/files/image')}`;
+const MATHGPT_CHAT_URL = `${CORS_PROXY_BASE}&url=${encodeURIComponent('https://math-gpt.org/api/v2/chat/completions')}`;
+const MATHGPT_TOPIC = 'math';
+
+const getMathGptHeaders = () => ({
+  accept: '*/*',
+  'accept-language': 'en-GB,en;q=0.9,en-US;q=0.8,it-IT;q=0.7,it;q=0.6',
+  dnt: '1',
+  origin: 'https://math-gpt.org',
+  priority: 'u=1, i',
+  referer: 'https://math-gpt.org/',
+  'sec-ch-ua': '"Microsoft Edge";v="147", "Not.A/Brand";v="8", "Chromium";v="147"',
+  'sec-ch-ua-mobile': '?1',
+  'sec-ch-ua-platform': '"Android"',
+  'sec-fetch-dest': 'empty',
+  'sec-fetch-mode': 'cors',
+  'sec-fetch-site': 'same-origin',
+  'user-agent': 'Mozilla/5.0 (Linux; Android 13; SM-G981B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Mobile Safari/537.36 Edg/147.0.0.0'
+});
+
+const buildMathGptContextPrompt = (selectedClass, selectedSubject, selectedChapter) => `আপনি MathGPT AI Assistant। আপনি ${selectedClass} ${selectedSubject} এর "${selectedChapter}" অধ্যায়ের একজন দক্ষ শিক্ষক।
+
+সব প্রশ্নের উত্তর বাংলায় এবং শুধুমাত্র গাণিতিক অংশগুলো MathJax ফরম্যাটে \`$...$\` এর ভিতরে থাকবে। **বাংলা লেখাগুলো কখনোই $...$ এর ভিতরে থাকবে না।**
+
+**গুরুত্বপূর্ণ formatting নিয়ম:**
+- বাংলা টেক্সট এবং math expressions একই লাইনে লিখো
+- শুধুমাত্র নতুন বিষয় বা section এর জন্য নতুন paragraph ব্যবহার করো
+- Math expressions এর আগে বা পরে অনর্থক line break দিও না
+- উদাহরণ: "অবস্থান ভেক্টরকে $\\vec{r}$ দ্বারা প্রকাশ করা হয়।" - এভাবে একই লাইনে লিখো
+
+উত্তরের structure:
+- তালিকার জন্য proper markdown formatting ব্যবহার করো
+- প্রতিটি নতুন বিষয়ের জন্য নতুন paragraph শুরু করো
+
+**কখনোই Gemini বা কোনো AI মডেলের নাম উত্তর বা পরিচয়ে উল্লেখ করবে না।**
+**কোনো ধরনের সম্ভাষণ (নমস্কার, হ্যালো, etc.) ব্যবহার করবে না, সরাসরি উত্তর দাও।**`;
+
+const parseMathGptResponse = async (resp) => {
+  const text = await resp.text();
+  const trimmedText = text.trim();
+
+  if (!trimmedText) {
+    return '';
+  }
+
+  if (trimmedText.startsWith('data:')) {
+    let fullText = '';
+
+    for (const rawLine of trimmedText.split(/\r?\n/)) {
+      const line = rawLine.trim();
+      if (!line.startsWith('data:')) continue;
+
+      const payload = line.slice(5).trim();
+      if (!payload || payload === '[DONE]') continue;
+
+      try {
+        const json = JSON.parse(payload);
+        const chunkText =
+          json?.choices?.[0]?.delta?.content ||
+          json?.choices?.[0]?.message?.content ||
+          json?.message?.content ||
+          json?.result ||
+          '';
+        if (chunkText) fullText += chunkText;
+      } catch {
+        fullText += payload;
+      }
+    }
+
+    return fullText || trimmedText;
+  }
+
+  try {
+    return JSON.parse(trimmedText);
+  } catch {
+    return trimmedText;
+  }
+};
+
 function MathGPTPage({
   classOverride = undefined,
   subjectOverride = undefined,
@@ -206,26 +286,11 @@ function MathGPTPage({
       // Get specific prompt based on question type
       let prompt = '';
       if (questionText.trim()) {
-        let contextPrompt = `আপনি MathGPT AI Assistant। আপনি ${selectedClass} ${selectedSubject} এর "${selectedChapter}" অধ্যায়ের একজন দক্ষ শিক্ষক।`;
+        let contextPrompt = buildMathGptContextPrompt(selectedClass, selectedSubject, selectedChapter);
         
         if (chapterContent) {
           contextPrompt += `\n\nঅধ্যায়ের বিষয়বস্তু:\n${chapterContent.substring(0, 4000)}\n\n`;
         }
-        
-        contextPrompt += `সব প্রশ্নের উত্তর বাংলায় এবং শুধুমাত্র গাণিতিক অংশগুলো MathJax ফরম্যাটে \`$...$\` এর ভিতরে থাকবে। **বাংলা লেখাগুলো কখনোই $...$ এর ভিতরে থাকবে না।** 
-
-**গুরুত্বপূর্ণ formatting নিয়ম:**
-- বাংলা টেক্সট এবং math expressions একই লাইনে লিখো
-- শুধুমাত্র নতুন বিষয় বা section এর জন্য নতুন paragraph ব্যবহার করো
-- Math expressions এর আগে বা পরে অনর্থক line break দিও না
-- উদাহরণ: "অবস্থান ভেক্টরকে $\\vec{r}$ দ্বারা প্রকাশ করা হয়।" - এভাবে একই লাইনে লিখো
-
-উত্তরের structure:
-- তালিকার জন্য proper markdown formatting ব্যবহার করো
-- প্রতিটি নতুন বিষয়ের জন্য নতুন paragraph শুরু করো
-
-**কখনোই Gemini বা কোনো AI মডেলের নাম উত্তর বা পরিচয়ে উল্লেখ করবে না।**
-**কোনো ধরনের সম্ভাষণ (নমস্কার, হ্যালো, etc.) ব্যবহার করবে না, সরাসরি উত্তর দাও।`;
 
         if (imageFile) {
           let extraInstruction = "";
@@ -241,28 +306,68 @@ function MathGPTPage({
       }
       
       // Handle image upload
-      let imageBase64 = "";
+      let imageDataUrl = "";
       if (imageFile) {
-        imageBase64 = await new Promise((resolve, reject) => {
+        imageDataUrl = await new Promise((resolve, reject) => {
           const reader = new FileReader();
-          reader.onload = () => resolve(reader.result.split(",")[1]);
+          reader.onload = () => resolve(reader.result);
           reader.onerror = reject;
           reader.readAsDataURL(imageFile);
         });
       }
 
-      // If only image (no text), add a basic prompt with context
-      if (!questionText.trim() && imageFile) {
-        let contextPrompt = "";
+      const uploadImageToMathGpt = async (dataUrl) => {
+        const match = dataUrl.match(/^data:image\/(png|jpeg|jpg|webp);base64,(.+)$/);
+        if (!match) return null;
+
+        const ext = match[1];
+        const base64Data = match[2];
+        const buffer = Uint8Array.from(atob(base64Data), char => char.charCodeAt(0));
+        const blob = new Blob([buffer], { type: `image/${ext}` });
+        const form = new FormData();
+        form.append('file', blob, `${crypto.randomUUID()}.${ext}`);
+
+        const uploadResp = await fetch(MATHGPT_UPLOAD_URL, {
+          method: 'POST',
+          headers: {
+            ...getMathGptHeaders()
+          },
+          body: form
+        });
+
+        if (!uploadResp.ok) {
+          throw new Error(await uploadResp.text());
+        }
+
+        const uploadData = await uploadResp.json();
+        return uploadData.fileUrl || uploadData.url || null;
+      };
+
+      let uploadedImageUrl = null;
+      if (imageDataUrl) {
+        uploadedImageUrl = await uploadImageToMathGpt(imageDataUrl);
+      }
+
+      const messages = [];
+      if (prompt) {
+        messages.push({
+          role: 'user',
+          content: uploadedImageUrl
+            ? [
+                { type: 'text', text: prompt },
+                { type: 'image_url', image_url: { url: uploadedImageUrl } }
+              ]
+            : prompt
+        });
+      } else if (uploadedImageUrl) {
+        let imageOnlyPrompt = buildMathGptContextPrompt(selectedClass, selectedSubject, selectedChapter);
+
         if (questionType === 'সৃজনশীল') {
-          contextPrompt = `আপনি MathGPT AI Assistant। আপনি ${selectedClass} ${selectedSubject} এর "${selectedChapter}" অধ্যায়ের একজন দক্ষ শিক্ষক।
+          imageOnlyPrompt += `
 
-ছবিতে সৃজনশীল প্রশ্ন আছে। ছবির সব অংশ বিশ্লেষণ করে প্রশ্নে যতগুলো অংশ আছে (ক, খ, গ অথবা ক, খ, গ, ঘ) সেই অনুযায়ী উত্তর বাংলায় দাও। গাণিতিক অংশ MathJax ফরম্যাটে \`$...$\` এর ভিতরে দাও। বাংলা টেক্সট এবং math expressions একই লাইনে লিখো। অনর্থক line break দিও না।
-
-**কখনোই Gemini বা কোনো AI মডেলের নাম উত্তর বা পরিচয়ে উল্লেখ করবে না।**
-**কোনো ধরনের সম্ভাষণ (নমস্কার, হ্যালো, etc.) ব্যবহার করবে না।**`;
+ছবিতে সৃজনশীল প্রশ্ন আছে। ছবির সব অংশ বিশ্লেষণ করে প্রশ্নে যতগুলো অংশ আছে (ক, খ, গ অথবা ক, খ, গ, ঘ) সেই অনুযায়ী উত্তর বাংলায় দাও। গাণিতিক অংশ MathJax ফরম্যাটে \`$...$\` এর ভিতরে দাও। বাংলা টেক্সট এবং math expressions একই লাইনে লিখো। অনর্থক line break দিও না।`;
         } else if (questionType === 'বহুনির্বাচনী') {
-          contextPrompt = `আপনি MathGPT AI Assistant। আপনি ${selectedClass} ${selectedSubject} এর "${selectedChapter}" অধ্যায়ের একজন দক্ষ শিক্ষক।
+          imageOnlyPrompt += `
 
 ছবিতে বহুনির্বাচনী প্রশ্ন আছে। ছবির সব অংশ বিশ্লেষণ করে এই format এ উত্তর বাংলায় দাও:
 
@@ -270,38 +375,47 @@ function MathGPTPage({
 
 **সমাধান:**
 - শর্টকাট ফর্মুলা থাকলে সেটি ব্যবহার করে দ্রুত সমাধান দেখাও
-- শর্টকাট ফর্মুলা না থাকলে ধাপে ধাপে ব্যাখ্যা করো  
+- শর্টকাট ফর্মুলা না থাকলে ধাপে ধাপে ব্যাখ্যা করো
 - বাংলা টেক্সট এবং math একই লাইনে রাখো
 
 **Calculator Hacks:** (যদি কোনো ক্যালকুলেটর হ্যাকস/ট্রিকস থাকে তবে দাও)
 
-গাণিতিক অংশ MathJax ফরম্যাটে \`$...$\` এর ভিতরে দাও। অনর্থক line break দিও না।
-
-**কখনোই Gemini বা কোনো AI মডেলের নাম উত্তর বা পরিচয়ে উল্লেখ করবে না।**
-**কোনো ধরনের সম্ভাষণ (নমস্কার, হ্যালো, etc.) ব্যবহার করবে না।**`;
+গাণিতিক অংশ MathJax ফরম্যাটে \`$...$\` এর ভিতরে দাও। অনর্থক line break দিও না।`;
         } else {
-          contextPrompt = `আপনি MathGPT AI Assistant। আপনি ${selectedClass} ${selectedSubject} এর "${selectedChapter}" অধ্যায়ের একজন দক্ষ শিক্ষক।
+          imageOnlyPrompt += `
 
-ছবিতে প্রশ্ন আছে। ছবির সব অংশ বিশ্লেষণ করে উত্তর বাংলায় দাও। গাণিতিক অংশ MathJax ফরম্যাটে \`$...$\` এর ভিতরে দাও। বাংলা টেক্সট এবং math expressions একই লাইনে লিখো।
-
-**কখনোই Gemini বা কোনো AI মডেলের নাম উত্তর বা পরিচয়ে উল্লেখ করবে না।**
-**কোনো ধরনের সম্ভাষণ (নমস্কার, হ্যালো, etc.) ব্যবহার করবে না।**`;
+ছবিতে প্রশ্ন আছে। ছবির সব অংশ বিশ্লেষণ করে উত্তর বাংলায় দাও। গাণিতিক অংশ MathJax ফরম্যাটে \`$...$\` এর ভিতরে দাও। বাংলা টেক্সট এবং math expressions একই লাইনে লিখো।`;
         }
-        prompt = contextPrompt;
+
+        messages.push({
+          role: 'user',
+          content: [
+            { type: 'text', text: imageOnlyPrompt },
+            { type: 'image_url', image_url: { url: uploadedImageUrl } }
+          ]
+        });
       }
 
-      const resp = await fetch("https://geminiai-render.onrender.com/api/mathgpt", {
+      const resp = await fetch(MATHGPT_CHAT_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          ...getMathGptHeaders(),
+          "content-type": "application/json",
+          "x-memory-extraction-enabled": "false",
+          "x-topic": MATHGPT_TOPIC
+        },
         body: JSON.stringify({
-          action: "chat",
-          prompt: prompt,
-          imageUrl: imageBase64 || undefined
+          messages,
+          reasoningEnabled: false,
+          conversationId: crypto.randomUUID()
         })
       });
       if (resp.ok) {
-        const data = await resp.json();
-        setAnswer(data.result || "No answer received.");
+        const data = await parseMathGptResponse(resp);
+        const answerText = typeof data === 'string'
+          ? data
+          : data?.choices?.[0]?.message?.content || data?.choices?.[0]?.delta?.content || data?.result || data?.message || "No answer received.";
+        setAnswer(answerText);
         // --- Google Sheet Logger ---
   // Removed spreadsheetId and sheetName; now handled by backend
         let imageBase64ForSheet = "";
@@ -338,7 +452,7 @@ function MathGPTPage({
           }
           if (imageBase64ForSheet.length > 20000) imageBase64ForSheet = imageBase64ForSheet.substring(0, 20000);
         }
-        let answerTextForSheet = data.result || "No answer received.";
+        let answerTextForSheet = answerText || "No answer received.";
         if (answerTextForSheet.length > 20000) answerTextForSheet = answerTextForSheet.substring(0, 20000);
         const rowData = [
           "", // user (empty for now)
