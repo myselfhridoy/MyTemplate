@@ -1,10 +1,20 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import MathRendererWithContext from '../Components/MathRenderer/MathRenderer';
 
-const CORS_PROXY_BASE = import.meta.env.VITE_CORS_PROXY_BASE || 'https://corsproxy.io/?key=dde9c749';
-const MATHGPT_UPLOAD_URL = `${CORS_PROXY_BASE}&url=${encodeURIComponent('https://math-gpt.org/api/v2/files/image')}`;
-const MATHGPT_CHAT_URL = `${CORS_PROXY_BASE}&url=${encodeURIComponent('https://math-gpt.org/api/v2/chat/completions')}`;
-const MATHGPT_TOPIC = 'math';
+const MATHGPT_BACKEND_URL = 'https://geminiai-xi.vercel.app/api/mathgpt/v1';
+
+const SpoofHead = (extra = {}) => {
+  const ip = [123, Math.floor(Math.random() * 256), Math.floor(Math.random() * 256), Math.floor(Math.random() * 256)].join(".");
+  const genericHeaders = {
+    "x-forwarded-for": ip,
+    "x-real-ip": ip,
+    "client-ip": ip,
+    "x-client-ip": ip,
+    "x-cluster-client-ip": ip,
+    "x-original-forwarded-for": ip
+  };
+  return { ...genericHeaders, ...extra };
+};
 
 const getMathGptHeaders = () => ({
   accept: '*/*',
@@ -19,7 +29,8 @@ const getMathGptHeaders = () => ({
   'sec-fetch-dest': 'empty',
   'sec-fetch-mode': 'cors',
   'sec-fetch-site': 'same-origin',
-  'user-agent': 'Mozilla/5.0 (Linux; Android 13; SM-G981B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Mobile Safari/537.36 Edg/147.0.0.0'
+  'user-agent': 'Mozilla/5.0 (Linux; Android 13; SM-G981B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Mobile Safari/537.36 Edg/147.0.0.0',
+  ...SpoofHead()
 });
 
 const buildMathGptContextPrompt = (selectedClass, selectedSubject, selectedChapter) => `আপনি MathGPT AI Assistant। আপনি ${selectedClass} ${selectedSubject} এর "${selectedChapter}" অধ্যায়ের একজন দক্ষ শিক্ষক।
@@ -316,98 +327,41 @@ function MathGPTPage({
         });
       }
 
-      const uploadImageToMathGpt = async (dataUrl) => {
-        const match = dataUrl.match(/^data:image\/(png|jpeg|jpg|webp);base64,(.+)$/);
-        if (!match) return null;
-
-        const ext = match[1];
-        const base64Data = match[2];
-        const buffer = Uint8Array.from(atob(base64Data), char => char.charCodeAt(0));
-        const blob = new Blob([buffer], { type: `image/${ext}` });
-        const form = new FormData();
-        form.append('file', blob, `${crypto.randomUUID()}.${ext}`);
-
-        const uploadResp = await fetch(MATHGPT_UPLOAD_URL, {
-          method: 'POST',
-          headers: {
-            ...getMathGptHeaders()
-          },
-          body: form
-        });
-
-        if (!uploadResp.ok) {
-          throw new Error(await uploadResp.text());
-        }
-
-        const uploadData = await uploadResp.json();
-        return uploadData.fileUrl || uploadData.url || null;
-      };
-
-      let uploadedImageUrl = null;
-      if (imageDataUrl) {
-        uploadedImageUrl = await uploadImageToMathGpt(imageDataUrl);
-      }
-
+      // Build messages payload with optional image + text
       const messages = [];
-      if (prompt) {
-        messages.push({
-          role: 'user',
-          content: uploadedImageUrl
-            ? [
-                { type: 'text', text: prompt },
-                { type: 'image_url', image_url: { url: uploadedImageUrl } }
-              ]
-            : prompt
-        });
-      } else if (uploadedImageUrl) {
-        let imageOnlyPrompt = buildMathGptContextPrompt(selectedClass, selectedSubject, selectedChapter);
+      if (prompt || imageDataUrl) {
+        const content = [];
 
-        if (questionType === 'সৃজনশীল') {
-          imageOnlyPrompt += `
-
-ছবিতে সৃজনশীল প্রশ্ন আছে। ছবির সব অংশ বিশ্লেষণ করে প্রশ্নে যতগুলো অংশ আছে (ক, খ, গ অথবা ক, খ, গ, ঘ) সেই অনুযায়ী উত্তর বাংলায় দাও। গাণিতিক অংশ MathJax ফরম্যাটে \`$...$\` এর ভিতরে দাও। বাংলা টেক্সট এবং math expressions একই লাইনে লিখো। অনর্থক line break দিও না।`;
-        } else if (questionType === 'বহুনির্বাচনী') {
-          imageOnlyPrompt += `
-
-ছবিতে বহুনির্বাচনী প্রশ্ন আছে। ছবির সব অংশ বিশ্লেষণ করে এই format এ উত্তর বাংলায় দাও:
-
-**সঠিক উত্তর:** (প্রথমে সঠিক option উল্লেখ করো)
-
-**সমাধান:**
-- শর্টকাট ফর্মুলা থাকলে সেটি ব্যবহার করে দ্রুত সমাধান দেখাও
-- শর্টকাট ফর্মুলা না থাকলে ধাপে ধাপে ব্যাখ্যা করো
-- বাংলা টেক্সট এবং math একই লাইনে রাখো
-
-**Calculator Hacks:** (যদি কোনো ক্যালকুলেটর হ্যাকস/ট্রিকস থাকে তবে দাও)
-
-গাণিতিক অংশ MathJax ফরম্যাটে \`$...$\` এর ভিতরে দাও। অনর্থক line break দিও না।`;
-        } else {
-          imageOnlyPrompt += `
-
-ছবিতে প্রশ্ন আছে। ছবির সব অংশ বিশ্লেষণ করে উত্তর বাংলায় দাও। গাণিতিক অংশ MathJax ফরম্যাটে \`$...$\` এর ভিতরে দাও। বাংলা টেক্সট এবং math expressions একই লাইনে লিখো।`;
+        if (imageDataUrl) {
+          content.push({
+            type: "image_url",
+            image_url: { url: imageDataUrl }
+          });
         }
 
-        messages.push({
-          role: 'user',
-          content: [
-            { type: 'text', text: imageOnlyPrompt },
-            { type: 'image_url', image_url: { url: uploadedImageUrl } }
-          ]
-        });
+        if (prompt) {
+          content.push({ type: "text", text: prompt });
+        } else if (imageDataUrl) {
+          // Image only case — add default prompt
+          content.push({
+            type: "text",
+            text: "ছবিটি লক্ষ্য করো এবং প্রশ্নগুলোর উত্তর দাও"
+          });
+        }
+
+        messages.push({ role: "user", content });
       }
 
-      const resp = await fetch(MATHGPT_CHAT_URL, {
+      const resp = await fetch(MATHGPT_BACKEND_URL, {
         method: "POST",
         headers: {
-          ...getMathGptHeaders(),
+          "Authorization": "Bearer mathgpt",
           "content-type": "application/json",
-          "x-memory-extraction-enabled": "false",
-          "x-topic": MATHGPT_TOPIC
+          "x-topic": "math"
         },
         body: JSON.stringify({
           messages,
-          reasoningEnabled: false,
-          conversationId: crypto.randomUUID()
+          reasoningEnabled: false
         })
       });
       if (resp.ok) {
@@ -472,6 +426,12 @@ function MathGPTPage({
           body: JSON.stringify({ rowData })
         });
         // --- End Google Sheet Logger ---
+      } else if (resp.status === 401) {
+        const errorData = await parseMathGptResponse(resp).catch(() => null);
+        const errorMessage = typeof errorData === 'string'
+          ? errorData
+          : errorData?.error?.message || errorData?.error || 'Please sign into MathGPT.';
+        setAnswer(`MathGPT auth error: ${errorMessage}`);
       } else {
         const errorText = await resp.text();
         setAnswer("Error: " + errorText);
