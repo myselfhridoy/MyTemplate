@@ -10,6 +10,7 @@ const API_base = 'https://geminiai-render.onrender.com/api/saved_answers';
 const AI_MODELS = [
     { value: 'gemmy', label: 'জেমি: দ্যা টিচার', api: 'https://geminiai-render.onrender.com/api/gemmy/generate', type: 'formdata' },
     { value: 'merlin', label: 'মিস মার্লিন: দ্যা টিউটর', api: 'https://geminiai-render.onrender.com/api/merlin/v1/chat/completions', type: 'merlin' },
+    { value: 'mathgpt', label: 'ম্যাভিস: দ্যা ম্যাথ এক্সপার্ট', api: 'https://geminiai-xi.vercel.app/api/mathgpt/v1', type: 'mathgpt' },
     { value: 'luzia', label: 'Luzia: দ্যা প্রফেসর', api: 'https://geminiai-render.onrender.com/api/luzia/ask', type: 'luzia' },
     { value: 'hmtai-puter', label: 'HMT AI Assistant', api: '#', type: 'puter', model: 'google/gemini-3-flash-preview' },
     { value: 'assistant', label: 'Knowledge Master', api: 'https://geminiai-render.onrender.com/api/gemma', type: 'gemma-stream', model: 'gemini-3-flash-preview' },
@@ -435,6 +436,91 @@ ${userQuestion}`;
                     const m1 = raw.match(/1:\s*\{\s*"content"\s*:\s*"((?:[^"\\]|\\.)*)"\s*\}/);
                     if (m1) answerText = m1[1].replace(/\\n/g, '\n').replace(/\\"/g, '"');
                     else answerText = raw;
+                }
+            } else if (modelConfig.type === 'mathgpt') {
+                // MathGPT: Math Expert (JSON with messages array)
+                let imageDataUrl = '';
+                if (imageUrl) {
+                    imageDataUrl = await fetchImageAsDataUri(imageUrl);
+                }
+
+                // Build messages payload with optional image + text
+                const messages = [];
+                const content = [];
+
+                if (imageDataUrl) {
+                    content.push({
+                        type: "image_url",
+                        image_url: { url: imageDataUrl }
+                    });
+                }
+
+                if (prompt) {
+                    content.push({ type: "text", text: prompt });
+                } else if (imageDataUrl) {
+                    content.push({
+                        type: "text",
+                        text: "ছবিটি লক্ষ্য করো এবং প্রশ্নগুলোর উত্তর দাও"
+                    });
+                }
+
+                messages.push({ role: "user", content });
+
+                const resp = await fetch(modelConfig.api, {
+                    method: "POST",
+                    headers: {
+                        "Authorization": "Bearer mathgpt",
+                        "content-type": "application/json",
+                        "x-topic": "math"
+                    },
+                    body: JSON.stringify({
+                        messages,
+                        reasoningEnabled: false
+                    })
+                });
+
+                if (!resp.ok) throw new Error('API Error: ' + resp.status);
+
+                // Check content-type to determine response format
+                const ct = resp.headers.get('Content-Type') || '';
+
+                if (ct.includes('application/json')) {
+                    // Non-streaming JSON response
+                    const data = await resp.json();
+                    answerText = data?.choices?.[0]?.message?.content || data?.message?.content || data?.result || '';
+                } else {
+                    // SSE stream response
+                    const reader = resp.body.getReader();
+                    const decoder = new TextDecoder('utf-8');
+                    let buffer = '';
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        buffer += decoder.decode(value, { stream: true });
+                        const lines = buffer.split('\n');
+                        buffer = lines.pop() || '';
+
+                        for (const line of lines) {
+                            const trimmed = line.trim();
+                            if (!trimmed.startsWith('data:')) continue;
+                            const payload = trimmed.slice(5).trim();
+                            if (!payload || payload === '[DONE]') continue;
+
+                            try {
+                                const json = JSON.parse(payload);
+                                const chunkText =
+                                    json?.choices?.[0]?.delta?.content ||
+                                    json?.choices?.[0]?.message?.content ||
+                                    json?.message?.content ||
+                                    json?.result ||
+                                    '';
+                                if (chunkText) answerText += chunkText;
+                            } catch {
+                                answerText += payload;
+                            }
+                        }
+                    }
                 }
             }
 

@@ -316,15 +316,58 @@ function MathGPTPage({
         }
       }
       
-      // Handle image upload
+      // Compress and handle image upload
       let imageDataUrl = "";
       if (imageFile) {
-        imageDataUrl = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result);
-          reader.onerror = reject;
-          reader.readAsDataURL(imageFile);
-        });
+        const compressImage = async (file, { maxWidth = 800, maxHeight = 800, quality = 0.7 } = {}) => {
+          return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+              try {
+                const dataUrl = e.target.result;
+                const img = await new Promise((res, rej) => {
+                  const i = new window.Image();
+                  i.onload = () => res(i);
+                  i.onerror = rej;
+                  i.src = dataUrl;
+                });
+                let { width, height } = img;
+                // Only resize if image is larger than max dimensions
+                const scale = Math.min(1, maxWidth / width, maxHeight / height);
+                if (scale < 1) {
+                  width = Math.round(width * scale);
+                  height = Math.round(height * scale);
+                }
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                // Use JPEG for compression, fallback to original type
+                const mime = file.type === 'image/png' ? 'image/jpeg' : file.type;
+                const compressedDataUrl = canvas.toDataURL(mime, quality);
+                resolve(compressedDataUrl);
+              } catch (err) {
+                reject(err);
+              }
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+        };
+
+        // Compress if image is larger than 1MB (rough base64 estimate)
+        const fileSizeMB = imageFile.size / (1024 * 1024);
+        if (fileSizeMB > 1) {
+          imageDataUrl = await compressImage(imageFile);
+        } else {
+          imageDataUrl = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(imageFile);
+          });
+        }
       }
 
       // Build messages payload with optional image + text
