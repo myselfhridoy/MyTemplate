@@ -26,6 +26,7 @@ import AIAggregatorPage2 from './Pages/AIAggregatorPage2';
 
 import ChatPDFPage from './Pages/ChatPDFPage';
 import MathGPTPage from './Pages/MathGPTPage';
+import NoteGPTPage from './Pages/NoteGPTPage';
 import DesmosGraphPage from './Pages/DesmosGraphPage';
 import ToolsPage from './Pages/ToolsPage';
 import AIChatBotPage from './Pages/AIChatBotPage'; // Kept for legacy if needed, but route hijacked
@@ -104,6 +105,7 @@ export default class App extends Component {
               <Route path="/ai-aggregator-2" element={<AdminRoute><AIAggregatorPage2 /></AdminRoute>} />
               <Route path="/borno-ai" element={<PrivateRoute><BornoAIPage /></PrivateRoute>} />
               <Route path="/mathgpt" element={<PrivateRoute><MathGPTPage /></PrivateRoute>} />
+              <Route path="/notegpt" element={<PrivateRoute><NoteGPTPage /></PrivateRoute>} />
               <Route path="/chatpdf" element={<AdminRoute><ChatPDFPage /></AdminRoute>} />
               <Route path="/desmos-graph" element={<PrivateRoute><DesmosGraphPage /></PrivateRoute>} />
               <Route path="/tools" element={<PrivateRoute><ToolsPage /></PrivateRoute>} />

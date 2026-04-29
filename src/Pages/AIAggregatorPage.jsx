@@ -12,20 +12,22 @@ import MerlineAIPage from "./MerlineAIPage";
 import HMTAiPage from "./HMTAiPage";
 import PuterChatPage from "./PuterChatPage";
 import MathGPTPage from "./MathGPTPage";
+import NoteGPTPage from "./NoteGPTPage";
 
 const pageOptions = [
   { label: "জেমি: দ্যা টিচার", value: "gemmy" },
   { label: "মিস মার্লিন: দ্যা টিউটর", value: "merlin" },
+  { label: "ম্যাভিস: দ্যা ম্যাথ এক্সপার্ট", value: "mathgpt" },
+  { label: "H.M. Tutoring AI", value: "notegpt" },
   { label: "Luzia: দ্যা প্রফেসর", value: "luzia" },
   { label: "HMT AI Assistant", value: "hmtai-puter" },
   { label: "Knowledge Master", value: "assistant" },
   { label: "Concept Builder", value: "doubt" },
-  { label: "H.M. Tutoring AI", value: "hmtai" },
+  /*{ label: "H.M. Tutoring AI", value: "hmtai" },*/
   { label: "Study Buddy", value: "qa" },
   { label: "Academic Assistant", value: "borno" },
   { label: "AI Chat Bot", value: "chatbot" },
   { label: "Problem Solver", value: "chat" },
-  { label: "Math GPT", value: "mathgpt" }
 ];
 
 const pageMap = {
@@ -40,7 +42,8 @@ const pageMap = {
   borno: <BornoAIPage />,
   chatbot: <AIChatBotPage />,
   chat: <AIChatPage />,
-  mathgpt: <MathGPTPage />
+  mathgpt: <MathGPTPage />,
+  notegpt: <NoteGPTPage />
 };
 
 export default function AIAggregatorPage() {

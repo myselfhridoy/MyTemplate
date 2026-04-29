@@ -11,11 +11,12 @@ const AI_MODELS = [
     { value: 'gemmy', label: 'জেমি: দ্যা টিচার', api: 'https://geminiai-render.onrender.com/api/gemmy/generate', type: 'formdata' },
     { value: 'merlin', label: 'মিস মার্লিন: দ্যা টিউটর', api: 'https://geminiai-render.onrender.com/api/merlin/v1/chat/completions', type: 'merlin' },
     { value: 'mathgpt', label: 'ম্যাভিস: দ্যা ম্যাথ এক্সপার্ট', api: 'https://geminiai-xi.vercel.app/api/mathgpt/v1', type: 'mathgpt' },
+    { value: 'notegpt', label: 'H.M. Tutoring AI', api: 'https://geminiai-render.onrender.com/api/notegpt/v1', type: 'notegpt' },
     { value: 'luzia', label: 'Luzia: দ্যা প্রফেসর', api: 'https://geminiai-render.onrender.com/api/luzia/ask', type: 'luzia' },
-    { value: 'hmtai-puter', label: 'HMT AI Assistant', api: '#', type: 'puter', model: 'google/gemini-3-flash-preview' },
+    /*{ value: 'hmtai-puter', label: 'HMT AI Assistant', api: '#', type: 'puter', model: 'google/gemini-3-flash-preview' },*/
     { value: 'assistant', label: 'Knowledge Master', api: 'https://geminiai-render.onrender.com/api/gemma', type: 'gemma-stream', model: 'gemini-3-flash-preview' },
     { value: 'chatbot', label: 'AI Chat Bot', api: 'https://geminiai-render.onrender.com/api/chat/send', type: 'chatbot' },
-    { value: 'hmtai', label: 'H.M. Tutoring AI', api: 'https://geminiai-render.onrender.com/api/ai-free-api', type: 'hmtai' },
+    { value: 'hmtai', label: 'HMT AI Assistant', api: 'https://geminiai-render.onrender.com/api/ai-free-api', type: 'hmtai' },
     { value: 'easemate', label: 'Problem Solver', api: 'https://geminiai-render.onrender.com/api/easemate', type: 'easemate' },
     { value: 'borno', label: 'Academic Assistant', api: 'https://geminiai-render.onrender.com/api/bornoai', type: 'borno' },
     { value: 'doubt', label: 'Concept Builder', api: 'https://geminiai-render.onrender.com/api/gemma', type: 'gemma-stream', model: 'gemma-4-31b-it' },
@@ -522,6 +523,40 @@ ${userQuestion}`;
                         }
                     }
                 }
+            } else if (modelConfig.type === 'notegpt') {
+                // NoteGPT: Study Notes (JSON with userMessage)
+                let imageBase64 = '';
+                if (imageUrl) {
+                    const dataUri = await fetchImageAsDataUri(imageUrl);
+                    if (dataUri) {
+                        imageBase64 = dataUri.split(',')[1]; // Extract base64 without data URL prefix
+                    }
+                }
+
+                const requestBody = {
+                    userMessage: prompt,
+                    lang: 'bn',
+                    model: 'gemini-3-flash-preview',
+                    tone: 'default',
+                    length: 'moderate',
+                };
+
+                if (imageBase64) {
+                    requestBody.imageBase64 = imageBase64;
+                }
+
+                const resp = await fetch(modelConfig.api, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+
+                if (!resp.ok) throw new Error('API Error: ' + resp.status);
+
+                const data = await resp.json();
+                answerText = data?.reply || data?.message || '';
             }
 
             setAnswer(answerText || 'উত্তর পাওয়া যায়নি।');
