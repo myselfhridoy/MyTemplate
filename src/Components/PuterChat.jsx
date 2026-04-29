@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Send, Paperclip, Bot, User, Trash2, Image as ImageIcon, FileText, X, Plus, MessageSquare, Menu, ChevronLeft, Sparkles, Code, Calculator, PenTool, BarChart3 } from 'lucide-react';
+import { Send, Paperclip, Bot, User, Trash2, Image as ImageIcon, FileText, X, Plus, MessageSquare, Menu, ChevronLeft, Sparkles, Code, Calculator, PenTool, BarChart3, RefreshCw } from 'lucide-react';
 import MathRenderer from './MathRenderer/MathRenderer';
 import { cn } from '../lib/utils';
 import { Button } from './ui/button';
@@ -176,6 +176,8 @@ export default function PuterChat() {
     const [currentSessionId, setCurrentSessionId] = useState(null);
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [puterUser, setPuterUser] = useState(null);
+    const [authReady, setAuthReady] = useState(false);
 
     // Chat State
     const [input, setInput] = useState('');
@@ -188,6 +190,79 @@ export default function PuterChat() {
     const scrollAreaRef = useRef(null);
     const fileInputRef = useRef(null);
     const textareaRef = useRef(null);
+
+    const loadPuterUser = async () => {
+        try {
+            const getUser = window.puter?.auth?.getUser;
+            if (typeof getUser === 'function') {
+                const user = await getUser();
+                setPuterUser(user || null);
+                return user || null;
+            }
+
+            const staticUser = window.puter?.auth?.user || null;
+            setPuterUser(staticUser);
+            return staticUser;
+        } catch (err) {
+            console.warn('Failed to load Puter user:', err);
+            setPuterUser(null);
+            return null;
+        }
+    };
+
+    const ensurePuterAuth = async () => {
+        try {
+            if (window.puter?.auth?.signIn) {
+                await window.puter.auth.signIn({ attempt_temp_user_creation: true });
+            }
+            await loadPuterUser();
+            setAuthReady(true);
+        } catch (err) {
+            console.warn('Puter auth init failed:', err);
+            setAuthReady(false);
+        }
+    };
+
+    // Client-side cache + in-flight dedupe for Puter.ai calls
+    const CACHE_TTL = 120000; // 2 minutes
+    const puterCacheRef = useRef(new Map()); // key -> { data, exp }
+    const inflightRef = useRef(new Map()); // key -> Promise
+
+    const makeCacheKey = async (args) => {
+        try {
+            // Serialize the arguments but avoid reading large file contents
+            const parts = await Promise.all(args.map(async (a) => {
+                if (!a) return a;
+                if (a instanceof File) {
+                    return { __file: true, name: a.name, size: a.size, type: a.type, lastModified: a.lastModified };
+                }
+                if (Array.isArray(a)) return a.map(x => (typeof x === 'object' ? JSON.stringify(x) : x));
+                if (typeof a === 'object') return JSON.stringify(a);
+                return a;
+            }));
+            const raw = JSON.stringify(parts);
+            // short base64 key
+            return btoa(unescape(encodeURIComponent(raw)));
+        } catch (e) {
+            return String(Math.random());
+        }
+    };
+
+    const getCached = (key) => {
+        const map = puterCacheRef.current;
+        const hit = map.get(key);
+        if (!hit) return null;
+        if (Date.now() > hit.exp) {
+            map.delete(key);
+            return null;
+        }
+        return hit.data;
+    };
+
+    const setCached = (key, data, ttl = CACHE_TTL) => {
+        const map = puterCacheRef.current;
+        map.set(key, { data, exp: Date.now() + ttl });
+    };
 
     // Initial Load
     useEffect(() => {
@@ -248,6 +323,8 @@ export default function PuterChat() {
                 console.error("Failed to parse saved files", e);
             }
         }
+
+        ensurePuterAuth();
     }, []);
 
     // Persist Sessions
@@ -332,6 +409,33 @@ export default function PuterChat() {
         setMobileMenuOpen(false);
         if (window.innerWidth < 768) setSidebarOpen(false);
     };
+    
+    const refreshPuterSession = async () => {
+        try {
+            // Sign out current session if available
+            if (window.puter?.auth?.logout) {
+                await window.puter.auth.logout();
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+
+            // Re-authenticate with temp user onboarding support
+            await ensurePuterAuth();
+
+            // Clear puter-related storage (keep chat history/model prefs)
+            const keys = Object.keys(localStorage).filter(k => k.includes('puter') || k.includes('auth'));
+            keys.forEach(k => {
+                if (!k.includes('chat')) localStorage.removeItem(k);
+            });
+
+            setInput('');
+            setFiles([]);
+            setIsLoading(false);
+            createNewSession();
+        } catch (err) {
+            console.error('Session refresh error:', err);
+            createNewSession();
+        }
+    };
 
     const deleteSession = (e, id) => {
         e.stopPropagation();
@@ -367,6 +471,51 @@ export default function PuterChat() {
     // Retry wrapper matching the working HTML pattern — puter.ai.chat handles auth internally
     const chatWithRetry = async (...args) => {
         const maxRetries = 3;
+        await ensurePuterAuth();
+        // Determine if this call requests streaming
+        const opts = args.find(a => a && typeof a === 'object' && (a.stream !== undefined || a.model !== undefined));
+        const isStream = opts && opts.stream === true;
+
+        // For non-stream calls, attempt client-side cache & dedupe
+        if (!isStream) {
+            const key = await makeCacheKey(args);
+            const cached = getCached(key);
+            if (cached) {
+                return cached; // return cached final response (string/object)
+            }
+
+            if (inflightRef.current.has(key)) {
+                return await inflightRef.current.get(key);
+            }
+
+            const p = (async () => {
+                for (let attempt = 1; attempt <= maxRetries; attempt++) {
+                    try {
+                        const res = await window.puter.ai.chat(...args);
+                        // store non-iterable (final) responses in cache
+                        setCached(key, res);
+                        return res;
+                    } catch (error) {
+                        if (attempt < maxRetries) {
+                            console.log(`Puter API call failed, retrying... (${attempt}/${maxRetries})`);
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                        } else {
+                            throw error;
+                        }
+                    }
+                }
+            })();
+
+            inflightRef.current.set(key, p);
+            try {
+                const out = await p;
+                return out;
+            } finally {
+                inflightRef.current.delete(key);
+            }
+        }
+
+        // Streamed calls: do not cache or dedupe, just retry
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
                 return await window.puter.ai.chat(...args);
@@ -501,6 +650,29 @@ export default function PuterChat() {
 
     const currentSession = getCurrentSession();
     const messages = useMemo(() => currentSession?.messages || [], [currentSession?.messages]);
+    const userStatus = useMemo(() => {
+        if (!authReady) {
+            return { dotClass: 'bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.45)]', label: 'Auth...', detail: 'Authenticating with Puter' };
+        }
+
+        if (!puterUser) {
+            return { dotClass: 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)]', label: 'Ready', detail: 'Ready (user info unavailable)' };
+        }
+
+        if (puterUser.is_temp) {
+            return {
+                dotClass: 'bg-sky-400 shadow-[0_0_6px_rgba(56,189,248,0.5)]',
+                label: 'Guest',
+                detail: `Guest user: ${puterUser.username || puterUser.uuid || 'temp'}`
+            };
+        }
+
+        return {
+            dotClass: 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)]',
+            label: puterUser.username ? `@${puterUser.username}` : 'Signed In',
+            detail: puterUser.uuid ? `UUID: ${puterUser.uuid}` : 'Signed in user'
+        };
+    }, [authReady, puterUser]);
 
     // Group sessions by date
     const groupedSessions = sessions.reduce((groups, session) => {
@@ -530,6 +702,16 @@ export default function PuterChat() {
                 >
                     <Plus className="h-4 w-4 text-violet-400" />
                     <span className="text-sm font-medium">New Chat</span>
+                </Button>
+                <Button
+                    onClick={refreshPuterSession}
+                    className="w-full justify-start gap-2.5 h-10 rounded-xl border border-blue-500/20 text-base-content shadow-none transition-all duration-200 hover:opacity-80"
+                    variant="ghost"
+                    style={{ background: 'linear-gradient(to right, rgba(59,130,246,0.1), rgba(34,197,94,0.1))' }}
+                    title="Refresh authentication session with Puter.js"
+                >
+                    <RefreshCw className="h-4 w-4 text-blue-400" />
+                    <span className="text-sm font-medium">Refresh Session</span>
                 </Button>
             </div>
 
@@ -656,12 +838,12 @@ export default function PuterChat() {
                     </div>
 
                     {/* Status dot */}
-                    <div className="flex items-center gap-2 text-xs text-base-content/40">
+                    <div className="flex items-center gap-2 text-xs text-base-content/40" title={userStatus.detail}>
                         <div className={cn(
                             "w-2 h-2 rounded-full transition-colors",
-                            "bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)]"
+                            userStatus.dotClass
                         )} />
-                        <span className="hidden sm:inline">Ready</span>
+                        <span className="hidden sm:inline">{userStatus.label}</span>
                     </div>
                 </div>
 
