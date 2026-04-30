@@ -11,6 +11,7 @@ const AI_MODELS = [
     { value: 'gemmy', label: 'জেমি: দ্যা টিচার', api: 'https://geminiai-render.onrender.com/api/gemmy/generate', type: 'formdata' },
     { value: 'merlin', label: 'মিস মার্লিন: দ্যা টিউটর', api: 'https://geminiai-render.onrender.com/api/merlin/v1/chat/completions', type: 'merlin' },
     { value: 'mathgpt', label: 'ম্যাভিস: দ্যা ম্যাথ এক্সপার্ট', api: 'https://geminiai-xi.vercel.app/api/mathgpt/v1', type: 'mathgpt' },
+    { value: 'mathgpt-v2', label: 'মাষ্টার মশাই: দ্য স্যাভিয়র', api: 'https://geminiai-render.onrender.com/api/mathgpt/v2', type: 'mathgpt-v2' },
     { value: 'notegpt', label: 'H.M. Tutoring AI', api: 'https://geminiai-render.onrender.com/api/notegpt/v1', type: 'notegpt' },
     { value: 'luzia', label: 'Luzia: দ্যা প্রফেসর', api: 'https://geminiai-render.onrender.com/api/luzia/ask', type: 'luzia' },
     /*{ value: 'hmtai-puter', label: 'HMT AI Assistant', api: '#', type: 'puter', model: 'google/gemini-3-flash-preview' },*/
@@ -522,6 +523,32 @@ ${userQuestion}`;
                             }
                         }
                     }
+                }
+            } else if (modelConfig.type === 'mathgpt-v2') {
+                // MathGPT v2: expects text + optional base64 image
+                const imageBase64 = imageUrl ? (await fetchImageAsDataUri(imageUrl))?.split(',')?.[1] || '' : '';
+                const resp = await fetch(modelConfig.api, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        text: prompt,
+                        image: imageBase64 || undefined,
+                        fileName: imageUrl ? 'image.jpg' : undefined,
+                    })
+                });
+
+                const contentType = resp.headers.get('Content-Type') || '';
+                const raw = contentType.includes('application/json') ? await resp.json() : await resp.text();
+
+                if (!resp.ok) {
+                    const message = typeof raw === 'string' ? raw : raw?.error || raw?.message || `API Error: ${resp.status}`;
+                    throw new Error(message);
+                }
+
+                if (typeof raw === 'string') {
+                    answerText = raw;
+                } else {
+                    answerText = raw?.data || raw?.result || raw?.reply || raw?.message?.content || raw?.message || raw?.choices?.[0]?.message?.content || raw?.choices?.[0]?.delta?.content || '';
                 }
             } else if (modelConfig.type === 'notegpt') {
                 // NoteGPT: Study Notes (JSON with userMessage)

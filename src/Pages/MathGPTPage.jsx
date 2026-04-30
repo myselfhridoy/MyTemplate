@@ -487,7 +487,7 @@ function MathGPTPage({
 
   return (
       <div className="container mx-auto p-4 max-w-2xl" style={{ fontFamily: 'Hind Siliguri, sans-serif' }}>
-        <h1 className="text-2xl font-extrabold mb-4 text-center">MathGPT AI Assistant</h1>
+        <h1 className="text-2xl font-extrabold mb-4 text-center">ম্যাভিস: দ্যা ম্যাথ এক্সপার্ট</h1>
         <form className="bg-white dark:bg-base-200 rounded shadow p-3 sm:p-8 mb-6" onSubmit={handleAsk}>
           {!hideSelectors && (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 mb-4">

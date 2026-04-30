@@ -304,7 +304,7 @@ function NoteGPTPage({
 
   return (
     <div className="container mx-auto p-4 max-w-2xl" style={{ fontFamily: 'Hind Siliguri, sans-serif' }}>
-      <h1 className="text-2xl font-extrabold mb-4 text-center">📚 NoteGPT AI Assistant</h1>
+      <h1 className="text-2xl font-extrabold mb-4 text-center">H.M. Tutoring AI</h1>
       <form className="bg-white dark:bg-base-200 rounded shadow p-3 sm:p-8 mb-6" onSubmit={handleAsk}>
         {!hideSelectors && (
           <>

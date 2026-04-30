@@ -12,12 +12,14 @@ import MerlineAIPage from "./MerlineAIPage";
 import HMTAiPage from "./HMTAiPage";
 import PuterChatPage from "./PuterChatPage";
 import MathGPTPage from "./MathGPTPage";
+import MathGPTV2Page from "./MathGPTV2Page";
 import NoteGPTPage from "./NoteGPTPage";
 
 const pageOptions = [
   { label: "জেমি: দ্যা টিচার", value: "gemmy" },
   { label: "মিস মার্লিন: দ্যা টিউটর", value: "merlin" },
   { label: "ম্যাভিস: দ্যা ম্যাথ এক্সপার্ট", value: "mathgpt" },
+  { label: "মাষ্টার মশাই: দ্য স্যাভিয়র", value: "mathgpt-v2" },
   { label: "H.M. Tutoring AI", value: "notegpt" },
   { label: "Luzia: দ্যা প্রফেসর", value: "luzia" },
   { label: "HMT AI Assistant", value: "hmtai-puter" },
@@ -43,6 +45,7 @@ const pageMap = {
   chatbot: <AIChatBotPage />,
   chat: <AIChatPage />,
   mathgpt: <MathGPTPage />,
+  "mathgpt-v2": <MathGPTV2Page />,
   notegpt: <NoteGPTPage />
 };
 
