@@ -409,7 +409,6 @@ function MathGPTV2Page() {
         </div>
 
         <div className="mb-4">
-          <label className="block mb-1 font-semibold text-sm">প্রশ্ন</label>
           <textarea
             className="textarea textarea-bordered w-full text-sm"
             rows={5}
