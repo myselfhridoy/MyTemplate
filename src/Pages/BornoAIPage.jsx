@@ -35,8 +35,6 @@ const nctbSubjects = {
 
 const classList = Object.keys(nctbSubjects);
 
-const DEFAULT_TOKEN = "fvRLQNCpxUVIGeqCn45iW59CIzD3";
-
 function BornoAIPage() {
   const [selectedClass, setSelectedClass] = useState("");
   const [selectedSubject, setSelectedSubject] = useState("");
@@ -81,106 +79,65 @@ function BornoAIPage() {
     }
     setLoading(true);
     setAnswer("");
-    let imageData = "";
-    if (imageFile) {
-      imageData = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result); // full data URI
-        reader.onerror = reject;
-        reader.readAsDataURL(imageFile);
-      });
-    }
-    const body = [question, imageData, DEFAULT_TOKEN, selectedClass, selectedSubject];
+
     try {
-      const resp = await fetch("https://geminiai-render.onrender.com/api/bornoai", {
+      // Create FormData for multipart upload
+      const formData = new FormData();
+      formData.append("userText", question || "Solve");
+      formData.append("gradeValue", selectedClass);
+      formData.append("subject", selectedSubject);
+      
+      if (imageFile) {
+        formData.append("image", imageFile);
+      }
+
+      const resp = await fetch("https://geminiai-render.onrender.com/api/bornoai/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body)
+        body: formData
       });
-      const text = await resp.text();
+
+      if (!resp.ok) {
+        throw new Error(`API error: ${resp.status}`);
+      }
+
+      // Handle SSE stream response
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
       let answerText = "";
 
-      // First try to extract content from 2: pattern (main content)
-      const match2 = text.match(/2:[^,]*,\s*([\s\S]*?)(?=\d+:\{|$)/);
-      if (match2) {
-        answerText = match2[1].trim();
-      } else {
-        // Fallback: try to extract JSON content from 1:{"content":"..."} pattern
-        const jsonMatch = text.match(/1:\s*\{\s*"content"\s*:\s*"([\s\S]*?)"\s*\}/);
-        if (jsonMatch) {
-          answerText = jsonMatch[1]
-            .replace(/\\n/g, '\n')    // Fix escaped newlines
-            .replace(/\\"/g, '"')     // Fix escaped quotes
-            .replace(/\\\\/g, '\\');  // Fix double backslashes
-        } else {
-        // Fallback: manual line-by-line extraction
-        const lines = text.split(/\r?\n/);
-        let found = false;
-        let contentLines = [];
-        
-        for (let i = 0; i < lines.length; i++) {
-          const line = lines[i];
-          const trimmed = line.trim();
-          
-          if (!found && trimmed.startsWith('2:')) {
-            // Extract content after comma in 2: line
-            const colonIndex = line.indexOf(':');
-            const content = line.substring(colonIndex + 1);
-            const commaIndex = content.indexOf(',');
-            if (commaIndex !== -1) {
-              const afterComma = content.substring(commaIndex + 1).trim();
-              if (afterComma) contentLines.push(afterComma);
-            }
-            found = true;
-            continue;
-          }
-          
-          if (found) {
-            // Stop at any digit: pattern
-            if (/^\d+:/.test(trimmed)) {
-              break;
-            }
-            contentLines.push(line);
-          }
-        }
-        
-          answerText = contentLines.join('\n');
-        }
-      }
-      
-      // Clean up the extracted content
-      answerText = answerText
-        .split('\n')
-        .filter(line => {
-          const trimmed = line.trim();
-          // Remove empty lines and placeholder patterns
-          return trimmed && 
-                 !trimmed.match(/^\d+:\{.*\}$/) && // Remove any 1:{"content":"$2"} patterns
-                 !trimmed.match(/\{"content":"\$\d+"\}/) && // Remove {"content":"$2"}
-                 trimmed !== '$2'; // Remove standalone $2
-        })
-        .join('\n')
-        .trim();
-      
-      // Additional cleanup: remove any trailing JSON content patterns
-      answerText = answerText.replace(/\{"content":"\$\d+"\}$/g, '').trim();
-      
-      // Normalize LaTeX for proper rendering
-      answerText = answerText
-        .replace(/\\\\/g, '\\') // Fix double backslashes
-        .replace(/\\n/g, '\n') // Fix escaped newlines
-        .replace(/\\"/g, '"');  // Fix escaped quotes
-      
-      // Fallback: try JSON content extraction if no 2: pattern found
-      if (!answerText) {
-        const contentMatch = text.match(/"content"\s*:\s*"([\s\S]+?)"/);
-        if (contentMatch) {
-          answerText = contentMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"');
-        }
-      }
-      
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
 
-      setAnswer(answerText);
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6); // Remove 'data: ' prefix
+            if (data) {
+              try {
+                const parsed = JSON.parse(data);
+                
+                // Only process content messages, skip thought/ping/connected
+                if (parsed.type === 'content' && parsed.delta) {
+                  answerText += parsed.delta;
+                } else if (parsed.type === 'done' && parsed.content) {
+                  // Use done message as fallback if no content accumulated
+                  if (!answerText) {
+                    answerText = parsed.content;
+                  }
+                }
+                // Ignore: thought, ping, connected types
+              } catch {
+                // If not JSON, ignore
+              }
+            }
+          }
+        }
+      }
+
+      setAnswer(answerText || "কোন উত্তর পাওয়া যায়নি।");
 
       // --- Google Sheet Logger ---
       let imageBase64 = "";
@@ -240,11 +197,8 @@ function BornoAIPage() {
         body: JSON.stringify({ rowData })
       });
       // --- End Google Sheet Logger ---
-  // If you want to reset file input after submit, uncomment below:
-  // setImageFile(null);
-  // setImagePreviewUrl(null);
-  // if (fileInputRef.current) fileInputRef.current.value = "";
-    } catch {
+    } catch (error) {
+      console.error("Error:", error);
       setAnswer("উত্তর আনতে সমস্যা হয়েছে। দয়া করে পরে আবার চেষ্টা করুন।");
     }
     setLoading(false);

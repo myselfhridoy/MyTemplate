@@ -608,7 +608,7 @@ function BoardCQPage() {
   return (
     <MathJaxContext
       config={{
-        loader: { load: ['input/tex', 'output/chtml', '[tex]/ams', '[tex]/newcommand'] },
+        loader: { load: ['input/tex', 'output/chtml', '[tex]/ams', '[tex]/newcommand', '[tex]/textmacros'] },
         tex: {
           inlineMath: [['$', '$'], ['\\(', '\\)']],
           displayMath: [['$$', '$$'], ['\\[', '\\]']],
@@ -996,7 +996,7 @@ function BoardCQPage() {
         finalAnswer={askAI.finalAnswer}
         steps={askAI.steps}
         className={selectedClass || ''}
-        subjectName={selectedSubjectObj?.subject?.title || ''}
+        subjectName={selectedSubjectObj?.subject?.name || ''}
         chapterName={chapters.find(c => c.id === parseInt(selectedChapter))?.title || ''}
       />
     </MathJaxContext>

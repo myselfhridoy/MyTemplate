@@ -51,7 +51,7 @@ import ProfilePage from './Pages/ProfilePage';
 import { MathJaxContext } from 'better-react-mathjax';
 
 const mathJaxConfig = {
-  loader: { load: ["input/tex", "output/chtml"] },
+  loader: { load: ["input/tex", "output/chtml", "[tex]/textmacros"] },
   tex: {
     inlineMath: [['$', '$'], ['\\(', '\\)']],
     displayMath: [['$$', '$$'], ['\\[', '\\]']]
@@ -59,7 +59,9 @@ const mathJaxConfig = {
   chtml: {
     displayAlign: 'left',
     displayIndent: '0em',
-    scale: 1.1
+    scale: 1.1,
+    mtextInheritFont: true,
+    matchFontHeight: false
   },
   options: {
     renderActions: {

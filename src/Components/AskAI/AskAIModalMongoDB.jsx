@@ -122,6 +122,46 @@ function AskAIModalMongoDB({ isOpen, onClose, questionText = '', stemText = '', 
         return q.trim();
     }, [questionText, stemText, source, marks, finalAnswer, steps]);
 
+    const bornoQuestion = useMemo(() => {
+        let q = '';
+        if (stemText) q += `উদ্দীপক: ${stemText}\n\n`;
+        if (questionText) q += questionText;
+        if (marks) q += `\n\n[মান: ${marks} নম্বর]`;
+        if (finalAnswer) q += `\n\n[সঠিক উত্তর/ইঙ্গিত: ${finalAnswer}]`;
+        if (source) q += `\n\n(সোর্স: ${source})`;
+        return q.trim();
+    }, [questionText, stemText, source, marks, finalAnswer]);
+
+    const bornoContext = useMemo(() => {
+        const classText = (className || '').trim();
+        const subjectText = (subjectName || '').trim();
+        const isPhysics = /পদার্থবিজ্ঞান/.test(subjectText);
+        const isHigherMath = /উচ্চতর\s*গণিত/.test(subjectText);
+        const paperBase = isPhysics ? 'পদার্থবিজ্ঞান' : isHigherMath ? 'উচ্চতর গণিত' : '';
+        const isFirstPaper = /(প্রথম|১ম|1ম|1st)\s*পত্র/.test(subjectText);
+        const isSecondPaper = /(দ্বিতীয়|দ্বিতীয়|২য়|২য়|2য়|2য়|2nd)\s*পত্র/.test(subjectText);
+        const class11 = /(একাদশ|১১|11)/.test(classText);
+        const class12 = /(দ্বাদশ|১২|12)/.test(classText);
+
+        if (paperBase) {
+            if (isFirstPaper || class11) {
+                return { gradeValue: 'একাদশ-শ্রেণী', subjectValue: `${paperBase} প্রথম পত্র` };
+            }
+            if (isSecondPaper || class12) {
+                return { gradeValue: 'দ্বাদশ-শ্রেণী', subjectValue: `${paperBase} দ্বিতীয় পত্র` };
+            }
+            return {
+                gradeValue: class12 ? 'দ্বাদশ-শ্রেণী' : 'একাদশ-শ্রেণী',
+                subjectValue: class12 ? `${paperBase} দ্বিতীয় পত্র` : `${paperBase} প্রথম পত্র`,
+            };
+        }
+
+        return {
+            gradeValue: classText || 'একাদশ-শ্রেণী',
+            subjectValue: subjectText || 'পদার্থবিজ্ঞান',
+        };
+    }, [className, subjectName]);
+
     // Compress image via canvas (reduce size for API calls)
     const compressImage = (blob, { maxWidth = 800, maxHeight = 800, quality = 0.85 } = {}) => {
         return new Promise((resolve) => {
@@ -232,7 +272,7 @@ ${userQuestion}`;
         setAnswer('');
 
         const modelConfig = AI_MODELS.find(m => m.value === selectedModel) || AI_MODELS[0];
-        const prompt = buildPrompt(fullQuestion);
+            const prompt = modelConfig.type === 'borno' ? bornoQuestion : buildPrompt(fullQuestion);
 
         try {
             let answerText = '';
@@ -419,25 +459,47 @@ ${userQuestion}`;
                 const data = await resp.json();
                 if (data?.answer) answerText = data.answer;
             } else if (modelConfig.type === 'borno') {
-                // Academic Assistant (JSON array)
-                let imgDataUri = '';
-                if (imageUrl) imgDataUri = (await fetchImageAsDataUri(imageUrl)) || '';
-                const resp = await fetch(modelConfig.api, {
+                // Academic Assistant (FormData with SSE streaming)
+                const { gradeValue, subjectValue } = bornoContext;
+                const formData = new FormData();
+                formData.append('userText', prompt);
+                formData.append('gradeValue', gradeValue);
+                formData.append('subject', subjectValue);
+                if (imageUrl) {
+                    const imageFile = await fetchImageAsFile(imageUrl);
+                    if (imageFile) formData.append('image', imageFile);
+                }
+                const resp = await fetch(`${modelConfig.api}/chat`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify([prompt, imgDataUri, 'fvRLQNCpxUVIGeqCn45iW59CIzD3', '', '']),
+                    body: formData
                 });
-                const raw = await resp.text();
-                // Parse borno response
-                const m2 = raw.match(/2:[^,]*,\s*([\s\S]*?)$/);
-                if (m2 && m2[1]) {
-                    answerText = m2[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\').trim();
-                    if (answerText.startsWith('"')) answerText = answerText.slice(1);
-                    if (answerText.endsWith('"')) answerText = answerText.slice(0, -1);
-                } else {
-                    const m1 = raw.match(/1:\s*\{\s*"content"\s*:\s*"((?:[^"\\]|\\.)*)"\s*\}/);
-                    if (m1) answerText = m1[1].replace(/\\n/g, '\n').replace(/\\"/g, '"');
-                    else answerText = raw;
+                if (!resp.ok) throw new Error('API Error: ' + resp.status);
+                // Handle SSE stream response
+                const reader = resp.body.getReader();
+                const decoder = new TextDecoder();
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n');
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const data = line.slice(6);
+                            if (data) {
+                                try {
+                                    const parsed = JSON.parse(data);
+                                    // Only process content messages, skip thought/ping/connected
+                                    if (parsed.type === 'content' && parsed.delta) {
+                                        answerText += parsed.delta;
+                                    } else if (parsed.type === 'done' && parsed.content) {
+                                        if (!answerText) answerText = parsed.content;
+                                    }
+                                } catch {
+                                    // If not JSON, ignore
+                                }
+                            }
+                        }
+                    }
                 }
             } else if (modelConfig.type === 'mathgpt') {
                 // MathGPT: Math Expert (JSON with messages array)

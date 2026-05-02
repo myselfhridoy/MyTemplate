@@ -39,8 +39,8 @@ const components = {
   ),
   a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: '#818cf8', textDecoration: 'underline' }}>{children}</a>,
   table: ({ children }) => (
-    <div style={{ overflowX: 'auto', maxWidth: '100%', scrollbarWidth: 'none', margin: '0.5rem 0' }}>
-      <table style={{ borderCollapse: 'collapse', fontSize: '0.8rem', minWidth: '100%' }}>
+    <div style={{ maxWidth: '100%', margin: '0.5rem 0' }}>
+      <table style={{ borderCollapse: 'collapse', fontSize: '0.75rem', width: '100%', tableLayout: 'fixed' }}>
         {children}
       </table>
     </div>
@@ -48,8 +48,8 @@ const components = {
   thead: ({ children }) => <thead style={{ background: 'rgba(255,255,255,0.05)' }}>{children}</thead>,
   tbody: ({ children }) => <tbody>{children}</tbody>,
   tr: ({ children }) => <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>{children}</tr>,
-  th: ({ children }) => <th style={{ padding: '0.4rem 0.6rem', fontWeight: 'bold', textAlign: 'left', whiteSpace: 'nowrap' }}>{children}</th>,
-  td: ({ children }) => <td style={{ padding: '0.4rem 0.6rem', whiteSpace: 'nowrap' }}>{children}</td>,
+  th: ({ children }) => <th style={{ padding: '0.35rem 0.45rem', fontWeight: 'bold', textAlign: 'left', whiteSpace: 'normal', wordBreak: 'break-word', overflowWrap: 'anywhere', verticalAlign: 'top' }}>{children}</th>,
+  td: ({ children }) => <td style={{ padding: '0.35rem 0.45rem', whiteSpace: 'normal', wordBreak: 'break-word', overflowWrap: 'anywhere', verticalAlign: 'top' }}>{children}</td>,
   hr: () => <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.1)', margin: '0.75rem 0' }} />,
 };
 
