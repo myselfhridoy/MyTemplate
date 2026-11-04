@@ -1,200 +1,250 @@
-import React, { useRef, useEffect, useState } from "react";
-const DESMOS_API_KEY = import.meta.env.VITE_DESMOS_API_KEY || "";
-const DESMOS_API = `https://www.desmos.com/api/v1.11/calculator.js?apiKey=${DESMOS_API_KEY}`;
+import { useCallback, useEffect, useRef, useState } from 'react';
+import IOSButton from '../Components/ios/iOSButton';
+import IOSCard from '../Components/ios/iOSCard';
 
-const DesmosGraphPage = () => {
-  const calculatorRef = useRef(null);
-  const calculatorInstance = useRef(null);
+const DESMOS_API_KEY = import.meta.env.VITE_DESMOS_API_KEY || '';
+const DESMOS_API = `https://www.desmos.com/api/v1.11/calculator.js?apiKey=${DESMOS_API_KEY}`;
+const STORAGE_KEY = 'desmosGraphState';
+
+export default function DesmosGraphPage() {
+  const calcRef = useRef(null);
+  const calcInstance = useRef(null);
   const [savedState, setSavedState] = useState(null);
   const [screenshot, setScreenshot] = useState(null);
+  const [scriptLoading, setScriptLoading] = useState(true);
+  const [scriptError, setScriptError] = useState('');
+  const [actionError, setActionError] = useState('');
+  const [showScreenshot, setShowScreenshot] = useState(false);
 
-  // Save graph state to localStorage
-  const handleSave = () => {
-    if (calculatorInstance.current) {
-      const state = calculatorInstance.current.getState();
+  const handleSave = useCallback(() => {
+    if (!calcInstance.current) return;
+    try {
+      const state = calcInstance.current.getState();
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
       setSavedState(state);
-      window.localStorage.setItem("desmosGraphState", JSON.stringify(state));
+      setActionError('');
+    } catch (error) {
+      console.error('Desmos graph save failed:', error);
+      setActionError('গ্রাফ সংরক্ষণ করা যায়নি। ব্রাউজারের storage সেটিংস পরীক্ষা করে আবার চেষ্টা করুন।');
     }
-  };
+  }, []);
 
-  // Load graph state from localStorage
-  const handleLoad = () => {
-    if (calculatorInstance.current) {
-      let state = savedState;
-      if (!state) {
-        const stored = window.localStorage.getItem("desmosGraphState");
+  const handleLoad = useCallback(() => {
+    if (!calcInstance.current) return;
+    let state = savedState;
+    if (!state) {
+      try {
+        const stored = window.localStorage.getItem(STORAGE_KEY);
         if (stored) state = JSON.parse(stored);
+      } catch (error) {
+        console.error('Saved Desmos graph could not be read:', error);
+        setActionError('সংরক্ষিত গ্রাফ পড়া যায়নি। সংরক্ষিত ডেটা নষ্ট বা unavailable হতে পারে।');
+        return;
       }
-      if (state) calculatorInstance.current.setState(state);
     }
-  };
+    if (!state) {
+      setActionError('লোড করার মতো কোনো সংরক্ষিত গ্রাফ নেই।');
+      return;
+    }
+    try {
+      calcInstance.current.setState(state);
+      setActionError('');
+    } catch (error) {
+      console.error('Desmos graph load failed:', error);
+      setActionError('সংরক্ষিত গ্রাফ লোড করা যায়নি।');
+    }
+  }, [savedState]);
 
-  // Reset graph to blank
-  const handleReset = () => {
-    if (calculatorInstance.current) {
-      calculatorInstance.current.setBlank();
+  const handleReset = useCallback(() => {
+    if (!calcInstance.current) return;
+    try {
+      calcInstance.current.setBlank();
       setScreenshot(null);
+      setShowScreenshot(false);
+      setActionError('');
+    } catch (error) {
+      console.error('Desmos graph reset failed:', error);
+      setActionError('গ্রাফ রিসেট করা যায়নি। আবার চেষ্টা করুন।');
     }
-  };
+  }, []);
 
-  // Take screenshot and display below
-  const handleScreenshot = () => {
-    if (calculatorInstance.current) {
-      const imgData = calculatorInstance.current.screenshot();
-      setScreenshot(imgData);
+  const handleScreenshot = useCallback(() => {
+    if (!calcInstance.current) return;
+    try {
+      const imageData = calcInstance.current.screenshot();
+      if (!imageData) throw new Error('Desmos returned an empty screenshot.');
+      setScreenshot(imageData);
+      setShowScreenshot(true);
+      setActionError('');
+    } catch (error) {
+      console.error('Desmos screenshot failed:', error);
+      setActionError('স্ক্রিনশট নেওয়া যায়নি। আবার চেষ্টা করুন।');
     }
-  };
+  }, []);
 
   useEffect(() => {
+    let mounted = true;
     let script;
-    function createCalculator() {
-      if (calculatorRef.current && window.Desmos) {
-        // Always use light theme
-        if (calculatorInstance.current) {
-          calculatorInstance.current.destroy();
-        }
-        calculatorInstance.current = window.Desmos.GraphingCalculator(calculatorRef.current, {
+    let createdScript = false;
+
+    const createCalculator = () => {
+      if (!mounted || !calcRef.current || !window.Desmos) return;
+      try {
+        calcInstance.current?.destroy();
+        calcInstance.current = window.Desmos.GraphingCalculator(calcRef.current, {
           keypad: true,
-          invertedColors: false
+          invertedColors: false,
         });
+        setScriptError('');
+      } catch (error) {
+        console.error('Desmos initialization failed:', error);
+        setScriptError('গ্রাফ ক্যালকুলেটর চালু করা যায়নি। পৃষ্ঠাটি refresh করে আবার চেষ্টা করুন।');
+      } finally {
+        setScriptLoading(false);
       }
-    }
-    if (!window.Desmos) {
-      script = document.createElement("script");
-      script.src = DESMOS_API;
-      script.async = true;
-      script.onload = createCalculator;
-      document.body.appendChild(script);
-    } else {
+    };
+
+    const handleScriptError = () => {
+      if (!mounted) return;
+      const error = new Error('Failed to load Desmos script.');
+      console.error('Desmos script loading failed:', error);
+      setScriptError('Desmos ক্যালকুলেটর লোড হয়নি। ইন্টারনেট সংযোগ এবং API key পরীক্ষা করে আবার চেষ্টা করুন।');
+      setScriptLoading(false);
+    };
+
+    if (window.Desmos) {
       createCalculator();
+    } else if (!DESMOS_API_KEY) {
+      console.error('Desmos API key is missing (VITE_DESMOS_API_KEY).');
+      setScriptError('Desmos API key সেট করা নেই। VITE_DESMOS_API_KEY কনফিগার করুন।');
+      setScriptLoading(false);
+    } else {
+      script = document.querySelector('script[data-desmos-api]');
+      if (!script) {
+        script = document.createElement('script');
+        script.src = DESMOS_API;
+        script.async = true;
+        script.dataset.desmosApi = 'true';
+        document.body.appendChild(script);
+        createdScript = true;
+      }
+      script.addEventListener('load', createCalculator);
+      script.addEventListener('error', handleScriptError);
+      if (window.Desmos) createCalculator();
     }
+
     return () => {
-      // Cleanup calculator instance
-      if (calculatorInstance.current) {
-        calculatorInstance.current.destroy();
-        calculatorInstance.current = null;
+      mounted = false;
+      script?.removeEventListener('load', createCalculator);
+      script?.removeEventListener('error', handleScriptError);
+      if (calcInstance.current) {
+        try {
+          calcInstance.current.destroy();
+        } catch (error) {
+          console.error('Desmos cleanup failed:', error);
+        }
+        calcInstance.current = null;
       }
-      // Remove script if it was added
-      if (script) {
-        document.body.removeChild(script);
-      }
+      if (createdScript) script?.remove();
     };
   }, []);
 
   return (
-    <div style={{ width: "100%", maxWidth: 600, margin: "0 auto", fontFamily: "'Hind Siliguri', 'Kalpurush', 'Noto Sans Bengali', 'SolaimanLipi', 'Arial', sans-serif" }}>
-  <div className="desmos-card" style={{ marginBottom: 18 }}>
-        <h2
-          style={{
-            textAlign: "center",
-            fontSize: 28,
-            fontWeight: 700,
-            margin: "22px 0 18px 0",
-            letterSpacing: 1
-          }}
-          className="desmos-title"
-        >গ্রাফ ক্যালকুলেটর</h2>
-        <style>{`
-          .desmos-card {
-            background: transparent;
-            box-shadow: none;
-            border-radius: 0;
-            padding: 0;
-          }
-          @media (prefers-color-scheme: dark) {
-            .desmos-card {
-              background: transparent;
-              box-shadow: none;
-              border-radius: 0;
-              padding: 0;
-            }
-          }
-          .desmos-btn {
-            font-size: 15px;
-            color: #222;
-            background: #e3f2fd;
-            border: 1px solid #90caf9;
-            border-radius: 8px;
-            padding: 7px 12px;
-            font-weight: 600;
-            min-width: 90px;
-            box-shadow: 0 2px 8px #90caf955;
-            transition: background 0.2s, box-shadow 0.2s, color 0.2s;
-          }
-          @media (max-width: 480px) {
-            .desmos-btn {
-              font-size: 13px;
-              padding: 5px 8px;
-              min-width: 70px;
-            }
-          }
-          .desmos-btn:hover, .desmos-btn:focus {
-            background: #bbdefb;
-            color: #1565c0;
-            box-shadow: 0 4px 16px #90caf9aa;
-            outline: none;
-          }
-          body[data-theme='light'] .desmos-title {
-            color: #111 !important;
-          }
-          body[data-theme='dark'] .desmos-title {
-            color: #fff !important;
-            text-shadow: 0 2px 8px #222, 0 0 2px #1976d2;
-          }
-            body[data-theme='dark'] .desmos-title, .dark .desmos-title {
-              color: #fff !important;
-              text-shadow: 0 2px 8px #222, 0 0 2px #1976d2;
-            }
-            .desmos-btn {
-              color: #fff;
-              background: #263238;
-              border: 1px solid #90caf9;
-              box-shadow: 0 2px 8px #222a;
-            }
-            .desmos-btn:hover, .desmos-btn:focus {
-              background: #1976d2;
-              color: #e3f2fd;
-              box-shadow: 0 4px 16px #1976d2aa;
-            }
-          }
-        `}</style>
-        
-      </div>
-      <div style={{ width: '100%', height: 0, borderBottom: '1.5px solid #90caf9', marginBottom: 1, opacity: 0.5 }}></div>
-      <div
-        id="calculator"
-        ref={calculatorRef}
-        style={{
-          width: "100%",
-          height: "450px",
-          minHeight: "320px",
-          boxSizing: "border-box"
-        }}
-      ></div>
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "nowrap",
-          gap: 10,
-          justifyContent: "center",
-          margin: "18px 0 0 0",
-          overflowX: "auto"
-        }}
-      >
-        <button className="desmos-btn" onClick={handleSave}>সংরক্ষণ করুন</button>
-        <button className="desmos-btn" onClick={handleLoad}>লোড করুন</button>
-        <button className="desmos-btn" onClick={handleReset}>রিসেট করুন</button>
-        <button className="desmos-btn" onClick={handleScreenshot}>স্ক্রিনশট</button>
-      </div>
-      {screenshot && (
-        <div style={{ textAlign: "center", marginTop: 16 }}>
-          <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 6, color: '#1976d2' }}>স্ক্রিনশট</div>
-          <img src={screenshot} alt="Graph Screenshot" style={{ maxWidth: "100%", border: "1px solid #ccc", borderRadius: 8 }} />
+    <div className="min-h-screen bg-base-200 pb-24" style={{ fontFamily: 'Hind Siliguri, sans-serif' }}>
+      <div className="mx-auto max-w-2xl px-3 pt-4 sm:px-4">
+        <div className="mb-4 flex items-center gap-3">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/15 text-2xl text-primary shadow-md">
+            📈
+          </div>
+          <div className="min-w-0 flex-1">
+            <h1 className="ios-title-lg truncate">গ্রাফ ক্যালকুলেটর</h1>
+            <p className="ios-caption">Desmos · ইন্টারঅ্যাকটিভ গ্রাফ</p>
+          </div>
         </div>
-      )}
+
+        <IOSCard className="mb-3 overflow-hidden !p-0">
+          <div className="px-4 pb-1 pt-3">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-base-content/40">
+              Graph
+            </span>
+          </div>
+          <div className="relative">
+            {scriptLoading && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-base-100">
+                <div className="flex flex-col items-center gap-2 text-sm text-base-content/60">
+                  <span
+                    className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-current border-r-transparent"
+                    style={{ animation: 'spin 0.7s linear infinite' }}
+                    aria-hidden="true"
+                  />
+                  ক্যালকুলেটর লোড হচ্ছে...
+                </div>
+              </div>
+            )}
+            {scriptError && !scriptLoading && (
+              <div role="alert" className="absolute inset-0 z-10 flex items-center justify-center bg-base-100 p-6 text-center text-sm text-error">
+                {scriptError}
+              </div>
+            )}
+            <div
+              id="calculator"
+              ref={calcRef}
+              style={{ width: '100%', height: 450, minHeight: 320, boxSizing: 'border-box' }}
+            />
+          </div>
+        </IOSCard>
+
+        <div className="mb-3 grid grid-cols-2 gap-2">
+          <IOSButton onClick={handleSave} variant="secondary" disabled={scriptLoading || Boolean(scriptError)}>
+            💾 সংরক্ষণ
+          </IOSButton>
+          <IOSButton onClick={handleLoad} variant="secondary" disabled={scriptLoading || Boolean(scriptError)}>
+            📂 লোড
+          </IOSButton>
+          <IOSButton onClick={handleReset} variant="secondary" disabled={scriptLoading || Boolean(scriptError)}>
+            🔄 রিসেট
+          </IOSButton>
+          <IOSButton onClick={handleScreenshot} disabled={scriptLoading || Boolean(scriptError)}>
+            📸 স্ক্রিনশট
+          </IOSButton>
+        </div>
+
+        {actionError && (
+          <p role="alert" className="mb-3 rounded-xl bg-error/10 px-3 py-2 text-sm text-error">
+            {actionError}
+          </p>
+        )}
+
+        {screenshot && showScreenshot && (
+          <IOSCard className="ios-fade p-3">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wide text-base-content/60">
+                স্ক্রিনশট
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowScreenshot(false)}
+                className="ios-pressable flex h-7 w-7 items-center justify-center rounded-full bg-base-content/10 text-[11px] text-base-content/60"
+                aria-label="স্ক্রিনশট লুকান"
+              >
+                ✕
+              </button>
+            </div>
+            <img
+              src={screenshot}
+              alt="Graph screenshot"
+              className="w-full rounded-lg border border-base-content/10"
+            />
+            <p className="mt-2 text-center text-[10px] text-base-content/40">
+              ছবি সংরক্ষণ করতে চেপে ধরে রাখুন
+            </p>
+          </IOSCard>
+        )}
+
+        <p className="mt-4 text-center text-[11px] text-base-content/40">
+          সংরক্ষণ, লোড ও রিসেট আপনার ব্রাউজারেই থাকে।
+        </p>
+      </div>
     </div>
   );
-};
-
-export default DesmosGraphPage;
-
+}

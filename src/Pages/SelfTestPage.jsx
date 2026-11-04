@@ -7,6 +7,11 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import SelfTestCreateForm from './SelfTestCreateForm';
 import ExamStartForm from './ExamStartForm';
 import SelfTestRegister from './SelfTestRegister';
+import IOSButton from '../Components/ios/iOSButton';
+import IOSCard from '../Components/ios/iOSCard';
+import IOSInput from '../Components/ios/iOSInput';
+import IOSSheet from '../Components/ios/iOSSheet';
+import IOSSpinner from '../Components/ios/iOSSpinner';
 
 function SelfTestPage() {
   const navigate = useNavigate();
@@ -36,7 +41,7 @@ function SelfTestPage() {
           ending_time: examState.ending_time || null
         };
       }
-    } catch {}
+    } catch { /* Restore defaults when persisted exam data is invalid. */ }
     return initial;
   };
   const initialState = getInitialState();
@@ -80,7 +85,7 @@ function SelfTestPage() {
         if (examState && examState.answers && typeof examState.answers === 'object') {
           setAnswers(examState.answers);
         }
-      } catch {}
+      } catch { /* Keep the current answers if persisted state cannot be read. */ }
       // Always recalculate timeLeft from staringTime/endingTime and clientServerOffset
       const end = new Date(endingTime).getTime();
       const left = Math.max(0, Math.floor((end - (Date.now() - clientServerOffset)) / 1000));
@@ -122,45 +127,47 @@ function SelfTestPage() {
           examState.answers = updated;
           localStorage.setItem('daricomma_exam_state', JSON.stringify(examState));
         }
-      } catch {}
+      } catch { /* The in-memory answer remains usable if storage is unavailable. */ }
       return updated;
     });
   };
 
   // Memoized Questions rendering (no ul for options, lean rendering)
   const MemoizedQuestions = memo(({ questions, answers, handleSelectOption, result, isDisabled, answerDetails }) => (
-    <ol className="list-decimal ml-6 space-y-4">
-      {questions.map((q, idx) => {
+    <ol className="space-y-3">
+      {questions.map((q) => {
         // answerDetails: { [q.id]: { mcq_solution_index, answer_text, explanation_text } }
         const detail = answerDetails ? answerDetails[q.id] : null;
         const correctIdx = detail?.mcq_solution_index;
         const userIdx = answers[q.id];
         const isResult = !!result && correctIdx !== undefined;
         return (
-          <li key={q.id} className="bg-gray-50 dark:bg-gray-800 p-3 rounded shadow border border-gray-200 dark:border-gray-700">
-            <div className="mb-2 font-semibold text-gray-900 dark:text-gray-100">
+          <li key={q.id} className="ios-card list-none p-3">
+            <div className="mb-2 text-sm font-semibold text-base-content">
               {(q.question_text?.blocks?.[0]?.text)
                 ? <MathJax>{q.question_text.blocks[0].text}</MathJax>
                 : 'প্রশ্ন'}
             </div>
             {(q.option || []).map((opt, i) => {
-              let optClass = '';
+              let optClass = 'border-base-content/15';
               let icon = null;
               if (isResult) {
                 if (i === correctIdx && userIdx === i) {
-                  optClass = 'bg-green-100 dark:bg-green-900 font-bold';
-                  icon = <span className="ml-1 text-green-600 dark:text-green-300">✔️</span>;
+                  optClass = 'border-success bg-success/10';
+                  icon = <span className="ml-1 text-success">✔️</span>;
                 } else if (i === correctIdx) {
-                  optClass = 'bg-green-100 dark:bg-green-900 font-bold';
-                  icon = <span className="ml-1 text-green-600 dark:text-green-300">✔️</span>;
+                  optClass = 'border-success bg-success/10';
+                  icon = <span className="ml-1 text-success">✔️</span>;
                 } else if (userIdx === i) {
-                  optClass = 'bg-red-100 dark:bg-red-900';
-                  icon = <span className="ml-1 text-red-600 dark:text-red-300">❌</span>;
+                  optClass = 'border-error bg-error/10';
+                  icon = <span className="ml-1 text-error">❌</span>;
                 }
+              } else if (userIdx === i) {
+                optClass = 'border-primary bg-primary/5';
               }
               return (
-                <div key={i} className={`mb-1 rounded px-2 py-1 ${optClass} flex items-center gap-2`}>
-                  <label className="flex items-center gap-2 cursor-pointer w-full">
+                <div key={i} className={`mb-1.5 rounded-lg border px-2.5 py-2 ${optClass}`}>
+                  <label className="flex w-full cursor-pointer items-center gap-2">
                     <input
                       type="radio"
                       name={`q_${q.id}`}
@@ -169,7 +176,7 @@ function SelfTestPage() {
                       disabled={isDisabled}
                       onChange={() => handleSelectOption(q.id, i)}
                     />
-                    <span className="text-gray-900 dark:text-gray-100">
+                    <span className="flex-1 text-[13px] text-base-content">
                       {typeof opt === 'string' && opt
                         ? <MathJax>{opt}</MathJax>
                         : (opt?.blocks?.[0]?.text
@@ -183,11 +190,11 @@ function SelfTestPage() {
             })}
             {/* Skipped label */}
             {isResult && userIdx === undefined && (
-              <div className="text-yellow-700 dark:text-yellow-300 text-xs mt-1 font-semibold">স্কিপ করেছেন</div>
+              <div className="mt-1 text-[11px] font-semibold text-warning">স্কিপ করেছেন</div>
             )}
             {/* উত্তর (answer_text) আলাদা করে দেখান */}
             {detail?.answer_text?.blocks?.[0]?.text && (
-              <div className="text-green-700 dark:text-green-300 text-xs mt-2 font-semibold break-words whitespace-pre-line overflow-x-auto">
+              <div className="mt-2 break-words whitespace-pre-line text-[11px] font-semibold text-success">
                 উত্তর: <span className="break-words">
                   {detail.answer_text.blocks[0].text
                     ? <MathJax>{detail.answer_text.blocks[0].text}</MathJax>
@@ -197,7 +204,7 @@ function SelfTestPage() {
             )}
             {/* ব্যাখ্যা (explanation_text) */}
             {detail?.explanation_text?.blocks?.[0]?.text && (
-              <div className="text-blue-700 dark:text-blue-300 text-xs mt-1 break-words whitespace-pre-line overflow-x-auto">
+              <div className="mt-1 break-words whitespace-pre-line text-[11px] text-info">
                 ব্যাখ্যা: <span className="break-words">
                   {detail.explanation_text.blocks[0].text
                     ? <MathJax>{detail.explanation_text.blocks[0].text}</MathJax>
@@ -219,7 +226,6 @@ function SelfTestPage() {
   const [testStatus, setTestStatus] = useState('');
   const [submitStatus, setSubmitStatus] = useState('');
   const [result, setResult] = useState(null);
-  const [timer, setTimer] = useState(null);
   const [toast, setToast] = useState('');
   const timerRef = useRef();
   // For all exams modal/section
@@ -262,47 +268,6 @@ function SelfTestPage() {
       }
     } catch (err) {
       setLoginStatus('Login error: ' + err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Step 1: Create self-test
-  const handleCreateSelfTest = async () => {
-    setTestStatus('');
-    setQuestions([]);
-    setSelfTestExamId('');
-    setLoading(true);
-    try {
-      const res = await fetch('https://api.daricomma.com/v1/self-test', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
-        },
-        body: JSON.stringify({
-          "exam_type": "self_test",
-          "exam_class": "HSC",
-          "exam_group": "HSC - বিজ্ঞান",
-          "exam_standard": "Board Exam",
-          "question_type": "MCQ",
-          "number_of_question": 25,
-          "exam_time": 25,
-          "penalty_per_wrong": 0,
-          "every_question_mark": 1,
-          "chapter_ids": ["cf42bafd-8d8f-49d2-8db4-c2de5e50321e"],
-          "subject_names": ["HSC - পদার্থ বিজ্ঞান ১ম পত্র"]
-        })
-      });
-      const data = await res.json();
-      if (data.status === 'success' && data.data?.self_test_id) {
-        setSelfTestId(data.data.self_test_id);
-        navigate('/selftest/create-exam');
-      } else {
-        setTestStatus('Failed to create self test: ' + (data.message || 'Unknown error'));
-      }
-    } catch (err) {
-      setTestStatus('Error: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -421,6 +386,8 @@ function SelfTestPage() {
         }
       }
     }
+    // The timer transition and ref guard control this effect; the submit handler is intentionally omitted.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeLeft, location.pathname, questions.length, submitStatus]);
 
   // Step 4: Submit exam (all skipped/null by default)
@@ -599,7 +566,6 @@ function SelfTestPage() {
     if (showAllExams) {
       fetchAllExams();
     }
-    // eslint-disable-next-line
   }, [showAllExams, fetchAllExams]);
 
   // Helper: For running exams, fetch questions from API. For completed exams, fetch from /answer API.
@@ -616,7 +582,7 @@ function SelfTestPage() {
         if (ansData.status === 'success' && Array.isArray(ansData.data?.questions)) {
           return ansData.data.questions;
         }
-      } catch {}
+      } catch { /* Completed exam questions are optional if the API lookup fails. */ }
       return [];
     } else {
       // For running exams, you may fetch from localStorage or API if needed (not used for completed)
@@ -700,91 +666,148 @@ function SelfTestPage() {
     }
   };
 
+  const RunningHeader = () => (
+    <div className="no-print fixed left-0 right-0 top-14 z-30 px-3">
+      <div className="ios-glass mx-auto flex max-w-2xl items-center gap-2 rounded-2xl border border-base-content/10 px-3 py-2 shadow-lg">
+        <span className="font-mono text-lg font-bold tabular-nums text-primary">
+          ⏱ {timeLeft !== null ? formatTime(timeLeft) : '--:--'}
+        </span>
+        <div className="flex-1" />
+        <button
+          type="button"
+          onClick={handleGoHome}
+          className="ios-pressable rounded-lg bg-base-200 px-3 py-1.5 text-[12px] font-semibold"
+        >
+          হোম
+        </button>
+        <button
+          type="button"
+          onClick={() => handleSubmitExam(false)}
+          disabled={loading || timeLeft === 0}
+          className="ios-pressable rounded-lg bg-primary px-3 py-1.5 text-[12px] font-semibold text-white disabled:opacity-40"
+        >
+          সাবমিট
+        </button>
+      </div>
+    </div>
+  );
+
   return (
     <MathJaxContext config={{
       loader: { load: ["input/tex", "output/chtml"] },
       tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] }
     }}>
-      <div className="container mx-auto p-4 max-w-5xl min-h-screen" style={{ fontFamily: 'Hind Siliguri, sans-serif' }}>
-        <div className="flex justify-end mb-4">
-          {accessToken && (
-            <button className="btn btn-sm btn-outline btn-error" onClick={handleLogout}>লগআউট</button>
-          )}
-        </div>
-        {/* Loading overlay */}
-        {loading && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-            <div className="flex flex-col items-center">
-              <svg className="animate-spin h-12 w-12 text-blue-600 dark:text-blue-300 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
-              </svg>
-              <div className="text-lg text-blue-700 dark:text-blue-200 font-semibold">লোড হচ্ছে...</div>
+      <div className="min-h-screen bg-base-200 pb-24" style={{ fontFamily: 'Hind Siliguri, sans-serif' }}>
+        <div className="mx-auto max-w-2xl px-3 pt-4 sm:px-4">
+        {location.pathname !== '/selftest/running' && (
+          <div className="no-print mb-4 flex items-center justify-between">
+            <div>
+              <h1 className="ios-title mb-1">Self Test</h1>
+              <p className="ios-caption">নিজেকে যাচাই করুন</p>
             </div>
+            {accessToken && (
+              <IOSButton onClick={handleLogout} variant="danger" size="sm">
+                লগআউট
+              </IOSButton>
+            )}
           </div>
         )}
-        <h1 className="text-2xl font-extrabold mb-2">
-          সেলফ টেস্ট (দাঁড়িকমা)
-        </h1>
+        {/* Loading overlay */}
+        {loading && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+            <IOSCard className="flex flex-col items-center gap-3 p-6">
+              <IOSSpinner size="lg" />
+              <p className="text-sm font-semibold">লোড হচ্ছে…</p>
+            </IOSCard>
+          </div>
+        )}
         {/* Optionally add contextText/headingText if needed, like CreativeCQPage */}
         {toast && (
-          <div className="fixed top-4 left-1/2 -translate-x-1/2 bg-green-500 text-white px-4 py-2 rounded shadow z-50 animate-bounce">{toast}</div>
+          <div className="ios-pop fixed left-1/2 top-20 z-[999] -translate-x-1/2">
+            <div className="rounded-full bg-success px-4 py-2 text-sm font-semibold text-white shadow-2xl">{toast}</div>
+          </div>
         )}
         <Routes>
           <Route path="register" element={<SelfTestRegister />} />
           <Route path="login" element={
             <>
-              <form onSubmit={handleLogin} className="space-y-4 bg-white dark:bg-gray-800 p-4 rounded shadow border border-gray-200 dark:border-gray-700">
-                <div>
-                  <label className="block mb-1 text-gray-900 dark:text-gray-100">মোবাইল নম্বর</label>
-                  <input className="input input-bordered w-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700" value={mobile} onChange={e => setMobile(e.target.value)} required placeholder="01xxxxxxxx" />
-                </div>
-                <div>
-                  <label className="block mb-1 text-gray-900 dark:text-gray-100">পাসওয়ার্ড</label>
-                  <input className="input input-bordered w-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700" type="password" value={password} onChange={e => setPassword(e.target.value)} required autoComplete="current-password" />
-                </div>
-                <button className="btn btn-primary w-full dark:bg-blue-700 dark:text-white dark:border-blue-700" type="submit" disabled={loading}>{loading ? 'লগইন হচ্ছে...' : 'লগইন করুন'}</button>
-                {loginStatus && <div className="mt-4 text-center text-blue-700 dark:text-blue-300">{loginStatus}</div>}
-              </form>
-              <div className="mt-4 text-center">
-                <span className="text-gray-700 dark:text-gray-200">নতুন একাউন্ট?</span>
-                <button className="ml-2 text-blue-600 dark:text-blue-400 underline" type="button" onClick={() => navigate('/selftest/register')}>রেজিস্ট্রেশন করুন</button>
+              <IOSCard className="mb-3 p-4">
+                <form onSubmit={handleLogin} className="space-y-3">
+                  <IOSInput
+                    label="মোবাইল নম্বর"
+                    type="tel"
+                    value={mobile}
+                    onChange={(e) => setMobile(e.target.value)}
+                    placeholder="01xxxxxxxx"
+                    required
+                  />
+                  <IOSInput
+                    label="পাসওয়ার্ড"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    required
+                    autoComplete="current-password"
+                  />
+                  <IOSButton type="submit" loading={loading} fullWidth size="lg">
+                    লগইন করুন
+                  </IOSButton>
+                  {loginStatus && <p className="text-center text-sm text-info">{loginStatus}</p>}
+                </form>
+              </IOSCard>
+              <div className="text-center text-sm text-base-content/60">
+                নতুন একাউন্ট?{' '}
+                <button
+                  type="button"
+                  onClick={() => navigate('/selftest/register')}
+                  className="ios-pressable font-semibold text-primary"
+                >
+                  রেজিস্ট্রেশন করুন
+                </button>
               </div>
             </>
           } />
           <Route index element={accessToken ? (
-            <div className="mt-8 space-y-4">
+            <div className="space-y-4">
               <SelfTestCreateForm accessToken={accessToken} onSuccess={(id) => { setSelfTestId(id); navigate('/selftest/create-exam'); }} />
-              <button className="btn btn-outline w-full dark:bg-gray-800 dark:text-white dark:border-gray-700" onClick={() => { setLoading(true); setShowAllExams(true); }} disabled={loading}>সকল পরীক্ষা দেখুন</button>
-              {testStatus && <div className="mt-2 text-center text-blue-700 dark:text-blue-300">{testStatus}</div>}
+              <IOSButton
+                onClick={() => setShowAllExams(true)}
+                disabled={loading}
+                variant="secondary"
+                fullWidth
+                className="mt-3"
+              >
+                সকল পরীক্ষা দেখুন
+              </IOSButton>
+              {testStatus && <p className="mt-2 text-center text-sm text-info">{testStatus}</p>}
               {/* All Exams Modal */}
-              {showAllExams && (
-                <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-                  <div className="bg-white dark:bg-gray-900 p-4 sm:p-6 rounded shadow-lg w-full relative max-h-[90vh] overflow-y-auto" style={{maxWidth:'100vw', minWidth:'0', fontFamily:'Hind Siliguri, sans-serif'}}>
-                    <button className="absolute top-2 right-2 text-xl" onClick={() => {
-                      setShowAllExams(false);
-                      setTimeout(() => setLoading(false), 0);
-                    }}>&times;</button>
-                    <h2 className="text-lg font-bold mb-2 text-gray-900 dark:text-gray-100">সকল পরীক্ষা</h2>
-                    <button className="btn btn-sm btn-info mb-2" onClick={fetchAllExams}>রিফ্রেশ করুন</button>
-                    {allExamsLoading && <div>লোড হচ্ছে...</div>}
-                    {allExamsError && <div className="text-red-500">{allExamsError}</div>}
-                    <div className="mt-2 px-1 sm:px-2 md:px-4 lg:px-8 xl:px-16 2xl:px-32">
-                      <div className="font-semibold text-gray-800 dark:text-gray-200 mb-1">চলমান পরীক্ষা</div>
-                      <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-10 gap-3 mb-4">
-                        {allExams.running.length === 0 && <div className="text-gray-500 col-span-full">কোনো চলমান পরীক্ষা নেই</div>}
+              <IOSSheet
+                open={showAllExams}
+                onClose={() => { setShowAllExams(false); setLoading(false); }}
+                title="সকল পরীক্ষা"
+                maxHeight="92vh"
+              >
+                  <div className="space-y-4 p-4">
+                    <IOSButton onClick={fetchAllExams} variant="secondary" fullWidth size="sm">
+                      🔄 রিফ্রেশ করুন
+                    </IOSButton>
+                    {allExamsLoading && <div className="flex justify-center py-6"><IOSSpinner size="lg" /></div>}
+                    {allExamsError && <p className="text-center text-sm text-error">{allExamsError}</p>}
+                    <div className="space-y-4">
+                      <div>
+                      <div className="mb-2 text-xs font-bold uppercase text-base-content/50">চলমান পরীক্ষা</div>
+                      <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        {allExams.running.length === 0 && <div className="col-span-full py-2 text-sm text-base-content/40">কোনো চলমান পরীক্ষা নেই</div>}
                         {allExams.running.map(exam => (
-                          <div
-                            key={exam.id}
-                            className="transition-all duration-200 bg-yellow-50 dark:bg-yellow-900 border border-yellow-200 dark:border-yellow-700 rounded-xl p-4 flex flex-col justify-between shadow-md hover:shadow-lg hover:border-yellow-400 dark:hover:border-yellow-400 cursor-pointer min-h-[120px] sm:min-h-[140px] md:min-h-[160px]"
-                          >
-                            <div className="flex-1 flex flex-col gap-1">
-                              <div className="font-semibold text-gray-900 dark:text-gray-100 text-base md:text-lg truncate">{exam.name || 'Exam'}</div>
-                              <div className="block text-xs font-normal text-gray-700 dark:text-gray-300 truncate mb-1">{exam.subject_names?.join(', ')}</div>
+                          <IOSCard key={exam.id} className="flex flex-col justify-between border-l-4 border-warning p-3">
+                            <div className="flex flex-col gap-1">
+                              <div className="truncate text-base font-semibold text-base-content">{exam.name || 'Exam'}</div>
+                              <div className="mb-1 truncate text-xs text-base-content/60">{exam.subject_names?.join(', ')}</div>
                             </div>
                             <div className="flex flex-col gap-2 mt-2">
                               <button
-                                className="btn btn-xs btn-warning w-full"
+                                className="ios-pressable w-full rounded-lg bg-warning/10 px-3 py-1.5 text-xs font-semibold text-warning"
                                 onClick={async () => {
                                 setLoading(true);
                                 try {
@@ -830,24 +853,23 @@ function SelfTestPage() {
                                 }
                               }}>পরীক্ষা চালিয়ে যান</button>
                             </div>
-                          </div>
+                          </IOSCard>
                         ))}
                       </div>
-                      <div className="font-semibold text-gray-800 dark:text-gray-200 mb-1">সমাপ্ত পরীক্ষা</div>
-                      <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-10 gap-3">
-                        {allExams.completed.length === 0 && <div className="text-gray-500 col-span-full">কোনো সমাপ্ত পরীক্ষা নেই</div>}
+                      </div>
+                      <div>
+                      <div className="mb-2 text-xs font-bold uppercase text-base-content/50">সমাপ্ত পরীক্ষা</div>
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        {allExams.completed.length === 0 && <div className="col-span-full py-2 text-sm text-base-content/40">কোনো সমাপ্ত পরীক্ষা নেই</div>}
                         {allExams.completed.map(exam => (
-                          <div
-                            key={exam.id}
-                            className="transition-all duration-200 bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700 rounded-xl p-4 flex flex-col justify-between shadow-md hover:shadow-lg hover:border-green-400 dark:hover:border-green-400 cursor-pointer min-h-[120px] sm:min-h-[140px] md:min-h-[160px]"
-                          >
-                            <div className="flex-1 flex flex-col gap-1">
-                              <div className="font-semibold text-gray-900 dark:text-gray-100 text-base md:text-lg truncate">{exam.name || 'Exam'}
+                          <IOSCard key={exam.id} className="flex flex-col justify-between border-l-4 border-success p-3">
+                            <div className="flex flex-col gap-1">
+                              <div className="truncate text-base font-semibold text-base-content">{exam.name || 'Exam'}
                                 {(
                                   (typeof exam.score === 'number' && typeof exam.total_score === 'number') ||
                                   (exam.score && typeof exam.score.score === 'number' && typeof exam.score.total_score === 'number')
                                 ) && (
-                                  <span className="ml-2 text-xs text-green-700 dark:text-green-300 font-semibold">
+                                  <span className="ml-2 text-xs font-semibold text-success">
                                     স্কোর: {
                                       typeof exam.score === 'number'
                                         ? exam.score
@@ -860,11 +882,11 @@ function SelfTestPage() {
                                   </span>
                                 )}
                               </div>
-                              <div className="block text-xs font-normal text-gray-700 dark:text-gray-300 truncate mb-1">{exam.subject_names?.join(', ')}</div>
+                              <div className="mb-1 truncate text-xs text-base-content/60">{exam.subject_names?.join(', ')}</div>
                             </div>
                             <div className="flex flex-col gap-2 mt-2">
                               <button
-                                className="btn btn-xs btn-info w-full"
+                                className="ios-pressable w-full rounded-lg bg-info/10 px-2 py-1.5 text-[11px] font-bold text-info"
                                 onClick={async () => {
                                 setSelfTestExamId(exam.id);
                                 setShowAllExams(false);
@@ -879,7 +901,7 @@ function SelfTestPage() {
                                 navigate('/selftest/result');
                               }}>রেজাল্ট</button>
                               <button
-                                className="btn btn-xs btn-success w-full"
+                                className="ios-pressable w-full rounded-lg bg-success/10 px-2 py-1.5 text-[11px] font-bold text-success"
                                 onClick={async () => {
                                 setSelfTestExamId(exam.id);
                                 setShowAllExams(false);
@@ -894,17 +916,17 @@ function SelfTestPage() {
                                 navigate('/selftest/result');
                               }}>উত্তর দেখুন</button>
                               <button
-                                className="btn btn-xs btn-error w-full"
+                                className="ios-pressable w-full rounded-lg bg-error/10 px-2 py-1.5 text-[11px] font-bold text-error"
                                 onClick={() => setDeleteExamModal({ id: exam.id, name: exam.name })}
                               >ডিলেট</button>
                             </div>
-                          </div>
+                            </IOSCard>
                         ))}
                       </div>
                     </div>
                   </div>
-                </div>
-              )}
+                  </div>
+              </IOSSheet>
             </div>
           ) : <Navigate to="/selftest/login" replace />} />
           <Route path="create-exam" element={accessToken ? (
@@ -916,26 +938,16 @@ function SelfTestPage() {
             />
           ) : <Navigate to="/selftest/login" replace />} />
           <Route path="start-exam" element={accessToken ? (
-            <div className="mt-8 space-y-4">
-              <button className="btn btn-warning w-full dark:bg-yellow-700 dark:text-white dark:border-yellow-700" onClick={handleStartExam} disabled={loading}>৩. প্রশ্ন লোড করুন</button>
-              {testStatus && <div className="mt-2 text-center text-blue-700 dark:text-blue-300">{testStatus}</div>}
+            <div className="space-y-3">
+              <IOSButton onClick={handleStartExam} loading={loading} fullWidth size="lg">
+                ৩. প্রশ্ন লোড করুন
+              </IOSButton>
+              {testStatus && <p className="text-center text-sm text-info">{testStatus}</p>}
               {/* Show timer and submit if questions are loaded (for running exam started but not navigated yet) */}
               {questions.length > 0 && (
                 <>
-                  <div className="fixed top-16 left-0 w-full z-30 flex justify-center pointer-events-none">
-                    <div className="flex items-center gap-4 bg-white/90 dark:bg-gray-900/90 border-b border-gray-200 dark:border-gray-800 shadow px-4 py-2 rounded-b-lg mt-0 max-w-2xl mx-auto w-full pointer-events-auto">
-                      <span className="text-lg font-bold text-gray-900 dark:text-gray-100">সময় বাকি: {timeLeft !== null ? formatTime(timeLeft) : '--:--'}</span>
-                      <button className="btn btn-sm btn-error ml-auto" onClick={handleGoHome}>হোমে যান</button>
-                      <button
-                        className="btn btn-primary dark:bg-blue-700 dark:text-white dark:border-blue-700 ml-2"
-                        onClick={() => handleSubmitExam(false)}
-                        disabled={loading || timeLeft === 0}
-                      >
-                        সাবমিট করুন
-                      </button>
-                    </div>
-                  </div>
-                  <div className="mt-8 pt-20 space-y-4"> {/* Padding for floating bar */}
+                  <RunningHeader />
+                  <div className="mt-16 space-y-3">
                     <MemoizedQuestions
                       questions={questions}
                       answers={answers}
@@ -952,23 +964,8 @@ function SelfTestPage() {
           ) : <Navigate to="/selftest/login" replace />} />
           <Route path="running" element={accessToken && questions.length > 0 ? (
             <>
-              {/* Floating timer and submit button at the top, always visible */}
-              <div className="fixed top-16 left-0 w-full z-30 flex justify-center pointer-events-none">
-                <div className="flex items-center justify-between gap-4 bg-white/90 dark:bg-gray-900/90 border-b border-gray-200 dark:border-gray-800 shadow px-4 py-2 rounded-b-lg mt-0 max-w-2xl mx-auto w-full pointer-events-auto">
-                  <span className="text-lg font-bold text-gray-900 dark:text-gray-100">সময় বাকি: {timeLeft !== null ? formatTime(timeLeft) : '--:--'}</span>
-                  <div className="flex gap-2 ml-auto">
-                    <button className="btn btn-sm btn-error" onClick={handleGoHome}>হোমে যান</button>
-                    <button
-                      className="btn btn-primary dark:bg-blue-700 dark:text-white dark:border-blue-700"
-                      onClick={() => handleSubmitExam(false)}
-                      disabled={loading || timeLeft === 0}
-                    >
-                      সাবমিট করুন
-                    </button>
-                  </div>
-                </div>
-              </div>
-              <div className="mt-8 pt-20 space-y-4"> {/* Padding for floating bar */}
+              <RunningHeader />
+              <div className="mt-20 space-y-3">
                 <MemoizedQuestions
                   questions={questions}
                   answers={answers}
@@ -982,19 +979,19 @@ function SelfTestPage() {
             </>
           ) : <Navigate to="/selftest" replace />} />
           <Route path="result" element={accessToken && questions.length > 0 ? (
-            <div className="mt-4 sm:mt-8 bg-green-50 dark:bg-green-950 p-2 sm:p-4 rounded shadow border border-green-200 dark:border-green-900" style={{fontFamily:'Hind Siliguri, sans-serif'}}>
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-2">
-                <span className="text-lg font-bold text-gray-900 dark:text-gray-100">রেজাল্ট</span>
-                <button className="btn btn-sm btn-error w-full sm:w-auto" onClick={handleGoHome}>হোমে যান</button>
+            <IOSCard className="mt-4 border border-success/20 bg-success/5 p-3 sm:p-4">
+              <div className="mb-4 flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-center">
+                <span className="text-lg font-bold text-base-content">রেজাল্ট</span>
+                <IOSButton size="sm" variant="danger" fullWidth className="sm:w-auto" onClick={handleGoHome}>হোমে যান</IOSButton>
               </div>
               {result ? (
                 <div className="mb-4">
-                  <div className="font-semibold text-gray-900 dark:text-gray-100">সঠিক: {result.score ?? '--'} / {result.total_score ?? '--'}</div>
-                  <div className="text-gray-700 dark:text-gray-200 text-sm">ভুল: {result.wrong ?? '--'} | স্কিপ: {result.skipped ?? '--'}</div>
+                  <div className="font-semibold text-base-content">সঠিক: {result.score ?? '--'} / {result.total_score ?? '--'}</div>
+                  <div className="text-sm text-base-content/70">ভুল: {result.wrong ?? '--'} | স্কিপ: {result.skipped ?? '--'}</div>
                   {result.subjectWiseScores && result.subjectWiseScores.length > 0 && (
                     <div className="mt-2">
-                      <div className="font-semibold text-gray-900 dark:text-gray-100">বিষয়ভিত্তিক স্কোর:</div>
-                      <ul className="list-disc ml-6">
+                      <div className="font-semibold text-base-content">বিষয়ভিত্তিক স্কোর:</div>
+                      <ul className="ml-6 list-disc text-sm text-base-content/80">
                         {result.subjectWiseScores.map(sub => (
                           <li key={sub.id}>{sub.name}: {sub.score} / {sub.total_score} (ভুল: {sub.wrong}, স্কিপ: {sub.skipped})</li>
                         ))}
@@ -1003,10 +1000,10 @@ function SelfTestPage() {
                   )}
                 </div>
               ) : (
-                <div className="mb-4 text-blue-700 dark:text-blue-300">রেজাল্ট লোড হচ্ছে...</div>
+                <div className="mb-4 text-sm text-info">রেজাল্ট লোড হচ্ছে...</div>
               )}
               <div className="mt-4 sm:mt-6">
-                <div className="font-semibold text-gray-900 dark:text-gray-100 mb-2">উত্তর ও ব্যাখ্যা</div>
+                <div className="mb-2 font-semibold text-base-content">উত্তর ও ব্যাখ্যা</div>
                 <div className="overflow-x-auto">
                   <MemoizedQuestions
                     questions={questions}
@@ -1016,25 +1013,32 @@ function SelfTestPage() {
                     isDisabled={true}
                     answerDetails={answerDetails}
                   />
-                </div>
               </div>
-            </div>
+              </div>
+            </IOSCard>
           ) : <Navigate to="/selftest" replace />} />
         </Routes>
         {/* Delete confirmation modal */}
         {deleteExamModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-            <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg p-6 max-w-xs w-full text-center border border-red-200 dark:border-red-700">
-              <div className="text-2xl text-red-600 dark:text-red-300 mb-2">⚠️</div>
-              <div className="font-bold text-lg mb-2 text-gray-900 dark:text-gray-100">ডিলেট কনফার্মেশন</div>
-              <div className="mb-4 text-gray-700 dark:text-gray-300">আপনি কি নিশ্চিতভাবে <span className="font-semibold text-red-600">{deleteExamModal.name || 'এই পরীক্ষা'}</span> ডিলেট করতে চান?</div>
-              <div className="flex gap-2 justify-center">
-                <button className="btn btn-sm btn-error" onClick={() => handleDeleteExam(deleteExamModal.id)}>ডিলেট করুন</button>
-                <button className="btn btn-sm btn-outline" onClick={() => setDeleteExamModal(null)}>বাতিল</button>
+          <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/40 px-4 backdrop-blur-sm">
+            <IOSCard className="w-full max-w-sm p-5 text-center">
+              <div className="mb-2 text-4xl">⚠️</div>
+              <p className="ios-headline mb-1">ডিলেট কনফার্মেশন</p>
+              <p className="mb-5 text-sm text-base-content/60">
+                আপনি কি নিশ্চিতভাবে <span className="font-bold text-error">{deleteExamModal.name || 'এই পরীক্ষা'}</span> ডিলেট করতে চান?
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <IOSButton onClick={() => setDeleteExamModal(null)} variant="secondary" fullWidth>
+                  বাতিল
+                </IOSButton>
+                <IOSButton onClick={() => handleDeleteExam(deleteExamModal.id)} variant="danger" fullWidth>
+                  ডিলেট
+                </IOSButton>
               </div>
-            </div>
+            </IOSCard>
           </div>
         )}
+        </div>
       </div>
 
     </MathJaxContext>

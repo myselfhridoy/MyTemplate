@@ -1,65 +1,103 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../Context/AuthContext';
 import AttendanceCalendar from './Dashboard/AttendanceCalendar';
+import { iOSCard as IOSCard } from '../Components/ios/iOSCard';
+import IOSSpinner from '../Components/ios/iOSSpinner';
 
-const ProfilePage = () => {
-    const { user } = useAuth();
-    const [summary, setSummary] = useState(null);
-    const [loading, setLoading] = useState(true);
+export default function ProfilePage() {
+  const { user } = useAuth();
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-    useEffect(() => {
-        if (user && user._id) {
-            const fetchSummary = async () => {
-                try {
-                    const response = await fetch(`https://geminiai-render.onrender.com/api/attendance/summary/${user._id}`);
-                    const data = await response.json();
-                    if (data.success) {
-                        setSummary(data.summary);
-                    }
-                } catch (error) {
-                    console.error("Error fetching summary:", error);
-                } finally {
-                    setLoading(false);
-                }
-            };
-            fetchSummary();
+  useEffect(() => {
+    if (!user?._id) {
+      setLoading(false);
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    fetch(`https://geminiai-render.onrender.com/api/attendance/summary/${user._id}`, {
+      signal: controller.signal,
+    })
+      .then((response) => {
+        if (!response.ok) throw new Error(`Attendance request failed (${response.status}).`);
+        return response.json();
+      })
+      .then((data) => {
+        if (data.success) {
+          setSummary(data.summary);
+          setError('');
         } else {
-            setLoading(false);
+          setError(data.message || 'Attendance information could not be loaded.');
         }
-    }, [user]);
+      })
+      .catch((requestError) => {
+        if (requestError.name === 'AbortError') return;
+        console.error('Error fetching attendance summary:', requestError);
+        setError('Attendance information could not be loaded. Please try again later.');
+      })
+      .finally(() => setLoading(false));
 
-    if (!user) return <div className="p-10 text-center">Please login to view profile.</div>;
+    return () => controller.abort();
+  }, [user]);
 
-    return (
-        <div className="container mx-auto max-w-4xl py-10 px-4" style={{ fontFamily: 'Hind Siliguri, sans-serif' }}>
-            <h1 className="text-3xl font-bold text-center mb-8">আমার প্রোফাইল</h1>
+  if (!user) return null;
+  const isAdmin = user.isAdmin || user.username === 'admin';
+  const roleBadge = (
+    <span className={`mt-3 inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${
+      isAdmin ? 'bg-primary/15 text-primary' : 'bg-success/15 text-success'
+    }`}>
+      {isAdmin ? 'Administrator' : 'Student'}
+    </span>
+  );
+  const profileCard = React.createElement(
+    IOSCard,
+    null,
+    <div className="p-5 flex flex-col items-center text-center">
+      <div className="w-24 h-24 rounded-full overflow-hidden ring-4 ring-primary/20 mb-4">
+        <img
+          src={isAdmin
+            ? 'https://img.icons8.com/3d-fluency/94/manager.png'
+            : 'https://img.icons8.com/3d-fluency/94/student-male--v3.png'}
+          alt="avatar"
+          className="w-full h-full object-cover"
+        />
+      </div>
+      <h2 className="ios-title-lg">{user.username}</h2>
+      <p className="ios-subhead mt-1">{user.email || 'No email'}</p>
+      {roleBadge}
+    </div>
+  );
+  const noRecordsCard = React.createElement(
+    IOSCard,
+    { className: 'p-6 text-center' },
+    <p className="text-base-content/50 text-sm">No attendance records yet</p>
+  );
 
-            {/* Profile Card */}
-            <div className="card bg-base-100 shadow-xl border border-base-200 mb-8">
-                <div className="card-body flex flex-col md:flex-row items-center gap-6">
-                    <div className="avatar">
-                        <div className="w-24 rounded-full ring ring-primary ring-offset-base-100 ring-offset-2">
-                            <img src="https://img.icons8.com/3d-fluency/94/student-male--v3.png" alt="avatar" />
-                        </div>
-                    </div>
-                    <div className="text-center md:text-left">
-                        <h2 className="card-title text-2xl justify-center md:justify-start">{user.username}</h2>
-                        <p className="text-base-content/70">{user.email || 'No email provided'}</p>
-                        <div className="badge badge-primary mt-2">{user.isAdmin ? 'Admin' : 'Student'}</div>
-                    </div>
-                </div>
-            </div>
+  return (
+    <div className="min-h-screen bg-base-200 pb-24">
+      <div className="max-w-2xl mx-auto px-4 pt-4 space-y-5">
+        <h1 className="ios-title">Profile</h1>
+        {profileCard}
 
-            {/* Attendance Calendar */}
+        {!isAdmin && (
+          <div>
+            <h2 className="ios-headline mb-2 px-1">Attendance</h2>
             {loading ? (
-                <div className="text-center py-10"><span className="loading loading-spinner loading-lg"></span></div>
-            ) : (
-                summary?.attendanceHistory && (
-                    <AttendanceCalendar history={summary.attendanceHistory} />
-                )
-            )}
-        </div>
-    );
-};
-
-export default ProfilePage;
+              <div className="flex justify-center py-10">
+                {React.createElement(IOSSpinner, { size: 'lg' })}
+              </div>
+            ) : error ? (
+              <div role="alert" className="text-sm text-error bg-error/10 rounded-lg p-3">
+                {error}
+              </div>
+            ) : summary?.attendanceHistory?.length ? (
+              <AttendanceCalendar history={summary.attendanceHistory} />
+            ) : noRecordsCard}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

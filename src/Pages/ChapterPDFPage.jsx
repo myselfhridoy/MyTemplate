@@ -1,6 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MathJaxContext, MathJax } from 'better-react-mathjax';
 import mappingData from '../Components/Mapping/Mapping.json';
+import IOSButton from '../Components/ios/iOSButton';
+import IOSCard from '../Components/ios/iOSCard';
+import IOSSpinner from '../Components/ios/iOSSpinner';
 
 
 const API_BASE = 'https://geminiai-render.onrender.com/api/nctb-questions/board-questions';
@@ -395,63 +398,107 @@ function ChapterPDFPage() {
         }
       `}</style>
 
-            <div className="container mx-auto p-4 pdf-page-root" style={{ fontFamily: 'Hind Siliguri, sans-serif' }}>
-                <h1 className="text-2xl font-extrabold mb-4 no-print text-center">📄 অধ্যায় ভিত্তিক PDF জেনারেটর</h1>
-
-                {/* ========== Filters (hidden in print) ========== */}
-                <div className="flex flex-wrap gap-4 mb-6 no-print justify-center">
-                    <select className="select select-bordered" value={selectedClass}
-                        onChange={e => { setSelectedClass(e.target.value); setSelectedSubject(''); setSelectedChapter(''); setTopicData(null); }}>
-                        <option value="">শ্রেণি</option>
-                        {classes.map((c, i) => <option key={i} value={c}>{c}</option>)}
-                    </select>
-                    {selectedClass && (
-                        <select className="select select-bordered" value={selectedSubject}
-                            onChange={e => { setSelectedSubject(e.target.value); setSelectedChapter(''); setTopicData(null); }}>
-                            <option value="">বিষয়</option>
-                            {subjectsForClass.map((m, i) => <option key={i} value={m.subject.code}>{m.subject.name}</option>)}
-                        </select>
-                    )}
-                    {selectedSubject && (
-                        <select className="select select-bordered" value={selectedChapter}
-                            onChange={e => { setSelectedChapter(e.target.value); setTopicData(null); }}>
-                            <option value="">অধ্যায়</option>
-                            {chapters.map(ch => <option key={ch.id} value={ch.id}>অধ্যায় {getBengaliNum(ch.id)}: {ch.title}</option>)}
-                        </select>
-                    )}
-                    {selectedChapter && (
-                        <button className="btn btn-primary" onClick={fetchData} disabled={loading}>
-                            {loading ? <span className="loading loading-spinner loading-sm"></span> : '🔍'} ডাটা লোড করুন
-                        </button>
-                    )}
-                </div>
-
-                {/* ========== Summary (hidden in print) ========== */}
-                {topicData && (
-                    <div className="mb-6 no-print">
-                        <div className="stats shadow flex-wrap">
-                            <div className="stat">
-                                <div className="stat-title">টপিক</div>
-                                <div className="stat-value text-primary">{getBengaliNum(topicData.length)}</div>
-                            </div>
-                            <div className="stat">
-                                <div className="stat-title">জ্ঞানমূলক (ক)</div>
-                                <div className="stat-value text-blue-500">{getBengaliNum(topicData.reduce((s, t) => s + t.ka.length, 0))}</div>
-                            </div>
-                            <div className="stat">
-                                <div className="stat-title">অনুধাবন (খ)</div>
-                                <div className="stat-value text-green-500">{getBengaliNum(topicData.reduce((s, t) => s + t.kha.length, 0))}</div>
-                            </div>
-                            <div className="stat">
-                                <div className="stat-title">সৃজনশীল (CQ)</div>
-                                <div className="stat-value text-amber-500">{getBengaliNum(topicData.reduce((s, t) => s + t.cqGroups.length, 0))}</div>
-                            </div>
+            <div className="min-h-screen bg-base-200 pb-24 pdf-page-root" style={{ fontFamily: 'Hind Siliguri, sans-serif' }}>
+                <div className="mx-auto w-full max-w-2xl px-3 pt-4 print:max-w-none print:px-0 print:pt-0 sm:px-4">
+                    <div className="mb-4 flex items-center gap-3 no-print">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-info/15 text-2xl text-info shadow-md">
+                            🖨️
                         </div>
-                        <button className="btn btn-success mt-4 gap-2" onClick={generatePDF}>
-                            🖨️ PDF ডাউনলোড করুন
-                        </button>
+                        <div className="min-w-0 flex-1">
+                            <h1 className="ios-title-lg truncate">PDF Generator</h1>
+                            <p className="ios-caption">অধ্যায়ভিত্তিক প্রশ্ন সংকলন</p>
+                        </div>
                     </div>
-                )}
+
+                    <IOSCard className="no-print mb-3 p-3">
+                        <div className="mb-3 grid grid-cols-2 gap-2.5">
+                            <select
+                                value={selectedClass}
+                                onChange={(e) => {
+                                    setSelectedClass(e.target.value);
+                                    setSelectedSubject('');
+                                    setSelectedChapter('');
+                                    setTopicData(null);
+                                }}
+                                className="ios-input appearance-none text-[15px]"
+                                aria-label="শ্রেণি নির্বাচন করুন"
+                            >
+                                <option value="">শ্রেণি</option>
+                                {classes.map((c, i) => <option key={i} value={c}>{c}</option>)}
+                            </select>
+
+                            <select
+                                value={selectedSubject}
+                                onChange={(e) => {
+                                    setSelectedSubject(e.target.value);
+                                    setSelectedChapter('');
+                                    setTopicData(null);
+                                }}
+                                disabled={!selectedClass}
+                                className="ios-input appearance-none text-[15px] disabled:opacity-50"
+                                aria-label="বিষয় নির্বাচন করুন"
+                            >
+                                <option value="">বিষয়</option>
+                                {subjectsForClass.map((m, i) => (
+                                    <option key={i} value={m.subject.code}>{m.subject.name}</option>
+                                ))}
+                            </select>
+
+                            <select
+                                value={selectedChapter}
+                                onChange={(e) => {
+                                    setSelectedChapter(e.target.value);
+                                    setTopicData(null);
+                                }}
+                                disabled={!selectedSubject}
+                                className="ios-input col-span-2 appearance-none text-[15px] disabled:opacity-50"
+                                aria-label="অধ্যায় নির্বাচন করুন"
+                            >
+                                <option value="">অধ্যায়</option>
+                                {chapters.map((ch) => (
+                                    <option key={ch.id} value={ch.id}>
+                                        অধ্যায় {getBengaliNum(ch.id)}: {ch.title}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {selectedChapter && (
+                            <IOSButton onClick={fetchData} loading={loading} fullWidth size="lg">
+                                {loading ? 'লোড হচ্ছে…' : '📥 ডাটা লোড করুন'}
+                            </IOSButton>
+                        )}
+                    </IOSCard>
+
+                    {topicData && (
+                        <div className="no-print">
+                            <div className="mb-3 grid grid-cols-4 gap-2">
+                                {[
+                                    { label: 'টপিক', value: topicData.length, color: '#007aff' },
+                                    { label: 'ক', value: topicData.reduce((sum, topic) => sum + topic.ka.length, 0), color: '#34c759' },
+                                    { label: 'খ', value: topicData.reduce((sum, topic) => sum + topic.kha.length, 0), color: '#5ac8fa' },
+                                    { label: 'CQ', value: topicData.reduce((sum, topic) => sum + topic.cqGroups.length, 0), color: '#ff9500' },
+                                ].map((stat) => (
+                                    <IOSCard key={stat.label} className="p-2.5 text-center">
+                                        <p className="text-lg font-bold" style={{ color: stat.color }}>
+                                            {getBengaliNum(stat.value)}
+                                        </p>
+                                        <p className="mt-0.5 text-[10px] font-semibold text-base-content/50">{stat.label}</p>
+                                    </IOSCard>
+                                ))}
+                            </div>
+
+                            <IOSButton onClick={generatePDF} fullWidth size="lg" variant="primary">
+                                🖨️ PDF ডাউনলোড করুন
+                            </IOSButton>
+                        </div>
+                    )}
+
+                    {loading && (
+                        <div className="no-print flex justify-center py-10">
+                            <IOSSpinner size="lg" />
+                        </div>
+                    )}
 
                 {/* ========== PDF Content (visible on screen + printed) ========== */}
                 {topicData && (
@@ -664,7 +711,7 @@ function ChapterPDFPage() {
                     </div>
                 )}
             </div>
-
+            </div>
         </MathJaxContext>
     );
 }

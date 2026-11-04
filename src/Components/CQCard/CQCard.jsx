@@ -5,7 +5,7 @@ function getBengaliNum(num) {
 import React from 'react';
 import { MathJax } from 'better-react-mathjax';
 
-const CQCard = ({ data, showUddipak = true }) => {
+const CQCard = ({ data, showUddipak = true, showSource = false }) => {
   // Check if data exists and has the expected structure
   if (!data || !data.উদ্দীপক) return null;
 
@@ -20,7 +20,7 @@ const CQCard = ({ data, showUddipak = true }) => {
               {data.index ? `${getBengaliNum(data.index)}। ` : ''}{data.উদ্দীপক.title || 'Untitled'}
             </h2>
             {/* কার্ড টাইটেলের পাশে সোর্স */}
-            {typeof showSource !== 'undefined' && showSource && (
+            {showSource && (
               <span className="text-sm text-gray-500 font-normal">সোর্স: {data.source || 'N/A'}</span>
             )}
           </div>

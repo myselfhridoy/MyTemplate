@@ -1,19 +1,23 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { MathJaxContext, MathJax } from 'better-react-mathjax';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { MathJax, MathJaxContext } from 'better-react-mathjax';
+import { toPng } from 'html-to-image';
 import mappingData from '../Components/Mapping/Mapping.json';
 import AskAIModalMongoDB from '../Components/AskAI/AskAIModalMongoDB';
-import { toPng } from 'html-to-image';
 import MCQCard from '../Components/MCQCard/MCQCard';
+import IOSButton from '../Components/ios/iOSButton';
+import IOSSheet from '../Components/ios/iOSSheet';
+import IOSSpinner from '../Components/ios/iOSSpinner';
 
 const API_BASE = 'https://geminiai-render.onrender.com/api/nctb-questions/board-questions';
+const PAGE_SIZE = 15;
+const bn = (number) => String(number).split('').map((digit) => '০১২৩৪৫৬৭৮৯'[digit] ?? digit).join('');
+const bn2en = (value) => (value || '').replace(/[০-৯]/g, (digit) => '০১২৩৪৫৬৭৮৯'.indexOf(digit));
+const extractYear = (source) => {
+  const match = bn2en(source).match(/(20\d{2}|19\d{2})/);
+  return match ? parseInt(match[0], 10) : 0;
+};
 
-// Bengali number utility
-function getBengaliNum(num) {
-  return String(num).split('').map(d => '০১২৩৪৫৬৭৮৯'[d] ?? d).join('');
-}
-
-// Filter options (CQ only)
-const filterOptions = [
+const FILTER_OPTIONS = [
   { value: 'cq', label: 'সৃজনশীল' },
   { value: 'ka', label: 'ক (জ্ঞানমূলক)' },
   { value: 'kha', label: 'খ (অনুধাবন)' },
@@ -21,15 +25,84 @@ const filterOptions = [
   { value: 'gha', label: 'ঘ (উচ্চতর দক্ষতা)' },
 ];
 
+const VIEW_TYPES = [
+  { value: 'all', label: 'প্রশ্ন ও উত্তর' },
+  { value: 'question', label: 'শুধু প্রশ্ন' },
+];
 
+const EMPTY_ASK_AI = {
+  open: false,
+  questionText: '',
+  stemText: '',
+  imageUrl: '',
+  source: '',
+  marks: '',
+  finalAnswer: '',
+  steps: '',
+};
 
-function BoardCQPage() {
-  const pageSize = 15;
-  const [currentPage, setCurrentPage] = useState(1);
+function RenderText({ text }) {
+  if (!text) return null;
+  const normalized = String(text).replace(/\\n(?![a-zA-Z])/g, '\n');
+  const parts = normalized.split(/(\$\$[\s\S]+?\$\$|\$[^$]+?\$)/g);
+
+  return (
+    <span>
+      {parts.map((part, index) => {
+        if (/^\$\$[\s\S]+?\$\$$/.test(part)) {
+          return (
+            <div
+              key={index}
+              style={{
+                overflowX: 'auto',
+                margin: '8px 0',
+                maxWidth: '100%',
+                WebkitOverflowScrolling: 'touch',
+              }}
+            >
+              <MathJax dynamic style={{ fontSize: '0.85em' }}>{part}</MathJax>
+            </div>
+          );
+        }
+        if (/^\$[^$]+\$$/.test(part)) {
+          return (
+            <span key={index} style={{ display: 'inline' }}>
+              <MathJax inline dynamic>{part}</MathJax>
+            </span>
+          );
+        }
+        const lines = part.split(/\r?\n/);
+        return lines.map((line, lineIndex) => (
+          <span key={`${index}-${lineIndex}`}>
+            {line}
+            {lineIndex < lines.length - 1 ? <br /> : null}
+          </span>
+        ));
+      })}
+    </span>
+  );
+}
+
+function FilterChip({ active, onClick, children }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`px-3.5 py-1.5 rounded-full text-[13px] font-semibold whitespace-nowrap ios-pressable transition-all ${
+        active
+          ? 'bg-primary text-white shadow-sm'
+          : 'bg-base-200 text-base-content/70 hover:bg-base-content/10'
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+export default function BoardCQPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-
-  // Selections
+  const [currentPage, setCurrentPage] = useState(1);
   const [selectedClass, setSelectedClass] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedQtype, setSelectedQtype] = useState('');
@@ -38,453 +111,241 @@ function BoardCQPage() {
   const [viewType, setViewType] = useState('all');
   const [selectedSource, setSelectedSource] = useState('');
   const [selectedTopic, setSelectedTopic] = useState('');
-
-  // Data
   const [results, setResults] = useState([]);
   const [openAnswerIdx, setOpenAnswerIdx] = useState(null);
-
-  // Ask AI modal state
-  const [askAI, setAskAI] = useState({ open: false, questionText: '', stemText: '', imageUrl: '', source: '', marks: '', finalAnswer: '', steps: '' });
-
-  // Suggestion modal state
-  const [showSuggestion, setShowSuggestion] = useState(false);
+  const [askAI, setAskAI] = useState(EMPTY_ASK_AI);
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
+  const [suggestionOpen, setSuggestionOpen] = useState(false);
   const [suggestionData, setSuggestionData] = useState([]);
   const [suggestionLoading, setSuggestionLoading] = useState(false);
   const [downloadingPng, setDownloadingPng] = useState(false);
   const suggestionRef = useRef(null);
 
-  // Derived from Mapping.json
-  const classes = Array.from(new Set(mappingData.map(m => m.class)));
-
-  const subjectsForClass = selectedClass
-    ? mappingData.filter(m => m.class === selectedClass)
-    : [];
-
-  const selectedSubjectObj = subjectsForClass.find(m => m.subject.code === selectedSubject);
-
-  const qtypes = selectedSubjectObj ? (selectedSubjectObj.qtypes || []) : [];
-  const chapters = selectedSubjectObj ? selectedSubjectObj.chapters : [];
-
-  // BMCQ mode detection
+  const classes = useMemo(
+    () => Array.from(new Set(mappingData.map((item) => item.class))),
+    []
+  );
+  const subjectsForClass = useMemo(
+    () => (selectedClass ? mappingData.filter((item) => item.class === selectedClass) : []),
+    [selectedClass]
+  );
+  const selectedSubjectObj = useMemo(
+    () => subjectsForClass.find((item) => item.subject.code === selectedSubject),
+    [subjectsForClass, selectedSubject]
+  );
+  const qtypes = useMemo(() => selectedSubjectObj?.qtypes || [], [selectedSubjectObj]);
+  const chapters = useMemo(() => selectedSubjectObj?.chapters || [], [selectedSubjectObj]);
   const isBMCQ = selectedQtype.toUpperCase() === 'BMCQ';
 
-  // =============================================
-  // Fetch board questions from API
-  // =============================================
   useEffect(() => {
     if (!selectedClass || !selectedSubject || !selectedQtype || !selectedChapter) {
       setResults([]);
-      return;
+      setError(null);
+      setLoading(false);
+      return undefined;
     }
-    const fetchData = async () => {
+
+    let cancelled = false;
+    const fetchQuestions = async () => {
       setLoading(true);
       setError(null);
       try {
-        const paramObj = {
+        const params = new URLSearchParams({
           class: selectedClass,
           subject: selectedSubject,
           qtype: selectedQtype,
           chapter: selectedChapter,
-        };
-        // CQ mode তে filter পাঠাও, BMCQ তে নয়
-        if (!isBMCQ) {
-          paramObj.filter = selectedFilter;
-        }
-        const params = new URLSearchParams(paramObj);
-        const res = await fetch(`${API_BASE}?${params}`);
-        if (!res.ok) throw new Error('ডাটা লোড ব্যর্থ');
-        const data = await res.json();
-        setResults(data.results || []);
+        });
+        if (!isBMCQ) params.set('filter', selectedFilter);
+        const response = await fetch(`${API_BASE}?${params}`);
+        if (!response.ok) throw new Error('ডাটা লোড ব্যর্থ');
+        const data = await response.json();
+        if (cancelled) return;
+        setResults(Array.isArray(data.results) ? data.results : []);
         setSelectedSource('');
         setSelectedTopic('');
         setCurrentPage(1);
-      } catch (err) {
-        setError(err?.message || 'Unknown error');
-        setResults([]);
+      } catch (requestError) {
+        if (!cancelled) {
+          console.error('Unable to fetch board questions:', requestError);
+          setError(requestError.message || 'Unknown error');
+          setResults([]);
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
-    fetchData();
+
+    fetchQuestions();
+    return () => { cancelled = true; };
   }, [selectedClass, selectedSubject, selectedQtype, selectedChapter, selectedFilter, isBMCQ]);
 
-  // Derived: unique sources from results (latest year first)
-  // Helper: extract year from source string (supports both Bengali & English digits)
-  const extractYear = (str) => {
-    const bn2en = s => s.replace(/[০-৯]/g, d => '০১২৩৪৫৬৭৮৯'.indexOf(d));
-    const converted = bn2en(str);
-    const match = converted.match(/(20\d{2}|19\d{2})/);
-    return match ? parseInt(match[0]) : 0;
-  };
-
-  const sources = Array.from(new Set(results.map(r => r.source).filter(Boolean)))
-    .sort((a, b) => {
+  const sources = useMemo(
+    () => Array.from(new Set(results.map((item) => item.source).filter(Boolean))).sort((a, b) => {
       const yearA = extractYear(a);
       const yearB = extractYear(b);
       if (yearB !== yearA) return yearB - yearA;
       return a.localeCompare(b, 'bn');
+    }),
+    [results]
+  );
+
+  const topics = useMemo(() => {
+    const topicMap = new Map();
+    results.forEach((item) => {
+      if (isBMCQ) {
+        if (item.data?.topic_name && !topicMap.has(item.data.topic_name)) {
+          topicMap.set(item.data.topic_name, item.data.topic_code || '');
+        }
+      } else {
+        const subQuestions = item.sub_questions || (item.sub_question ? [item.sub_question] : []);
+        subQuestions.forEach((subQuestion) => {
+          if (
+            subQuestion.chapter_no === parseInt(selectedChapter, 10)
+            && subQuestion.topic_name
+            && !topicMap.has(subQuestion.topic_name)
+          ) {
+            topicMap.set(subQuestion.topic_name, subQuestion.topic_code || '');
+          }
+        });
+      }
     });
 
-  // Derived: unique topics from results (only for selected chapter), sorted by topic_code
-  const topicMap = new Map();
-  results.forEach(r => {
-    if (isBMCQ) {
-      // BMCQ: topic info is inside r.data
-      const d = r.data;
-      if (d && d.topic_name && !topicMap.has(d.topic_name)) {
-        topicMap.set(d.topic_name, d.topic_code || '');
-      }
-    } else {
-      const sqs = r.sub_questions || (r.sub_question ? [r.sub_question] : []);
-      sqs.forEach(sq => {
-        if (sq.chapter_no === parseInt(selectedChapter) && sq.topic_name && !topicMap.has(sq.topic_name)) {
-          topicMap.set(sq.topic_name, sq.topic_code || '');
-        }
-      });
-    }
-  });
-  const topics = Array.from(topicMap.entries())
-    .sort((a, b) => {
-      const codeA = (a[1] || '').match(/T-(\d+)/i);
-      const codeB = (b[1] || '').match(/T-(\d+)/i);
-      if (codeA && codeB) return parseInt(codeA[1]) - parseInt(codeB[1]);
-      if (codeA) return -1;
-      if (codeB) return 1;
-      return a[0].localeCompare(b[0], 'bn');
-    })
-    .map(([name]) => name);
+    return Array.from(topicMap.entries())
+      .sort((a, b) => {
+        const codeA = (a[1] || '').match(/T-(\d+)/i);
+        const codeB = (b[1] || '').match(/T-(\d+)/i);
+        if (codeA && codeB) return parseInt(codeA[1], 10) - parseInt(codeB[1], 10);
+        if (codeA) return -1;
+        if (codeB) return 1;
+        return a[0].localeCompare(b[0], 'bn');
+      })
+      .map(([name]) => name);
+  }, [results, isBMCQ, selectedChapter]);
 
-  // Helper: get topic info from an item
   const getItemTopic = (item) => {
-    // BMCQ: topic is in item.data
     if (isBMCQ && item.data) {
       return { code: item.data.topic_code || '', name: item.data.topic_name || '' };
     }
-    if (item.sub_question) return { code: item.sub_question.topic_code || '', name: item.sub_question.topic_name || '' };
-    // For CQ filter: topic comes from গ/ঘ sub_question matching the chapter
-    if (item.sub_questions && item.sub_questions.length > 0) {
-      const chapterSq = item.sub_questions.find(sq =>
-        sq.chapter_no === parseInt(selectedChapter) && ['গ', 'ঘ'].includes(sq.label)
-      ) || item.sub_questions.find(sq => sq.chapter_no === parseInt(selectedChapter)) || item.sub_questions[0];
-      return { code: chapterSq.topic_code || '', name: chapterSq.topic_name || '' };
+    if (item.sub_question) {
+      return { code: item.sub_question.topic_code || '', name: item.sub_question.topic_name || '' };
+    }
+    if (item.sub_questions?.length) {
+      const subQuestion = item.sub_questions.find(
+        (question) => question.chapter_no === parseInt(selectedChapter, 10)
+          && ['গ', 'ঘ'].includes(question.label)
+      ) || item.sub_questions.find(
+        (question) => question.chapter_no === parseInt(selectedChapter, 10)
+      ) || item.sub_questions[0];
+      return { code: subQuestion.topic_code || '', name: subQuestion.topic_name || '' };
     }
     return { code: '', name: '' };
   };
 
   const extractTopicNum = (code) => {
-    const m = (code || '').match(/T-(\d+)/i);
-    return m ? parseInt(m[1]) : 9999;
+    const match = (code || '').match(/T-(\d+)/i);
+    return match ? parseInt(match[1], 10) : 9999;
   };
 
-  // Client-side filtered results
-  const filteredResults = results.filter(r => {
-    if (selectedSource && r.source !== selectedSource) return false;
-    if (selectedTopic) {
-      if (isBMCQ) {
-        if (!r.data || r.data.topic_name !== selectedTopic) return false;
-      } else if (r.sub_questions) {
-        if (!r.sub_questions.some(sq => sq.topic_name === selectedTopic)) return false;
-      } else if (r.sub_question) {
-        if (r.sub_question.topic_name !== selectedTopic) return false;
+  const filteredResults = useMemo(() => {
+    const filtered = results.filter((item) => {
+      if (selectedSource && item.source !== selectedSource) return false;
+      if (selectedTopic) {
+        if (isBMCQ) {
+          if (!item.data || item.data.topic_name !== selectedTopic) return false;
+        } else if (item.sub_questions) {
+          if (!item.sub_questions.some((question) => question.topic_name === selectedTopic)) return false;
+        } else if (item.sub_question?.topic_name !== selectedTopic) {
+          return false;
+        }
       }
-    }
-    return true;
-  }).sort((a, b) => {
-    if (selectedFilter === 'cq') {
-      // CQ: only year descending (newest first), no topic grouping
+      return true;
+    });
+
+    return filtered.sort((a, b) => {
+      if (selectedFilter === 'cq') {
+        const yearA = extractYear(a.source || '');
+        const yearB = extractYear(b.source || '');
+        if (yearB !== yearA) return yearB - yearA;
+        return (a.source || '').localeCompare(b.source || '', 'bn');
+      }
+      const topicA = extractTopicNum(getItemTopic(a).code);
+      const topicB = extractTopicNum(getItemTopic(b).code);
+      if (topicA !== topicB) return topicA - topicB;
       const yearA = extractYear(a.source || '');
       const yearB = extractYear(b.source || '');
       if (yearB !== yearA) return yearB - yearA;
       return (a.source || '').localeCompare(b.source || '', 'bn');
-    }
-    // ka/kha/ga/gha: topic code ascending, then year descending
-    const tA = extractTopicNum(getItemTopic(a).code);
-    const tB = extractTopicNum(getItemTopic(b).code);
-    if (tA !== tB) return tA - tB;
-    const yearA = extractYear(a.source || '');
-    const yearB = extractYear(b.source || '');
-    if (yearB !== yearA) return yearB - yearA;
-    return (a.source || '').localeCompare(b.source || '', 'bn');
-  });
+    });
+    // getItemTopic reads selected chapter and BMCQ state from this render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [results, selectedSource, selectedTopic, selectedFilter, isBMCQ, selectedChapter]);
 
-  // Pagination
-  const totalPages = Math.ceil(filteredResults.length / pageSize);
-  const paginatedResults = filteredResults.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const totalPages = Math.ceil(filteredResults.length / PAGE_SIZE);
+  const paginatedResults = filteredResults.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  );
 
-  // Group paginated results by topic for section headings
-  const groupedByTopic = [];
-  const topicGroupMap = new Map();
-  paginatedResults.forEach((item, idx) => {
-    const t = getItemTopic(item);
-    const key = t.name || 'অন্যান্য';
-    if (!topicGroupMap.has(key)) {
-      topicGroupMap.set(key, groupedByTopic.length);
-      groupedByTopic.push({ code: t.code, name: key, items: [] });
-    }
-    groupedByTopic[topicGroupMap.get(key)].items.push({ item, idx });
-  });
+  const groupedByTopic = useMemo(() => {
+    const groups = [];
+    const topicGroupMap = new Map();
+    paginatedResults.forEach((item, index) => {
+      const topic = getItemTopic(item);
+      const key = topic.name || 'অন্যান্য';
+      if (!topicGroupMap.has(key)) {
+        topicGroupMap.set(key, groups.length);
+        groups.push({ code: topic.code, name: key, items: [] });
+      }
+      groups[topicGroupMap.get(key)].items.push({ item, idx: index });
+    });
+    return groups;
+    // getItemTopic reads selected chapter and BMCQ state from this render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paginatedResults, selectedChapter, isBMCQ]);
 
-  // =============================================
-  // MathJax render helper
-  // =============================================
-  const renderText = (text) => {
-    if (!text) return null;
-    // Normalize escaped newlines to real newlines
-    const normalized = text.replace(/\\n(?![a-zA-Z])/g, '\n');
-    // Split by $$...$$ (display math) first, then $...$ (inline math)
-    const parts = normalized.split(/(\$\$[\s\S]+?\$\$|\$[^$]+?\$)/g);
-    return (
-      <span>
-        {parts.map((part, i) => {
-          // Display math block $$...$$
-          if (/^\$\$[\s\S]+?\$\$$/.test(part)) {
-            return (
-              <div key={i} style={{ overflowX: 'auto', margin: '8px 0', maxWidth: '100%', WebkitOverflowScrolling: 'touch' }}>
-                <MathJax dynamic style={{ fontSize: '0.85em' }}>{part}</MathJax>
-              </div>
-            );
-          }
-          // Inline math $...$
-          if (/^\$[^$]+\$$/.test(part)) {
-            return (
-              <span key={i} style={{ display: 'inline' }}>
-                <MathJax inline dynamic>{part}</MathJax>
-              </span>
-            );
-          }
-          // Plain text with newlines
-          const lines = part.split(/\r?\n/);
-          return lines.map((line, idx) => (
-            <span key={`${i}-${idx}`}>
-              {line}
-              {idx < lines.length - 1 ? <br /> : null}
-            </span>
-          ));
-        })}
-      </span>
-    );
-  };
-
-  // =============================================
-  // Dynamic heading
-  // =============================================
-  let headingText = 'বোর্ড প্রশ্ন';
-  if (!selectedClass) headingText = 'শ্রেণি বাছাই করুন';
-  else if (!selectedSubject) headingText = 'বিষয় বাছাই করুন';
-  else if (!selectedQtype) headingText = 'প্রশ্নের ধরন বাছাই করুন';
-  else if (!selectedChapter) headingText = 'অধ্যায় বাছাই করুন';
-
-  let contextText = '';
-  if (selectedClass) {
-    contextText = selectedClass;
+  const contextText = useMemo(() => {
+    let context = selectedClass;
     if (selectedSubject && selectedSubjectObj) {
-      contextText += ` / ${selectedSubjectObj.subject.name}`;
+      context += ` / ${selectedSubjectObj.subject.name}`;
       if (selectedQtype) {
-        const qt = qtypes.find(q => q.code === selectedQtype);
-        contextText += ` / ${qt ? qt.name : selectedQtype}`;
+        const questionType = qtypes.find((item) => item.code === selectedQtype);
+        context += ` / ${questionType ? questionType.name : selectedQtype}`;
       }
       if (selectedChapter) {
-        const ch = chapters.find(c => c.id === parseInt(selectedChapter));
-        contextText += ` / ${ch ? ch.title : 'অধ্যায় ' + getBengaliNum(selectedChapter)}`;
+        const chapter = chapters.find((item) => item.id === parseInt(selectedChapter, 10));
+        context += ` / ${chapter ? chapter.title : `অধ্যায় ${bn(selectedChapter)}`}`;
       }
     }
-  }
-
-  // =============================================
-  // Render a single result card
-  // =============================================
-  const renderCard = (item, idx) => {
-    const globalIdx = (currentPage - 1) * pageSize + idx + 1;
-
-    // filter=cq → Full CQ: stem + all sub_questions (ক,খ,গ,ঘ)
-    if (selectedFilter === 'cq') {
-      return (
-        <div key={idx} className="card bg-base-100 shadow-xl my-4 overflow-hidden">
-          <div className="card-body p-4 sm:p-6" style={{ wordBreak: 'break-word' }}>
-            <div className="flex flex-wrap items-center gap-2 mb-2">
-              <h2 className="card-title text-lg font-bold whitespace-nowrap">
-                {getBengaliNum(globalIdx)}। {item.source || ''}
-              </h2>
-              <span className="badge badge-sm badge-outline whitespace-nowrap">প্রশ্ন নং: {item.question_no}</span>
-              <button
-                className="btn btn-xs btn-accent sm:ml-auto"
-                onClick={() => {
-                  const allQ = (item.sub_questions || []).map(sq => `${sq.label}। ${sq.question_text}${sq.marks ? ` [${sq.marks} নম্বর]` : ''}`).join('\n');
-                  const allAnswers = (item.sub_questions || []).filter(sq => sq.answer?.final_answer).map(sq => `${sq.label}। ${sq.answer.final_answer}`).join('\n');
-                  const allSteps = (item.sub_questions || []).filter(sq => sq.answer?.steps?.length).map(sq => `${sq.label}। ${sq.answer.steps.join(' → ')}`).join('\n');
-                  setAskAI({ open: true, questionText: allQ, stemText: item.stem?.text || '', imageUrl: (item.stem?.has_image && item.stem?.image_url) || '', source: item.source || '', marks: '', finalAnswer: allAnswers, steps: allSteps });
-                }}
-              >
-                🤖 Ask AI
-              </button>
-            </div>
-            {/* Stem / উদ্দীপক */}
-            {item.stem && (
-              <div className="border-b pb-3 mb-3">
-                {item.stem.text && <div className="text-base">{renderText(item.stem.text)}</div>}
-                {item.stem.has_image && item.stem.image_url && (
-                  <div className="flex justify-center mt-2">
-                    <img
-                      src={item.stem.image_url}
-                      alt="stem"
-                      className="rounded-lg max-w-xs h-auto"
-                      style={{ maxHeight: '180px', objectFit: 'contain' }}
-                    />
-                  </div>
-                )}
-              </div>
-            )}
-            {/* Sub questions */}
-            {item.sub_questions && (
-              <div className="space-y-2">
-                {item.sub_questions.map((sq, si) => {
-                  const answerKey = `${idx}-${si}`;
-                  const hasAnswer = sq.answer && sq.answer.full_explanation;
-                  return (
-                    <div key={si} className="border-l-4 border-primary pl-4">
-                      <span className="font-bold mr-2">{sq.label}।</span>
-                      {renderText(sq.question_text)}
-                      {sq.marks && (
-                        <span className="text-xs text-gray-400 ml-2">[{sq.marks} নম্বর]</span>
-                      )}
-                      <button
-                        className="btn btn-xs btn-ghost btn-accent ml-2"
-                        onClick={() => setAskAI({ open: true, questionText: sq.question_text, stemText: item.stem?.text || '', imageUrl: (item.stem?.has_image && item.stem?.image_url) || '', source: item.source || '', marks: sq.marks || '', finalAnswer: sq.answer?.final_answer || '', steps: sq.answer?.steps?.length ? sq.answer.steps.join(' → ') : '' })}
-                      >
-                        🤖 AI
-                      </button>
-                      {viewType === 'all' && hasAnswer && (
-                        <div className="mt-2">
-                          <button
-                            className="btn btn-sm btn-outline btn-success mb-2"
-                            onClick={() => setOpenAnswerIdx(openAnswerIdx === answerKey ? null : answerKey)}
-                          >
-                            {openAnswerIdx === answerKey ? 'উত্তর লুকান' : 'উত্তর দেখুন'}
-                          </button>
-                          {openAnswerIdx === answerKey && (
-                            <div className="p-3 bg-gray-50 rounded border border-gray-200" style={{ whiteSpace: 'pre-line' }}>
-                              <span className="font-semibold text-success">উত্তর:</span>
-                              <div className="mt-1 text-gray-700">
-                                {renderText(sq.answer.full_explanation)}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      );
-    }
-
-    // filter=ka/kha/ga/gha → single sub_question
-    const showStem = ['ga', 'gha'].includes(selectedFilter);
-    return (
-      <div key={idx} className="card bg-base-100 shadow-xl my-4 overflow-hidden">
-        <div className="card-body p-4 sm:p-6" style={{ wordBreak: 'break-word' }}>
-          <div className="flex flex-wrap items-center gap-2 mb-2">
-            <h2 className="card-title text-lg font-bold whitespace-nowrap">
-              {getBengaliNum(globalIdx)}। {item.source || ''}
-            </h2>
-            <span className="badge badge-sm badge-outline whitespace-nowrap">প্রশ্ন নং: {item.question_no}</span>
-            <button
-              className="btn btn-xs btn-accent sm:ml-auto"
-              onClick={() => setAskAI({ open: true, questionText: item.sub_question?.question_text || '', stemText: item.stem?.text || '', imageUrl: (item.stem?.has_image && item.stem?.image_url) || '', source: item.source || '', marks: item.sub_question?.marks || '', finalAnswer: item.sub_question?.answer?.final_answer || '', steps: item.sub_question?.answer?.steps?.length ? item.sub_question.answer.steps.join(' → ') : '' })}
-            >
-              🤖 Ask AI
-            </button>
-          </div>
-          {/* Stem শুধু গ/ঘ তে দেখাবে */}
-          {showStem && item.stem && (
-            <div className="border-b pb-3 mb-3">
-              {item.stem.text && <div className="text-base">{renderText(item.stem.text)}</div>}
-              {item.stem.has_image && item.stem.image_url && (
-                <div className="flex justify-center mt-2">
-                  <img
-                    src={item.stem.image_url}
-                    alt="stem"
-                    className="rounded-lg max-w-xs h-auto"
-                    style={{ maxHeight: '180px', objectFit: 'contain' }}
-                  />
-                </div>
-              )}
-            </div>
-          )}
-          {/* Single sub question */}
-          {item.sub_question && (() => {
-            const hasAnswer = item.sub_question.answer && (item.sub_question.answer.full_explanation || item.sub_question.answer.final_answer);
-            return (
-              <div className="border-l-4 border-primary pl-4">
-                <span className="font-bold mr-2">{item.sub_question.label}।</span>
-                {renderText(item.sub_question.question_text)}
-                {item.sub_question.marks && (
-                  <span className="text-xs text-gray-400 ml-2">[{item.sub_question.marks} নম্বর]</span>
-                )}
-                {viewType === 'all' && hasAnswer && (
-                  <div className="mt-2">
-                    <button
-                      className="btn btn-sm btn-outline btn-success mb-2"
-                      onClick={() => setOpenAnswerIdx(openAnswerIdx === idx ? null : idx)}
-                    >
-                      {openAnswerIdx === idx ? 'উত্তর লুকান' : 'উত্তর দেখুন'}
-                    </button>
-                    {openAnswerIdx === idx && (
-                      <div className="p-3 bg-gray-50 rounded border border-gray-200" style={{ whiteSpace: 'pre-line' }}>
-                        <span className="font-semibold text-success">উত্তর:</span>
-                        <div className="mt-1 text-gray-700">
-                          {renderText(item.sub_question.answer.full_explanation || item.sub_question.answer.final_answer)}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })()}
-        </div>
-      </div>
-    );
-  };
-
-  // =============================================
-  // Suggestion analysis & download
-  // =============================================
-  const boardShortMap = [
-    ['ঢাকা বোর্ড', 'DB'],
-    ['রাজশাহী বোর্ড', 'RB'],
-    ['কুমিল্লা বোর্ড', 'CB'],
-    ['চট্টগ্রাম বোর্ড', 'CtgB'],
-    ['সিলেট বোর্ড', 'SB'],
-    ['বরিশাল বোর্ড', 'BB'],
-    ['যশোর বোর্ড', 'JB'],
-    ['দিনাজপুর বোর্ড', 'DinB'],
-    ['ময়মনসিংহ বোর্ড', 'MSB'],
-    ['সম্মিলিত বোর্ড', 'AB'],
-  ];
+    return context;
+  }, [selectedClass, selectedSubject, selectedQtype, selectedChapter, selectedSubjectObj, qtypes, chapters]);
 
   const shortenSource = (source) => {
-    let s = source;
-    // Board name → short code
-    for (const [bn, code] of boardShortMap) {
-      if (s.includes(bn)) { s = s.replace(bn, code); break; }
+    const boardMap = [
+      ['ঢাকা বোর্ড', 'DB'],
+      ['রাজশাহী বোর্ড', 'RB'],
+      ['কুমিল্লা বোর্ড', 'CB'],
+      ['চট্টগ্রাম বোর্ড', 'CtgB'],
+      ['সিলেট বোর্ড', 'SB'],
+      ['বরিশাল বোর্ড', 'BB'],
+      ['যশোর বোর্ড', 'JB'],
+      ['দিনাজপুর বোর্ড', 'DinB'],
+      ['ময়মনসিংহ বোর্ড', 'MSB'],
+      ['সম্মিলিত বোর্ড', 'AB'],
+    ];
+    let shortened = source;
+    for (const [board, code] of boardMap) {
+      if (shortened.includes(board)) {
+        shortened = shortened.replace(board, code);
+        break;
+      }
     }
-    // সেট ০১/সেট ১/সেট ০২/সেট ২ → S1/S2
-    s = s.replace(/\(সেট\s*[০0]?[১1]\)/, '(S1)');
-    s = s.replace(/\(সেট\s*[০0]?[২2]\)/, '(S2)');
-    // Extract 2-digit year: ২০২৫ → '25, ২০১৯ → '19
-    const bn2en = str => str.replace(/[০-৯]/g, d => '০১২৩৪৫৬৭৮৯'.indexOf(d));
-    const yearMatch = bn2en(s).match(/(20\d{2}|19\d{2})/);
-    if (yearMatch) {
-      const shortYear = "'" + yearMatch[0].slice(-2);
-      s = s.replace(/[০-৯]{4}|\d{4}/, shortYear);
-    }
-    // Clean up extra spaces
-    s = s.replace(/\s+/g, ' ').trim();
-    return s;
+    shortened = shortened
+      .replace(/\(সেট\s*[০0]?[১1]\)/, '(S1)')
+      .replace(/\(সেট\s*[০0]?[২2]\)/, '(S2)');
+    const year = bn2en(shortened).match(/(20\d{2}|19\d{2})/);
+    if (year) shortened = shortened.replace(/[০-৯]{4}|\d{4}/, `'${year[0].slice(-2)}`);
+    return shortened.replace(/\s+/g, ' ').trim();
   };
 
   const generateSuggestion = async () => {
@@ -498,21 +359,20 @@ function BoardCQPage() {
         chapter: selectedChapter,
         filter: 'cq',
       });
-      const res = await fetch(`${API_BASE}?${params}`);
-      if (!res.ok) throw new Error('ডাটা লোড ব্যর্থ');
-      const data = await res.json();
-      const cqResults = data.results || [];
-
+      const response = await fetch(`${API_BASE}?${params}`);
+      if (!response.ok) throw new Error('ডাটা লোড ব্যর্থ');
+      const data = await response.json();
+      const cqResults = Array.isArray(data.results) ? data.results : [];
       const topicAnalysis = new Map();
-      cqResults.forEach(item => {
-        const sqs = item.sub_questions || [];
-        sqs.forEach(sq => {
-          if (sq.chapter_no !== parseInt(selectedChapter)) return;
-          if (!['গ', 'ঘ'].includes(sq.label)) return;
-          const topicKey = sq.topic_name || 'অন্যান্য';
+
+      cqResults.forEach((item) => {
+        (item.sub_questions || []).forEach((subQuestion) => {
+          if (subQuestion.chapter_no !== parseInt(selectedChapter, 10)) return;
+          if (!['গ', 'ঘ'].includes(subQuestion.label)) return;
+          const topicKey = subQuestion.topic_name || 'অন্যান্য';
           if (!topicAnalysis.has(topicKey)) {
             topicAnalysis.set(topicKey, {
-              code: sq.topic_code || '',
+              code: subQuestion.topic_code || '',
               name: topicKey,
               ga: 0,
               gha: 0,
@@ -520,49 +380,44 @@ function BoardCQPage() {
             });
           }
           const entry = topicAnalysis.get(topicKey);
-          if (sq.label === 'গ') entry.ga++;
-          if (sq.label === 'ঘ') entry.gha++;
+          if (subQuestion.label === 'গ') entry.ga += 1;
+          if (subQuestion.label === 'ঘ') entry.gha += 1;
           const source = item.source || '';
           if (source) {
             if (!entry.boardMap.has(source)) entry.boardMap.set(source, new Set());
-            entry.boardMap.get(source).add(sq.label);
+            entry.boardMap.get(source).add(subQuestion.label);
           }
         });
       });
 
-      let analysisArray = Array.from(topicAnalysis.values())
-        .map(t => ({
-          code: t.code,
-          name: t.name,
-          ga: t.ga,
-          gha: t.gha,
-          total: t.ga + t.gha,
-          boards: Array.from(t.boardMap.entries())
-            .sort(([aS], [bS]) => extractYear(bS) - extractYear(aS))
-            .map(([source, labels]) => {
-              const lbl = Array.from(labels).join(',');
-              // Shorten board name
-              const shortBoard = shortenSource(source);
-              return `${shortBoard}(${lbl})`;
-            }),
+      let analysis = Array.from(topicAnalysis.values())
+        .map((topic) => ({
+          code: topic.code,
+          name: topic.name,
+          ga: topic.ga,
+          gha: topic.gha,
+          total: topic.ga + topic.gha,
+          boards: Array.from(topic.boardMap.entries())
+            .sort(([sourceA], [sourceB]) => extractYear(sourceB) - extractYear(sourceA))
+            .map(([source, labels]) => `${shortenSource(source)}(${Array.from(labels).join(',')})`),
         }))
         .sort((a, b) => {
           const codeA = (a.code || '').match(/T-(\d+)/i);
           const codeB = (b.code || '').match(/T-(\d+)/i);
-          if (codeA && codeB) return parseInt(codeA[1]) - parseInt(codeB[1]);
+          if (codeA && codeB) return parseInt(codeA[1], 10) - parseInt(codeB[1], 10);
           return b.total - a.total;
         });
 
-      const maxTotal = Math.max(...analysisArray.map(t => t.total), 1);
-      analysisArray = analysisArray.map(t => ({
-        ...t,
-        importance: t.total >= maxTotal * 0.35 ? '***' : t.total >= maxTotal * 0.1 ? '**' : '*',
+      const maxTotal = Math.max(...analysis.map((topic) => topic.total), 1);
+      analysis = analysis.map((topic) => ({
+        ...topic,
+        importance: topic.total >= maxTotal * 0.35 ? '***' : topic.total >= maxTotal * 0.1 ? '**' : '*',
       }));
-
-      setSuggestionData(analysisArray);
-      setShowSuggestion(true);
-    } catch (err) {
-      console.error('Suggestion generation failed:', err);
+      setSuggestionData(analysis);
+      setSuggestionOpen(true);
+    } catch (requestError) {
+      console.error('Suggestion generation failed:', requestError);
+      setError(requestError.message || 'সাজেশন তৈরি করা যায়নি।');
     } finally {
       setSuggestionLoading(false);
     }
@@ -571,276 +426,454 @@ function BoardCQPage() {
   const downloadSuggestion = async () => {
     if (!suggestionRef.current) return;
     setDownloadingPng(true);
+    const element = suggestionRef.current;
+    const originalWidth = element.style.width;
+    const originalMaxWidth = element.style.maxWidth;
     try {
-      await new Promise(r => setTimeout(r, 200));
-      // Save original width, temporarily expand for wide capture
-      const el = suggestionRef.current;
-      const origWidth = el.style.width;
-      const origMaxWidth = el.style.maxWidth;
-      el.style.width = '1200px';
-      el.style.maxWidth = '1200px';
-      await new Promise(r => setTimeout(r, 100));
-      const dataUrl = await toPng(el, {
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      element.style.width = '1200px';
+      element.style.maxWidth = '1200px';
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      const dataUrl = await toPng(element, {
         quality: 1,
         pixelRatio: 3,
         backgroundColor: '#ffffff',
       });
-      // Restore original width
-      el.style.width = origWidth;
-      el.style.maxWidth = origMaxWidth;
+      const chapter = chapters.find((item) => item.id === parseInt(selectedChapter, 10));
       const link = document.createElement('a');
-      const ch = chapters.find(c => c.id === parseInt(selectedChapter));
-      const chName = ch ? ch.title : selectedChapter;
-      link.download = `সাজেশন-অধ্যায়-${selectedChapter}-${chName}.png`;
+      link.download = `সাজেশন-${selectedChapter}-${chapter?.title || ''}.png`;
       link.href = dataUrl;
       link.click();
-    } catch (err) {
-      console.error('Download failed:', err);
-      alert('ডাউনলোড ব্যর্থ হয়েছে। আবার চেষ্টা করুন।');
+    } catch (downloadError) {
+      console.error('Suggestion download failed:', downloadError);
+      window.alert('ডাউনলোড ব্যর্থ হয়েছে। আবার চেষ্টা করুন।');
     } finally {
+      element.style.width = originalWidth;
+      element.style.maxWidth = originalMaxWidth;
       setDownloadingPng(false);
     }
   };
 
-  // =============================================
-  // JSX
-  // =============================================
+  const openAskAI = (data) => setAskAI({ ...EMPTY_ASK_AI, ...data, open: true });
+
+  const renderCQCard = (item, index) => {
+    const globalIndex = (currentPage - 1) * PAGE_SIZE + index + 1;
+    return (
+      <div key={`${item._id || item.question_no || 'cq'}-${index}`} className="ios-card p-4 mb-3">
+        <div className="flex flex-wrap items-center gap-2 mb-2">
+          <h3 className="font-bold text-[15px] whitespace-nowrap">
+            {bn(globalIndex)}। {item.source || ''}
+          </h3>
+          <span className="text-[11px] font-semibold text-base-content/60 px-2 py-0.5 rounded-full bg-base-content/10 whitespace-nowrap">
+            প্রশ্ন: {item.question_no}
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              const allQuestions = (item.sub_questions || [])
+                .map((subQuestion) => `${subQuestion.label}। ${subQuestion.question_text}${subQuestion.marks ? ` [${subQuestion.marks} নম্বর]` : ''}`)
+                .join('\n');
+              const answers = (item.sub_questions || [])
+                .filter((subQuestion) => subQuestion.answer?.final_answer)
+                .map((subQuestion) => `${subQuestion.label}। ${subQuestion.answer.final_answer}`)
+                .join('\n');
+              const steps = (item.sub_questions || [])
+                .filter((subQuestion) => subQuestion.answer?.steps?.length)
+                .map((subQuestion) => `${subQuestion.label}। ${subQuestion.answer.steps.join(' → ')}`)
+                .join('\n');
+              openAskAI({
+                questionText: allQuestions,
+                stemText: item.stem?.text || '',
+                imageUrl: (item.stem?.has_image && item.stem?.image_url) || '',
+                source: item.source || '',
+                finalAnswer: answers,
+                steps,
+              });
+            }}
+            className="ml-auto px-2.5 py-1 rounded-full bg-accent/10 text-accent text-[11px] font-bold ios-pressable"
+          >
+            🤖 Ask AI
+          </button>
+        </div>
+
+        {item.stem && (
+          <div className="border-b border-base-content/10 pb-3 mb-3">
+            {item.stem.text && <div className="text-sm"><RenderText text={item.stem.text} /></div>}
+            {item.stem.has_image && item.stem.image_url && (
+              <div className="flex justify-center mt-2">
+                <img
+                  src={item.stem.image_url}
+                  alt="উদ্দীপকের ছবি"
+                  className="rounded-lg max-w-xs h-auto"
+                  style={{ maxHeight: 180, objectFit: 'contain' }}
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {item.sub_questions && (
+          <div className="space-y-2">
+            {item.sub_questions.map((subQuestion, subIndex) => {
+              const answerKey = `${index}-${subIndex}`;
+              const hasAnswer = subQuestion.answer?.full_explanation;
+              return (
+                <div key={`${subQuestion.label}-${subIndex}`} className="border-l-2 border-primary/40 pl-3">
+                  <span className="font-bold mr-1.5">{subQuestion.label}।</span>
+                  <span className="text-sm"><RenderText text={subQuestion.question_text} /></span>
+                  {subQuestion.marks && (
+                    <span className="text-[11px] text-base-content/40 ml-1.5">[{subQuestion.marks} নম্বর]</span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => openAskAI({
+                      questionText: subQuestion.question_text,
+                      stemText: item.stem?.text || '',
+                      imageUrl: (item.stem?.has_image && item.stem?.image_url) || '',
+                      source: item.source || '',
+                      marks: subQuestion.marks || '',
+                      finalAnswer: subQuestion.answer?.final_answer || '',
+                      steps: subQuestion.answer?.steps?.length ? subQuestion.answer.steps.join(' → ') : '',
+                    })}
+                    aria-label={`${subQuestion.label} অংশের জন্য AI-কে জিজ্ঞাসা করুন`}
+                    className="ml-1.5 text-accent text-[11px] font-semibold ios-pressable"
+                  >
+                    🤖
+                  </button>
+                  {viewType === 'all' && hasAnswer && (
+                    <div className="mt-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setOpenAnswerIdx(openAnswerIdx === answerKey ? null : answerKey)}
+                        className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ios-pressable ${
+                          openAnswerIdx === answerKey ? 'bg-success/20 text-success' : 'bg-success/10 text-success'
+                        }`}
+                      >
+                        {openAnswerIdx === answerKey ? 'উত্তর লুকান' : 'উত্তর দেখুন'}
+                      </button>
+                      {openAnswerIdx === answerKey && (
+                        <div className="mt-2 p-3 bg-base-200 rounded-lg text-sm whitespace-pre-line">
+                          <span className="font-bold text-success text-xs block mb-1">উত্তর:</span>
+                          <RenderText text={subQuestion.answer.full_explanation} />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderSingleQuestion = (item, index) => {
+    const globalIndex = (currentPage - 1) * PAGE_SIZE + index + 1;
+    const showStem = ['ga', 'gha'].includes(selectedFilter);
+    return (
+      <div key={`${item._id || item.question_no || 'question'}-${index}`} className="ios-card p-4 mb-3">
+        <div className="flex flex-wrap items-center gap-2 mb-2">
+          <h3 className="font-bold text-[15px] whitespace-nowrap">
+            {bn(globalIndex)}। {item.source || ''}
+          </h3>
+          <span className="text-[11px] font-semibold text-base-content/60 px-2 py-0.5 rounded-full bg-base-content/10 whitespace-nowrap">
+            প্রশ্ন: {item.question_no}
+          </span>
+          <button
+            type="button"
+            onClick={() => openAskAI({
+              questionText: item.sub_question?.question_text || '',
+              stemText: item.stem?.text || '',
+              imageUrl: (item.stem?.has_image && item.stem?.image_url) || '',
+              source: item.source || '',
+              marks: item.sub_question?.marks || '',
+              finalAnswer: item.sub_question?.answer?.final_answer || '',
+              steps: item.sub_question?.answer?.steps?.length ? item.sub_question.answer.steps.join(' → ') : '',
+            })}
+            className="ml-auto px-2.5 py-1 rounded-full bg-accent/10 text-accent text-[11px] font-bold ios-pressable"
+          >
+            🤖 Ask AI
+          </button>
+        </div>
+
+        {showStem && item.stem && (
+          <div className="border-b border-base-content/10 pb-3 mb-3">
+            {item.stem.text && <div className="text-sm"><RenderText text={item.stem.text} /></div>}
+            {item.stem.has_image && item.stem.image_url && (
+              <div className="flex justify-center mt-2">
+                <img
+                  src={item.stem.image_url}
+                  alt="উদ্দীপকের ছবি"
+                  className="rounded-lg max-w-xs h-auto"
+                  style={{ maxHeight: 180, objectFit: 'contain' }}
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {item.sub_question && (() => {
+          const answer = item.sub_question.answer;
+          const hasAnswer = answer?.full_explanation || answer?.final_answer;
+          return (
+            <div className="border-l-2 border-primary/40 pl-3">
+              <span className="font-bold mr-1.5">{item.sub_question.label}।</span>
+              <span className="text-sm"><RenderText text={item.sub_question.question_text} /></span>
+              {item.sub_question.marks && (
+                <span className="text-[11px] text-base-content/40 ml-1.5">[{item.sub_question.marks} নম্বর]</span>
+              )}
+              {viewType === 'all' && hasAnswer && (
+                <div className="mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setOpenAnswerIdx(openAnswerIdx === index ? null : index)}
+                    className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ios-pressable ${
+                      openAnswerIdx === index ? 'bg-success/20 text-success' : 'bg-success/10 text-success'
+                    }`}
+                  >
+                    {openAnswerIdx === index ? 'উত্তর লুকান' : 'উত্তর দেখুন'}
+                  </button>
+                  {openAnswerIdx === index && (
+                    <div className="mt-2 p-3 bg-base-200 rounded-lg text-sm whitespace-pre-line">
+                      <span className="font-bold text-success text-xs block mb-1">উত্তর:</span>
+                      <RenderText text={answer.full_explanation || answer.final_answer} />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })()}
+      </div>
+    );
+  };
+
+  const activeFilterCount = [
+    selectedSource,
+    selectedTopic,
+    selectedFilter !== 'cq' ? 'x' : '',
+    viewType !== 'all' ? 'x' : '',
+  ].filter(Boolean).length;
+
+  const mathJaxConfig = {
+    loader: { load: ['input/tex', 'output/chtml', '[tex]/ams', '[tex]/newcommand', '[tex]/textmacros'] },
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$', '$$'], ['\\[', '\\]']],
+      packages: { '[+]': ['ams', 'newcommand'] },
+    },
+    chtml: { mtextInheritFont: true, matchFontHeight: false },
+  };
+
   return (
-    <MathJaxContext
-      config={{
-        loader: { load: ['input/tex', 'output/chtml', '[tex]/ams', '[tex]/newcommand', '[tex]/textmacros'] },
-        tex: {
-          inlineMath: [['$', '$'], ['\\(', '\\)']],
-          displayMath: [['$$', '$$'], ['\\[', '\\]']],
-          packages: { '[+]': ['ams', 'newcommand'] },
-        },
-        chtml: {
-          mtextInheritFont: true,
-          matchFontHeight: false,
-        },
-      }}
-    >
-      {/* Force Bengali font on MathJax \text{} elements */}
+    <MathJaxContext config={mathJaxConfig}>
       <style>{`
-        mjx-container mjx-utext,
-        mjx-container mjx-mtext,
+        mjx-container mjx-utext, mjx-container mjx-mtext,
         mjx-container [data-mjx-texclass="ORD"] mjx-mtext,
-        .MathJax mjx-utext,
-        .MathJax mjx-mtext {
+        .MathJax mjx-utext, .MathJax mjx-mtext {
           font-family: 'Hind Siliguri', 'Noto Sans Bengali', sans-serif !important;
         }
       `}</style>
-      <div className="container mx-auto p-4" style={{ fontFamily: 'Hind Siliguri, sans-serif' }}>
-        <h1 className="text-2xl font-extrabold mb-2">
-          বোর্ড প্রশ্ন ব্যাংক
-          {contextText && (
-            <span className="ml-2 text-lg font-semibold text-blue-700">[{contextText}]</span>
-          )}
-        </h1>
-        <h2 className="text-xl font-bold mb-4">{headingText}</h2>
 
-        {/* ============ Filters ============ */}
-        <div className="flex flex-wrap gap-4 mb-6">
-          {/* শ্রেণি */}
-          <select
-            className="select select-bordered"
-            value={selectedClass}
-            onChange={e => {
-              setSelectedClass(e.target.value);
-              setSelectedSubject('');
-              setSelectedQtype('');
-              setSelectedChapter('');
-              setResults([]);
-              setCurrentPage(1);
-            }}
-          >
-            <option value="">শ্রেণি</option>
-            {classes.map((c, i) => (
-              <option key={i} value={c}>{c}</option>
-            ))}
-          </select>
+      <div className="min-h-screen bg-base-200 pb-24" style={{ fontFamily: 'Hind Siliguri, sans-serif' }}>
+        <div className="max-w-2xl mx-auto px-4 pt-4">
+          <div className="mb-4">
+            <h1 className="ios-title mb-1">প্রশ্নব্যাংক</h1>
+            <p className="ios-caption">{contextText || 'শ্রেণি বাছাই করুন'}</p>
+          </div>
 
-          {/* বিষয় */}
-          {selectedClass && (
-            <select
-              className="select select-bordered"
-              value={selectedSubject}
-              onChange={e => {
-                setSelectedSubject(e.target.value);
-                setSelectedQtype('');
-                setSelectedChapter('');
-                setResults([]);
-                setCurrentPage(1);
-              }}
-            >
-              <option value="">বিষয়</option>
-              {subjectsForClass.map((m, i) => (
-                <option key={i} value={m.subject.code}>{m.subject.name}</option>
-              ))}
-            </select>
-          )}
+          <div className="ios-card p-3 mb-3">
+            <div className="grid grid-cols-2 gap-2.5">
+              <select
+                aria-label="শ্রেণি"
+                value={selectedClass}
+                onChange={(event) => {
+                  setSelectedClass(event.target.value);
+                  setSelectedSubject('');
+                  setSelectedQtype('');
+                  setSelectedChapter('');
+                  setResults([]);
+                  setCurrentPage(1);
+                }}
+                className="ios-input appearance-none text-[15px]"
+              >
+                <option value="">শ্রেণি</option>
+                {classes.map((className, index) => (
+                  <option key={`${className}-${index}`} value={className}>{className}</option>
+                ))}
+              </select>
 
-          {/* প্রশ্নের ধরন (qtype) */}
-          {selectedClass && selectedSubject && (
-            <select
-              className="select select-bordered"
-              value={selectedQtype}
-              onChange={e => {
-                setSelectedQtype(e.target.value);
-                setSelectedChapter('');
-                setResults([]);
-                setCurrentPage(1);
-              }}
-            >
-              <option value="">প্রশ্নের ধরন</option>
-              {qtypes.map((q, i) => (
-                <option key={i} value={q.code}>{q.name}</option>
-              ))}
-            </select>
-          )}
+              <select
+                aria-label="বিষয়"
+                value={selectedSubject}
+                onChange={(event) => {
+                  setSelectedSubject(event.target.value);
+                  setSelectedQtype('');
+                  setSelectedChapter('');
+                  setResults([]);
+                  setCurrentPage(1);
+                }}
+                disabled={!selectedClass}
+                className="ios-input appearance-none text-[15px] disabled:opacity-50"
+              >
+                <option value="">বিষয়</option>
+                {subjectsForClass.map((item, index) => (
+                  <option key={`${item.subject.code}-${index}`} value={item.subject.code}>
+                    {item.subject.name}
+                  </option>
+                ))}
+              </select>
 
-          {/* অধ্যায় */}
-          {selectedClass && selectedSubject && selectedQtype && (
-            <select
-              className="select select-bordered"
-              value={selectedChapter}
-              onChange={e => {
-                setSelectedChapter(e.target.value);
-                setCurrentPage(1);
-              }}
-            >
-              <option value="">অধ্যায়</option>
-              {chapters.map(ch => (
-                <option key={ch.id} value={ch.id}>অধ্যায় {getBengaliNum(ch.id)}: {ch.title}</option>
-              ))}
-            </select>
-          )}
+              <select
+                aria-label="প্রশ্নের ধরন"
+                value={selectedQtype}
+                onChange={(event) => {
+                  setSelectedQtype(event.target.value);
+                  setSelectedChapter('');
+                  setResults([]);
+                  setCurrentPage(1);
+                }}
+                disabled={!selectedSubject}
+                className="ios-input appearance-none text-[15px] disabled:opacity-50"
+              >
+                <option value="">ধরন</option>
+                {qtypes.map((item, index) => (
+                  <option key={`${item.code}-${index}`} value={item.code}>{item.name}</option>
+                ))}
+              </select>
 
-          {/* ভিউ টাইপ */}
-          <select
-            className="select select-bordered"
-            value={viewType}
-            onChange={e => setViewType(e.target.value)}
-          >
-            <option value="all">প্রশ্ন ও উত্তর</option>
-            <option value="question">শুধু প্রশ্ন</option>
-          </select>
+              <select
+                aria-label="অধ্যায়"
+                value={selectedChapter}
+                onChange={(event) => {
+                  setSelectedChapter(event.target.value);
+                  setCurrentPage(1);
+                }}
+                disabled={!selectedQtype}
+                className="ios-input appearance-none text-[15px] disabled:opacity-50"
+              >
+                <option value="">অধ্যায়</option>
+                {chapters.map((chapter) => (
+                  <option key={chapter.id} value={chapter.id}>
+                    অধ্যায় {bn(chapter.id)}: {chapter.title}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          {/* ফিল্টার (cq / ka / kha / ga / gha) — শুধু CQ mode তে */}
-          {selectedClass && selectedSubject && selectedChapter && !isBMCQ && (
-            <select
-              className="select select-bordered"
-              value={selectedFilter}
-              onChange={e => {
-                setSelectedFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-            >
-              {filterOptions.map((f, i) => (
-                <option key={i} value={f.value}>{f.label}</option>
-              ))}
-            </select>
-          )}
+            {selectedChapter && !isBMCQ && (
+              <div className="flex gap-1.5 mt-3 overflow-x-auto no-scrollbar pb-1">
+                {FILTER_OPTIONS.map((filter) => (
+                  <FilterChip
+                    key={filter.value}
+                    active={selectedFilter === filter.value}
+                    onClick={() => {
+                      setSelectedFilter(filter.value);
+                      setCurrentPage(1);
+                    }}
+                  >
+                    {filter.label}
+                  </FilterChip>
+                ))}
+              </div>
+            )}
 
-          {/* টপিক */}
-          {results.length > 0 && topics.length > 0 && (
-            <select
-              className="select select-bordered"
-              value={selectedTopic}
-              onChange={e => { setSelectedTopic(e.target.value); setCurrentPage(1); }}
-            >
-              <option value="">টপিক</option>
-              {topics.map((t, i) => <option key={i} value={t}>{t}</option>)}
-            </select>
-          )}
-
-          {/* সোর্স */}
-          {results.length > 0 && sources.length > 0 && (
-            <select
-              className="select select-bordered"
-              value={selectedSource}
-              onChange={e => { setSelectedSource(e.target.value); setCurrentPage(1); }}
-            >
-              <option value="">সোর্স</option>
-              {sources.map((s, i) => <option key={i} value={s}>{s}</option>)}
-            </select>
-          )}
-        </div>
-
-        {/* ============ Status Messages ============ */}
-        {(loading) && <div className="text-center py-8">লোড হচ্ছে...</div>}
-        {error && <div className="text-center py-8 text-error">Error: {error}</div>}
-
-        {!selectedClass && !loading && !error && (
-          <div className="text-center py-8">শ্রেণি বাছাই করুন</div>
-        )}
-        {selectedClass && !selectedSubject && !loading && !error && (
-          <div className="text-center py-8">বিষয় বাছাই করুন</div>
-        )}
-        {selectedClass && selectedSubject && !selectedQtype && !loading && !error && (
-          <div className="text-center py-8">প্রশ্নের ধরন বাছাই করুন</div>
-        )}
-        {selectedClass && selectedSubject && selectedQtype && !selectedChapter && !loading && !error && (
-          <div className="text-center py-8">অধ্যায় বাছাই করুন</div>
-        )}
-
-        {/* ============ Results ============ */}
-        {selectedChapter && !loading && !error && (
-          <div>
-            {results.length > 0 && (
-              <div className="flex flex-wrap items-center gap-3 mb-2">
-                <span className="text-sm text-gray-500">
-                  মোট: {getBengaliNum(filteredResults.length)} টি প্রশ্ন পাওয়া গেছে
-                </span>
-                {/* সাজেশন শুধু CQ mode তে */}
+            {selectedChapter && (
+              <div className="flex gap-2 mt-3">
+                <button
+                  type="button"
+                  onClick={() => setFilterSheetOpen(true)}
+                  className="flex-1 py-2 rounded-xl bg-base-200 text-base-content/70 text-[13px] font-semibold ios-pressable flex items-center justify-center gap-1.5"
+                >
+                  ⚙️ ফিল্টার
+                  {activeFilterCount > 0 && (
+                    <span className="w-5 h-5 rounded-full bg-primary text-white text-[10px] flex items-center justify-center">
+                      {activeFilterCount}
+                    </span>
+                  )}
+                </button>
                 {!isBMCQ && (
                   <button
-                    className="btn btn-sm btn-outline btn-info gap-1"
+                    type="button"
                     onClick={generateSuggestion}
                     disabled={suggestionLoading}
+                    className="flex-1 py-2 rounded-xl bg-info/10 text-info text-[13px] font-semibold ios-pressable flex items-center justify-center gap-1.5 disabled:opacity-50"
                   >
-                    {suggestionLoading ? (
-                      <span className="loading loading-spinner loading-xs"></span>
-                    ) : (
-                      '📊'
-                    )}
-                    সাজেশন দেখুন
+                    {suggestionLoading ? React.createElement(IOSSpinner, { size: 'sm' }) : '📊'} সাজেশন
                   </button>
                 )}
               </div>
             )}
+          </div>
 
-            <div className="space-y-4">
-              {paginatedResults.length === 0 && (
-                <div className="text-center py-8">কোনো প্রশ্ন পাওয়া যায়নি</div>
+          {loading && (
+            <div className="flex justify-center py-10">{React.createElement(IOSSpinner, { size: 'lg' })}</div>
+          )}
+          {error && <div role="alert" className="ios-card p-4 text-center text-error text-sm">{error}</div>}
+
+          {!loading && !error && !selectedClass && (
+            <div className="ios-card p-8 text-center">
+              <div className="text-4xl mb-2">📚</div>
+              <p className="ios-subhead">শ্রেণি বাছাই করুন</p>
+            </div>
+          )}
+          {!loading && !error && selectedClass && !selectedSubject && (
+            <div className="ios-card p-8 text-center">
+              <div className="text-4xl mb-2">📖</div>
+              <p className="ios-subhead">বিষয় বাছাই করুন</p>
+            </div>
+          )}
+          {!loading && !error && selectedSubject && !selectedQtype && (
+            <div className="ios-card p-8 text-center">
+              <div className="text-4xl mb-2">📝</div>
+              <p className="ios-subhead">প্রশ্নের ধরন বাছাই করুন</p>
+            </div>
+          )}
+          {!loading && !error && selectedQtype && !selectedChapter && (
+            <div className="ios-card p-8 text-center">
+              <div className="text-4xl mb-2">🔖</div>
+              <p className="ios-subhead">অধ্যায় বাছাই করুন</p>
+            </div>
+          )}
+
+          {selectedChapter && !loading && !error && (
+            <div>
+              {results.length > 0 && (
+                <p className="text-xs text-base-content/50 mb-2 px-1">
+                  মোট: {bn(filteredResults.length)} টি প্রশ্ন
+                </p>
               )}
+              {paginatedResults.length === 0 && (
+                <div className="ios-card p-6 text-center text-base-content/50 text-sm">
+                  কোনো প্রশ্ন পাওয়া যায়নি
+                </div>
+              )}
+
               {isBMCQ
                 ? (() => {
                   let lastStem = null;
                   let lastStemText = null;
-                  return paginatedResults.map((item, idx) => {
-                    const d = item.data;
-                    const hasStem = d && d.shared_stem && d.shared_stem.text;
-                    // উদ্দীপক একবারই দেখাবে — নতুন stem হলে দেখাও, আগেরটার রিপিট হলে লুকাও
-                    let showStem = false;
-                    if (hasStem) {
-                      showStem = d.shared_stem.text !== lastStemText;
-                      lastStem = d.shared_stem;
-                      lastStemText = d.shared_stem.text;
+                  return paginatedResults.map((item, index) => {
+                    const sharedStem = item.data?.shared_stem;
+                    const showStem = Boolean(sharedStem?.text && sharedStem.text !== lastStemText);
+                    if (sharedStem?.text) {
+                      lastStem = sharedStem;
+                      lastStemText = sharedStem.text;
                     }
                     return (
                       <MCQCard
-                        key={idx}
+                        key={`${item._id || item.question_no || 'mcq'}-${index}`}
                         item={item}
-                        idx={idx}
+                        idx={index}
                         currentPage={currentPage}
-                        pageSize={pageSize}
+                        pageSize={PAGE_SIZE}
                         viewType={viewType}
                         openAnswerIdx={openAnswerIdx}
                         setOpenAnswerIdx={setOpenAnswerIdx}
                         setAskAI={setAskAI}
-                        renderText={renderText}
-                        getBengaliNum={getBengaliNum}
+                        renderText={(text) => <RenderText text={text} />}
+                        getBengaliNum={bn}
                         fallbackStem={lastStem}
                         showStem={showStem}
                       />
@@ -848,159 +881,216 @@ function BoardCQPage() {
                   });
                 })()
                 : selectedFilter === 'cq'
-                  ? paginatedResults.map((item, idx) => renderCard(item, idx))
-                  : groupedByTopic.map((group, gi) => (
-                    <div key={gi}>
-                      <div className="sticky top-16 z-10 bg-base-200 dark:bg-base-300 rounded-lg px-4 py-2 mb-3 mt-4 shadow-sm border-l-4 border-primary">
-                        <span className="font-bold text-primary text-sm">{group.code ? `${group.code}: ` : ''}{group.name}</span>
-                        <span className="text-xs text-gray-500 ml-2">({getBengaliNum(group.items.length)} টি)</span>
+                  ? paginatedResults.map((item, index) => renderCQCard(item, index))
+                  : groupedByTopic.map((group, groupIndex) => (
+                    <div key={`${group.code}-${group.name}-${groupIndex}`}>
+                      <div className="sticky top-14 z-10 bg-base-200/95 backdrop-blur rounded-lg px-3 py-1.5 mb-2 mt-3 border-l-4 border-primary">
+                        <span className="text-[13px] font-bold text-primary">
+                          {group.code ? `${group.code}: ` : ''}{group.name}
+                        </span>
+                        <span className="text-[11px] text-base-content/40 ml-2">
+                          ({bn(group.items.length)} টি)
+                        </span>
                       </div>
-                      {group.items.map(({ item, idx }) => renderCard(item, idx))}
+                      {group.items.map(({ item, idx }) => renderSingleQuestion(item, idx))}
                     </div>
-                  ))
-              }
+                  ))}
+            </div>
+          )}
+
+          {totalPages > 1 && (
+            <div className="flex justify-center items-center gap-1.5 mt-6 mb-4">
+              <button
+                type="button"
+                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                disabled={currentPage === 1}
+                aria-label="আগের পৃষ্ঠা"
+                className="w-9 h-9 rounded-xl bg-base-100 text-sm font-semibold disabled:opacity-30 ios-pressable"
+              >
+                ←
+              </button>
+              <span className="px-3 py-1.5 rounded-xl bg-primary text-white text-sm font-bold">
+                {bn(currentPage)} / {bn(totalPages)}
+              </span>
+              <button
+                type="button"
+                onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                disabled={currentPage === totalPages}
+                aria-label="পরের পৃষ্ঠা"
+                className="w-9 h-9 rounded-xl bg-base-100 text-sm font-semibold disabled:opacity-30 ios-pressable"
+              >
+                →
+              </button>
+            </div>
+          )}
+        </div>
+
+        {React.createElement(
+          IOSSheet,
+          { open: filterSheetOpen, onClose: () => setFilterSheetOpen(false), title: 'ফিল্টার' },
+          <div className="p-4 space-y-4">
+            <div>
+              <label className="text-xs font-semibold text-base-content/60 uppercase mb-2 block">
+                View Type
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {VIEW_TYPES.map((view) => (
+                  <button
+                    key={view.value}
+                    type="button"
+                    onClick={() => {
+                      setViewType(view.value);
+                      setCurrentPage(1);
+                    }}
+                    className={`py-2.5 rounded-xl text-sm font-semibold ios-pressable transition-all ${
+                      viewType === view.value ? 'bg-primary text-white' : 'bg-base-200 text-base-content/70'
+                    }`}
+                  >
+                    {view.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            {/* ============ Pagination ============ */}
-            {totalPages > 1 && (
-              <div className="flex justify-center gap-2 mt-8">
-                <button
-                  className="btn btn-xs"
-                  disabled={currentPage === 1}
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                >←</button>
-                {(() => {
-                  const btns = [];
-                  const maxV = 5;
-                  let start = Math.max(1, currentPage - Math.floor(maxV / 2));
-                  let end = Math.min(totalPages, start + maxV - 1);
-                  if (end - start + 1 < maxV) start = Math.max(1, end - maxV + 1);
-
-                  if (start > 1) {
-                    btns.push(
-                      <button key={1} className={`btn btn-xs ${currentPage === 1 ? 'btn-primary' : ''}`} onClick={() => setCurrentPage(1)}>
-                        {getBengaliNum(1)}
-                      </button>
-                    );
-                    if (start > 2) btns.push(<span key="se" className="px-1">...</span>);
-                  }
-                  for (let i = start; i <= end; i++) {
-                    btns.push(
-                      <button key={i} className={`btn btn-xs ${currentPage === i ? 'btn-primary' : ''}`} onClick={() => setCurrentPage(i)}>
-                        {getBengaliNum(i)}
-                      </button>
-                    );
-                  }
-                  if (end < totalPages) {
-                    if (end < totalPages - 1) btns.push(<span key="ee" className="px-1">...</span>);
-                    btns.push(
-                      <button key={totalPages} className={`btn btn-xs ${currentPage === totalPages ? 'btn-primary' : ''}`} onClick={() => setCurrentPage(totalPages)}>
-                        {getBengaliNum(totalPages)}
-                      </button>
-                    );
-                  }
-                  return btns;
-                })()}
-                <button
-                  className="btn btn-xs"
-                  disabled={currentPage === totalPages}
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                >→</button>
+            {sources.length > 0 && (
+              <div>
+                <label htmlFor="board-source" className="text-xs font-semibold text-base-content/60 uppercase mb-2 block">
+                  সোর্স
+                </label>
+                <select
+                  id="board-source"
+                  value={selectedSource}
+                  onChange={(event) => {
+                    setSelectedSource(event.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="ios-input appearance-none"
+                >
+                  <option value="">সব</option>
+                  {sources.map((source, index) => (
+                    <option key={`${source}-${index}`} value={source}>{source}</option>
+                  ))}
+                </select>
               </div>
+            )}
+
+            {topics.length > 0 && (
+              <div>
+                <label htmlFor="board-topic" className="text-xs font-semibold text-base-content/60 uppercase mb-2 block">
+                  টপিক
+                </label>
+                <select
+                  id="board-topic"
+                  value={selectedTopic}
+                  onChange={(event) => {
+                    setSelectedTopic(event.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="ios-input appearance-none"
+                >
+                  <option value="">সব</option>
+                  {topics.map((topic, index) => (
+                    <option key={`${topic}-${index}`} value={topic}>{topic}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {React.createElement(
+              IOSButton,
+              { onClick: () => setFilterSheetOpen(false), fullWidth: true, size: 'lg' },
+              'Apply'
             )}
           </div>
         )}
-      </div>
 
-      {/* Suggestion Modal */}
-      {showSuggestion && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div style={{ backgroundColor: '#fff', borderRadius: '12px', maxWidth: '960px', width: '95%', maxHeight: '90vh', overflowY: 'auto', position: 'relative', padding: '20px', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
-            <button
-              style={{ position: 'absolute', right: '12px', top: '12px', background: '#f1f5f9', border: 'none', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#334155' }}
-              onClick={() => setShowSuggestion(false)}
-            >✕</button>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px', gap: '8px' }}>
+        {React.createElement(
+          IOSSheet,
+          {
+            open: suggestionOpen,
+            onClose: () => setSuggestionOpen(false),
+            title: 'সৃজনশীল সাজেশন',
+            maxHeight: '92vh',
+          },
+          <div className="p-4">
+            <div className="flex justify-end mb-3">
               <button
-                style={{ padding: '6px 16px', backgroundColor: downloadingPng ? '#93c5fd' : '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', cursor: downloadingPng ? 'not-allowed' : 'pointer', fontSize: '14px', fontWeight: 600 }}
+                type="button"
                 onClick={downloadSuggestion}
                 disabled={downloadingPng}
+                className="px-3 py-2 rounded-xl bg-primary text-white text-sm font-semibold ios-pressable disabled:opacity-50"
               >
-                {downloadingPng ? '⏳ তৈরি হচ্ছে...' : '📥 ডাউনলোড PNG'}
+                {downloadingPng ? '⏳ তৈরি হচ্ছে…' : '📥 PNG ডাউনলোড'}
               </button>
             </div>
 
-            <div ref={suggestionRef} style={{ padding: '24px', backgroundColor: '#fff', fontFamily: 'Hind Siliguri, sans-serif', color: '#1e293b' }}>
-              <div style={{ marginBottom: '16px' }}>
-                <p style={{ fontSize: '18px', fontWeight: 700, color: '#475569', margin: 0 }}>
-                  অধ্যায় {getBengaliNum(selectedChapter)}
-                </p>
-                <h2 style={{ fontSize: '28px', fontWeight: 900, color: '#2563eb', margin: '4px 0' }}>
-                  {chapters.find(c => c.id === parseInt(selectedChapter))?.title || ''}
-                </h2>
-                <p style={{ fontSize: '13px', color: '#94a3b8', margin: 0 }}>
-                  বোর্ড সৃজনশীল বিশ্লেষণ ও সাজেশন
-                </p>
-              </div>
-
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+            <div
+              ref={suggestionRef}
+              className="bg-white text-slate-800 rounded-lg p-4"
+              style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
+            >
+              <p className="text-xs font-bold text-slate-500">অধ্যায় {bn(selectedChapter)}</p>
+              <h2 className="text-xl font-black text-blue-600 mb-1">
+                {chapters.find((item) => item.id === parseInt(selectedChapter, 10))?.title || ''}
+              </h2>
+              <p className="text-[11px] text-slate-400 mb-3">বোর্ড সৃজনশীল বিশ্লেষণ</p>
+              <table className="w-full text-[12px] border-collapse">
                 <thead>
-                  <tr style={{ backgroundColor: '#1e293b', color: '#fff' }}>
-                    <th style={{ border: '1px solid #334155', padding: '8px 6px', textAlign: 'center', width: '60px' }}>গুরুত্ব</th>
-                    <th style={{ border: '1px solid #334155', padding: '8px 6px', textAlign: 'left' }}>টপিক</th>
-                    <th style={{ border: '1px solid #334155', padding: '8px 6px', textAlign: 'center', width: '40px' }}>গ</th>
-                    <th style={{ border: '1px solid #334155', padding: '8px 6px', textAlign: 'center', width: '40px' }}>ঘ</th>
-                    <th style={{ border: '1px solid #334155', padding: '8px 6px', textAlign: 'left' }}>বোর্ডসমূহ</th>
+                  <tr className="bg-slate-800 text-white">
+                    <th className="border border-slate-600 p-1.5 w-12 text-center">গুরুত্ব</th>
+                    <th className="border border-slate-600 p-1.5 text-left">টপিক</th>
+                    <th className="border border-slate-600 p-1.5 w-8 text-center">গ</th>
+                    <th className="border border-slate-600 p-1.5 w-8 text-center">ঘ</th>
+                    <th className="border border-slate-600 p-1.5 text-left">বোর্ড</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {suggestionData.map((t, i) => (
-                    <tr key={i} style={{ backgroundColor: i % 2 === 0 ? '#ffffff' : '#f8fafc' }}>
-                      <td style={{
-                        border: '1px solid #e2e8f0', padding: '8px 6px', textAlign: 'center',
-                        fontWeight: 700, fontSize: '16px',
-                        color: t.importance === '***' ? '#dc2626' : t.importance === '**' ? '#ea580c' : '#65a30d',
-                      }}>{t.importance}</td>
-                      <td style={{ border: '1px solid #e2e8f0', padding: '8px 6px', fontWeight: 600, color: '#1e3a5f' }}>{t.name}</td>
-                      <td style={{ border: '1px solid #e2e8f0', padding: '8px 6px', textAlign: 'center', fontWeight: 700, color: '#7c3aed' }}>{t.ga}</td>
-                      <td style={{ border: '1px solid #e2e8f0', padding: '8px 6px', textAlign: 'center', fontWeight: 700, color: '#0891b2' }}>{t.gha}</td>
-                      <td style={{ border: '1px solid #e2e8f0', padding: '8px 6px', fontSize: '11px', lineHeight: '1.5', color: '#475569' }}>
-                        {t.boards.join(', ')}
+                  {suggestionData.map((topic, index) => (
+                    <tr key={`${topic.code}-${topic.name}-${index}`} className={index % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                      <td
+                        className="border border-slate-200 p-1.5 text-center font-bold text-base"
+                        style={{
+                          color: topic.importance === '***'
+                            ? '#dc2626'
+                            : topic.importance === '**' ? '#ea580c' : '#65a30d',
+                        }}
+                      >
+                        {topic.importance}
+                      </td>
+                      <td className="border border-slate-200 p-1.5 font-semibold text-slate-800">{topic.name}</td>
+                      <td className="border border-slate-200 p-1.5 text-center font-bold text-purple-600">{topic.ga}</td>
+                      <td className="border border-slate-200 p-1.5 text-center font-bold text-cyan-600">{topic.gha}</td>
+                      <td className="border border-slate-200 p-1.5 text-[10px] text-slate-500">
+                        {topic.boards.join(', ')}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-
-              <div style={{ marginTop: '12px', fontSize: '11px', color: '#94a3b8', display: 'flex', gap: '16px' }}>
-                <span><span style={{ color: '#dc2626', fontWeight: 700 }}>***</span> = অতি গুরুত্বপূর্ণ</span>
-                <span><span style={{ color: '#ea580c', fontWeight: 700 }}>**</span> = গুরুত্বপূর্ণ</span>
-                <span><span style={{ color: '#65a30d', fontWeight: 700 }}>*</span> = সাধারণ</span>
+              <div className="flex gap-3 mt-3 text-[10px] text-slate-400">
+                <span><span className="text-red-600 font-bold">***</span> অতি গুরুত্বপূর্ণ</span>
+                <span><span className="text-orange-600 font-bold">**</span> গুরুত্বপূর্ণ</span>
+                <span><span className="text-lime-600 font-bold">*</span> সাধারণ</span>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Ask AI Modal */}
-      {/* Ask AI Modal */}
-      <AskAIModalMongoDB
-        isOpen={askAI.open}
-        onClose={() => setAskAI({ open: false, questionText: '', stemText: '', imageUrl: '', source: '', marks: '', finalAnswer: '', steps: '' })}
-        questionText={askAI.questionText}
-        stemText={askAI.stemText}
-        imageUrl={askAI.imageUrl}
-        source={askAI.source}
-        marks={askAI.marks}
-        finalAnswer={askAI.finalAnswer}
-        steps={askAI.steps}
-        className={selectedClass || ''}
-        subjectName={selectedSubjectObj?.subject?.name || ''}
-        chapterName={chapters.find(c => c.id === parseInt(selectedChapter))?.title || ''}
-      />
+        <AskAIModalMongoDB
+          isOpen={askAI.open}
+          onClose={() => setAskAI(EMPTY_ASK_AI)}
+          questionText={askAI.questionText}
+          stemText={askAI.stemText}
+          imageUrl={askAI.imageUrl}
+          source={askAI.source}
+          marks={askAI.marks}
+          finalAnswer={askAI.finalAnswer}
+          steps={askAI.steps}
+          className={selectedClass || ''}
+          subjectName={selectedSubjectObj?.subject?.name || ''}
+          chapterName={chapters.find((item) => item.id === parseInt(selectedChapter, 10))?.title || ''}
+        />
+      </div>
     </MathJaxContext>
   );
 }
-
-export default BoardCQPage;

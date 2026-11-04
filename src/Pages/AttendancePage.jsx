@@ -1,713 +1,679 @@
-import React, { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../Context/AuthContext';
+import IOSButton from '../Components/ios/iOSButton';
+import IOSCard from '../Components/ios/iOSCard';
+import IOSSheet from '../Components/ios/iOSSheet';
+import IOSSpinner from '../Components/ios/iOSSpinner';
+import IOSSegmented from '../Components/ios/iOSSegmented';
 
 const API_BASE = 'https://geminiai-render.onrender.com/api';
+const BN_DAYS = { Sat: 'শনি', Sun: 'রবি', Mon: 'সোম', Tue: 'মঙ্গল', Wed: 'বুধ', Thu: 'বৃহঃ', Fri: 'শুক্র' };
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-// Helper to parse time string like "4:00 PM" or "4:00 PM - 5:00 PM" into minutes for sorting
 const parseTimeForSort = (timeStr) => {
-    if (!timeStr) return 9999; // No time = end of list
-    const parts = timeStr.split(' - ');
-    if (parts.length === 0) return 9999;
-    const t = parts[0].trim();
-    const match = t.match(/(\d+):(\d+)\s*(AM|PM)/i);
-    if (!match) return 9999;
-    let hours = parseInt(match[1]);
-    const minutes = parseInt(match[2]);
-    const modifier = match[3].toUpperCase();
-    if (modifier === 'PM' && hours !== 12) hours += 12;
-    if (modifier === 'AM' && hours === 12) hours = 0;
-    return hours * 60 + minutes;
+  const match = timeStr?.split(' - ')[0]?.trim().match(/(\d+):(\d+)\s*(AM|PM)/i);
+  if (!match) return 9999;
+  let hours = Number.parseInt(match[1], 10);
+  const minutes = Number.parseInt(match[2], 10);
+  const modifier = match[3].toUpperCase();
+  if (modifier === 'PM' && hours !== 12) hours += 12;
+  if (modifier === 'AM' && hours === 12) hours = 0;
+  return hours * 60 + minutes;
 };
 
-// Modern Card Component for Student
-const StudentCard = ({ student, attendanceForm, updateStudentField, onMakeupClick }) => {
-    const data = attendanceForm[student._id] || {};
-    return (
-        <div className="card bg-base-100 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300">
-            <div className="card-body p-3 sm:p-4 md:p-6">
-                {/* Header: Name, Actions */}
-                <div className="flex justify-between items-start gap-2 mb-2 sm:mb-4">
-                    <div className="min-w-0 flex-1">
-                        <h3 className="card-title text-base sm:text-lg font-bold text-base-content/90 truncate">{student.username}</h3>
-                        {student.email && <div className="badge badge-ghost badge-xs sm:badge-sm mt-1 bg-base-200/50 max-w-full truncate">{student.email}</div>}
-                    </div>
-                    <div className="join shadow-sm rounded-lg overflow-hidden shrink-0">
-                        <button
-                            className={`join-item btn btn-xs sm:btn-sm px-2 sm:px-3 font-bold transition-all ${data.status === 'present' ? 'btn-success text-white' : 'btn-ghost hover:bg-success/20 text-success'}`}
-                            onClick={() => updateStudentField(student._id, 'status', 'present')}
-                        >P</button>
-                        <button
-                            className={`join-item btn btn-xs sm:btn-sm px-2 sm:px-3 font-bold transition-all ${data.status === 'makeup' ? 'btn-info text-white' : 'btn-ghost hover:bg-info/20 text-info'}`}
-                            onClick={() => {
-                                if (data.status === 'makeup') {
-                                    updateStudentField(student._id, 'status', 'unmarked');
-                                } else {
-                                    onMakeupClick(student._id);
-                                }
-                            }}
-                        >M</button>
-                        <button
-                            className={`join-item btn btn-xs sm:btn-sm px-2 sm:px-3 font-bold transition-all ${data.status === 'absent' ? 'btn-error text-white' : 'btn-ghost hover:bg-error/20 text-error'}`}
-                            onClick={() => updateStudentField(student._id, 'status', 'absent')}
-                        >A</button>
-                    </div>
-                </div>
+const getBDTDate = (date = new Date()) => {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Dhaka',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+  return `${values.year}-${values.month}-${values.day}`;
+};
 
-                {/* Makeup Info */}
-                {data.status === 'makeup' && data.makeupDate && (
-                    <div className="alert alert-info py-1.5 sm:py-2 px-2 sm:px-3 text-xs shadow-inner rounded-lg mb-2 sm:mb-3">
-                        <div className="flex items-center gap-2 min-w-0 flex-1">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                            <span className="font-semibold truncate">Makeup: {new Date(data.makeupDate).toLocaleDateString('en-GB')} {data.makeupTime && `(${data.makeupTime})`}</span>
-                        </div>
-                        <button
-                            className="btn btn-xs btn-ghost btn-circle shrink-0"
-                            onClick={() => onMakeupClick(student._id)}
-                        >✎</button>
-                    </div>
-                )}
+const formatDate = (date, options = {}) => {
+  if (!date) return '';
+  const parsed = new Date(date);
+  return Number.isNaN(parsed.getTime())
+    ? ''
+    : parsed.toLocaleDateString('en-GB', { timeZone: 'Asia/Dhaka', ...options });
+};
 
-                {/* Inputs */}
-                <div className="space-y-2 sm:space-y-3">
-                    <div className="form-control w-full">
-                        <input
-                            type="text"
-                            placeholder="Classwork"
-                            className="input input-xs sm:input-sm input-bordered w-full rounded-lg hover:border-primary/50 focus:border-primary bg-base-200/50 transition-colors"
-                            value={data.classwork || ''}
-                            onChange={(e) => updateStudentField(student._id, 'classwork', e.target.value)}
-                        />
-                    </div>
-                    <div className="form-control w-full">
-                        <input
-                            type="text"
-                            placeholder="Homework"
-                            className="input input-xs sm:input-sm input-bordered w-full rounded-lg hover:border-primary/50 focus:border-primary bg-base-200/50 transition-colors"
-                            value={data.homework || ''}
-                            onChange={(e) => updateStudentField(student._id, 'homework', e.target.value)}
-                        />
-                    </div>
-                    {(data.status === 'absent' || data.status === 'makeup' || data.reason) && (
-                        <div className="form-control w-full">
-                            <input
-                                type="text"
-                                placeholder="Reason/Note..."
-                                className="input input-xs sm:input-sm input-bordered input-warning w-full rounded-lg bg-warning/10"
-                                value={data.reason || ''}
-                                onChange={(e) => updateStudentField(student._id, 'reason', e.target.value)}
-                            />
-                        </div>
-                    )}
-                    {!data.status && !data.reason && (
-                        <button
-                            className="btn btn-xs btn-ghost text-base-content/50 hover:text-primary w-full border border-dashed border-base-content/20 hover:border-primary/50"
-                            onClick={() => updateStudentField(student._id, 'reason', ' ')}
-                        >
-                            + Add Note
-                        </button>
-                    )}
-                </div>
-            </div>
+const bn = (number) => String(number ?? 0)
+  .split('')
+  .map((digit) => '০১২৩৪৫৬৭৮৯'[digit] ?? digit)
+  .join('');
+
+async function readResponse(response) {
+  const data = await response.json();
+  if (!response.ok || data.success !== true) {
+    throw new Error(data.message || `Request failed (${response.status})`);
+  }
+  return data;
+}
+
+function StatusSelector({ value, onChange, onMakeupClick }) {
+  const select = (status) => {
+    if (value === status) onChange('unmarked');
+    else if (status === 'makeup') onMakeupClick();
+    else onChange(status);
+  };
+
+  return (
+    <div className="flex gap-1 p-1 rounded-xl bg-base-200 flex-shrink-0" aria-label="Attendance status">
+      {[
+        { key: 'present', label: 'P', active: 'bg-success text-white', idle: 'text-success' },
+        { key: 'makeup', label: 'M', active: 'bg-info text-white', idle: 'text-info' },
+        { key: 'absent', label: 'A', active: 'bg-error text-white', idle: 'text-error' },
+      ].map((status) => (
+        <button
+          key={status.key}
+          type="button"
+          onClick={() => select(status.key)}
+          aria-pressed={value === status.key}
+          className={`w-9 h-8 rounded-lg font-bold text-[13px] ios-pressable transition-all ${
+            value === status.key ? status.active : status.idle
+          }`}
+        >
+          {status.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function StudentCard({ student, data = {}, onChange, onMakeupClick }) {
+  return (
+    <IOSCard className="p-3 mb-2.5">
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <div className="min-w-0 flex-1">
+          <h3 className="font-bold text-[15px] truncate">{student.username}</h3>
+          {student.email && <p className="text-[11px] text-base-content/50 truncate">{student.email}</p>}
         </div>
-    );
-};
+        <StatusSelector
+          value={data.status}
+          onChange={(value) => onChange('status', value)}
+          onMakeupClick={() => onMakeupClick(student._id)}
+        />
+      </div>
 
-// Makeup Scheduled Class Card (shown on daily view)
-const MakeupClassCard = ({ record }) => {
-    return (
-        <div className="card bg-info/10 border border-info/30 shadow-md hover:shadow-lg transition-all relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-2 opacity-50 rotate-12 group-hover:rotate-0 transition-transform">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-info/20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            </div>
-            <div className="card-body p-5 relative z-10">
-                <div className="flex items-center gap-2 mb-2">
-                    <div className="badge badge-info badge-sm font-bold text-white shadow-sm">Makeup Class</div>
-                </div>
-                <h3 className="font-bold text-lg text-base-content/90">{record.studentName}</h3>
-                <div className="text-sm text-base-content/70 mt-1 font-medium bg-base-100/50 inline-block px-2 py-1 rounded-md">
-                    Original Date: {new Date(record.date).toLocaleDateString('en-GB')} <br />
-                    <span className="text-info font-bold">{record.makeupTime && `Time: ${record.makeupTime}`}</span>
-                </div>
-            </div>
+      {data.status === 'makeup' && data.makeupDate && (
+        <div className="flex items-center justify-between gap-2 mb-2 px-2.5 py-1.5 rounded-lg bg-info/10">
+          <span className="text-[11px] text-info font-semibold truncate">
+            Makeup: {formatDate(data.makeupDate)} {data.makeupTime && `(${data.makeupTime})`}
+          </span>
+          <button
+            type="button"
+            onClick={() => onMakeupClick(student._id)}
+            aria-label="Edit makeup schedule"
+            className="text-[11px] text-info font-bold ios-pressable"
+          >
+            ✎
+          </button>
         </div>
-    );
-};
+      )}
 
-const AttendancePage = () => {
-    const { user, isAdmin, loading: authLoading } = useAuth();
+      <div className="space-y-1.5">
+        <input
+          type="text"
+          placeholder="Classwork"
+          aria-label={`${student.username} classwork`}
+          className="ios-input py-2 text-[13px]"
+          value={data.classwork || ''}
+          onChange={(event) => onChange('classwork', event.target.value)}
+        />
+        <input
+          type="text"
+          placeholder="Homework"
+          aria-label={`${student.username} homework`}
+          className="ios-input py-2 text-[13px]"
+          value={data.homework || ''}
+          onChange={(event) => onChange('homework', event.target.value)}
+        />
+        {(data.status === 'absent' || data.status === 'makeup' || data.reason) && (
+          <input
+            type="text"
+            placeholder="Reason / note…"
+            aria-label={`${student.username} reason or note`}
+            className="ios-input py-2 text-[13px] border-warning bg-warning/10"
+            value={data.reason || ''}
+            onChange={(event) => onChange('reason', event.target.value)}
+          />
+        )}
+        {!data.status && !data.reason && (
+          <button
+            type="button"
+            onClick={() => onChange('reason', ' ')}
+            className="w-full py-1.5 rounded-lg border border-dashed border-base-content/20 text-[12px] text-base-content/50 ios-pressable"
+          >
+            + Add note
+          </button>
+        )}
+      </div>
+    </IOSCard>
+  );
+}
 
-    const [activeTab, setActiveTab] = useState('daily');
+export default function AttendancePage() {
+  const { user, loading: authLoading } = useAuth();
+  const admin = user?.isAdmin === true;
 
-    // API State
-    const [students, setStudents] = useState([]);
-    const [reportData, setReportData] = useState([]);
-    const [loading, setLoading] = useState(false);
+  const [tab, setTab] = useState('daily');
+  const [students, setStudents] = useState([]);
+  const [timeSlots, setTimeSlots] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [dailyLoaded, setDailyLoaded] = useState(false);
+  const [pageError, setPageError] = useState('');
+  const [selectedDate, setSelectedDate] = useState(() => getBDTDate());
+  const [attendanceForm, setAttendanceForm] = useState({});
+  const [makeupRecords, setMakeupRecords] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [othersOpen, setOthersOpen] = useState(false);
+  const [month, setMonth] = useState(() => Number(getBDTDate().slice(5, 7)) - 1);
+  const [year, setYear] = useState(() => Number(getBDTDate().slice(0, 4)));
+  const [reportData, setReportData] = useState([]);
+  const [historySheet, setHistorySheet] = useState(null);
+  const [makeupModal, setMakeupModal] = useState({ open: false, studentId: null, date: '', time: '' });
 
-    // Helper to get BDT Date components
-    const getBDTNow = () => new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Dhaka' }));
+  useEffect(() => {
+    if (authLoading || !admin) return undefined;
+    const controller = new AbortController();
+    const loadLists = async () => {
+      try {
+        const [studentResponse, slotResponse] = await Promise.all([
+          fetch(`${API_BASE}/students/admin/students`, { signal: controller.signal }),
+          fetch(`${API_BASE}/timeslots`, { signal: controller.signal }),
+        ]);
+        const [studentData, slotData] = await Promise.all([
+          readResponse(studentResponse),
+          readResponse(slotResponse),
+        ]);
+        if (!Array.isArray(studentData.students) || !Array.isArray(slotData.slots)) {
+          throw new Error('Student or timeslot data is not in the expected format');
+        }
+        setStudents(studentData.students);
+        setTimeSlots(slotData.slots);
+      } catch (error) {
+        if (error.name === 'AbortError') return;
+        console.error('Loading attendance lists failed:', error);
+        setPageError('শিক্ষার্থী বা সময়ের তালিকা লোড করা যায়নি।');
+      }
+    };
+    loadLists();
+    return () => controller.abort();
+  }, [admin, authLoading]);
 
-    // Daily View State
-    const [selectedDate, setSelectedDate] = useState(() => {
-        const d = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Dhaka' });
-        return d;
-    });
-    const [attendanceForm, setAttendanceForm] = useState({});
-    const [searchTerm, setSearchTerm] = useState('');
-    const [makeupRecords, setMakeupRecords] = useState([]);
-
-    // Report View State
-    const [month, setMonth] = useState(getBDTNow().getMonth());
-    const [year, setYear] = useState(getBDTNow().getFullYear());
-    const [selectedStudentHistory, setSelectedStudentHistory] = useState(null);
-
-    // Makeup Modal State
-    const [makeupModal, setMakeupModal] = useState({ open: false, studentId: null, date: '', time: '' });
-
-    // Time slots
-    const [timeSlots, setTimeSlots] = useState([]);
-
-    // Fetch Students
-    useEffect(() => {
-        const fetchStudents = async () => {
-            if (loading || !isAdmin()) return;
-            try {
-                const response = await fetch(`${API_BASE}/students/admin/students`);
-                const data = await response.json();
-                if (data.success) setStudents(data.students);
-            } catch (error) {
-                console.error("Error fetching students:", error);
-            }
-        };
-        fetchStudents();
-    }, [authLoading, isAdmin]);
-
-    // Fetch Time Slots
-    useEffect(() => {
-        const fetchSlots = async () => {
-            try {
-                const response = await fetch(`${API_BASE}/timeslots`);
-                const data = await response.json();
-                if (data.success) setTimeSlots(data.slots);
-            } catch (error) {
-                console.error("Error fetching time slots:", error);
-            }
-        };
-        fetchSlots();
-    }, []);
-
-    // Fetch Report
-    useEffect(() => {
-        const fetchReport = async () => {
-            if (activeTab !== 'report' || !isAdmin()) return;
-            setLoading(true);
-            try {
-                const response = await fetch(`${API_BASE}/attendance/report?month=${month}&year=${year}`);
-                const data = await response.json();
-                if (data.success) setReportData(data.report);
-            } catch (error) {
-                console.error("Error fetching report:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchReport();
-    }, [activeTab, month, year, isAdmin]);
-
-    // Fetch Daily Attendance on Date Change
-    useEffect(() => {
-        const fetchDailyAttendance = async () => {
-            if (!selectedDate || !isAdmin()) return;
-            try {
-                const response = await fetch(`${API_BASE}/attendance/daily?date=${selectedDate}`);
-                const data = await response.json();
-                if (data.success) {
-                    const map = {};
-                    data.records.forEach(r => {
-                        map[r.studentId] = {
-                            status: r.status,
-                            reason: r.reason,
-                            classwork: r.classwork,
-                            homework: r.homework,
-                            makeupDate: r.makeupDate,
-                            makeupTime: r.makeupTime
-                        };
-                    });
-                    setAttendanceForm(map);
-                    setMakeupRecords(data.makeupRecords || []);
-                }
-            } catch (error) {
-                console.error("Error fetching daily:", error);
-            }
-        };
-        fetchDailyAttendance();
-    }, [selectedDate, isAdmin]);
-
-    // Daily Logic
-    const getScheduledStudents = () => {
-        const dateObj = new Date(selectedDate);
-        const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
-
-        const relevantStudents = students.filter(s =>
-            (s.status !== 'inactive') &&
-            (s.studentType === 'private' || !s.studentType)
+  useEffect(() => {
+    if (!admin || tab !== 'daily' || !selectedDate) return undefined;
+    const controller = new AbortController();
+    const loadDaily = async () => {
+      setLoading(true);
+      setDailyLoaded(false);
+      setAttendanceForm({});
+      setMakeupRecords([]);
+      setPageError('');
+      try {
+        const response = await fetch(
+          `${API_BASE}/attendance/daily?date=${encodeURIComponent(selectedDate)}`,
+          { signal: controller.signal }
         );
-
-        // Sort scheduled students by their time slot for the selected day
-        const scheduledStudents = relevantStudents
-            .filter(s => s.schedule?.includes(dayName))
-            .sort((a, b) => {
-                const timeA = parseTimeForSort(a.routine?.[dayName]);
-                const timeB = parseTimeForSort(b.routine?.[dayName]);
-                return timeA - timeB;
-            });
-
-        return {
-            scheduled: scheduledStudents,
-            others: relevantStudents.filter(s =>
-                !s.schedule?.includes(dayName) &&
-                s.username.toLowerCase().includes(searchTerm.toLowerCase())
-            )
-        };
-    };
-
-    // Toggle Logic for Status
-    const updateStudentField = (id, field, value) => {
-        setAttendanceForm(prev => {
-            const currentStudentData = prev[id] || {};
-            let newValue = value;
-
-            if (field === 'status' && currentStudentData.status === value) {
-                newValue = 'unmarked';
-            }
-
-            return {
-                ...prev,
-                [id]: { ...currentStudentData, [field]: newValue }
-            };
+        const data = await readResponse(response);
+        const records = data.records || [];
+        const form = {};
+        records.forEach((record) => {
+          form[String(record.studentId)] = {
+            status: record.status,
+            reason: record.reason,
+            classwork: record.classwork,
+            homework: record.homework,
+            makeupDate: record.makeupDate,
+            makeupTime: record.makeupTime,
+          };
         });
+        setAttendanceForm(form);
+        setMakeupRecords(data.makeupRecords || []);
+        setDailyLoaded(true);
+      } catch (error) {
+        if (error.name === 'AbortError') return;
+        console.error('Loading daily attendance failed:', error);
+        setPageError('এই দিনের উপস্থিতির তথ্য লোড করা যায়নি।');
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
     };
+    loadDaily();
+    return () => controller.abort();
+  }, [admin, tab, selectedDate]);
 
-    // Makeup Modal handlers
-    const handleMakeupClick = (studentId) => {
-        const existing = attendanceForm[studentId] || {};
-        setMakeupModal({
-            open: true,
-            studentId,
-            date: existing.makeupDate ? new Date(existing.makeupDate).toLocaleDateString('en-CA') : '',
-            time: existing.makeupTime || ''
-        });
+  useEffect(() => {
+    if (!admin || tab !== 'report') return undefined;
+    const controller = new AbortController();
+    const loadReport = async () => {
+      setLoading(true);
+      setPageError('');
+      try {
+        const response = await fetch(
+          `${API_BASE}/attendance/report?month=${month}&year=${year}`,
+          { signal: controller.signal }
+        );
+        const data = await readResponse(response);
+        if (!Array.isArray(data.report)) throw new Error('Attendance report is not an array');
+        setReportData(data.report);
+      } catch (error) {
+        if (error.name === 'AbortError') return;
+        console.error('Loading attendance report failed:', error);
+        setPageError('মাসিক রিপোর্ট লোড করা যায়নি।');
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
     };
+    loadReport();
+    return () => controller.abort();
+  }, [admin, tab, month, year]);
 
-    const handleMakeupConfirm = () => {
-        if (!makeupModal.date) {
-            alert('Please select a makeup date');
-            return;
-        }
+  const dayName = useMemo(() => {
+    if (!selectedDate) return '';
+    const date = new Date(`${selectedDate}T12:00:00+06:00`);
+    return new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'Asia/Dhaka' }).format(date);
+  }, [selectedDate]);
 
-        setAttendanceForm(prev => ({
-            ...prev,
-            [makeupModal.studentId]: {
-                ...(prev[makeupModal.studentId] || {}),
-                status: 'makeup',
-                makeupDate: makeupModal.date,
-                makeupTime: makeupModal.time
-            }
-        }));
+  const { scheduled, others } = useMemo(() => {
+    const active = students.filter(
+      (student) => student.status !== 'inactive' && (student.studentType === 'private' || !student.studentType)
+    );
+    const scheduledStudents = active
+      .filter((student) => student.schedule?.includes(dayName))
+      .sort((a, b) => parseTimeForSort(a.routine?.[dayName]) - parseTimeForSort(b.routine?.[dayName]));
+    const otherStudents = active.filter(
+      (student) => !student.schedule?.includes(dayName)
+        && String(student.username || '').toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    return { scheduled: scheduledStudents, others: otherStudents };
+  }, [students, dayName, searchTerm]);
 
-        setMakeupModal({ open: false, studentId: null, date: '', time: '' });
+  const stats = useMemo(() => {
+    const values = Object.values(attendanceForm);
+    return {
+      present: values.filter((value) => value.status === 'present').length,
+      makeup: values.filter((value) => value.status === 'makeup').length,
+      absent: values.filter((value) => value.status === 'absent').length,
     };
+  }, [attendanceForm]);
 
-    const handleMarkAttendance = async () => {
-        setLoading(true);
-        const payload = {
-            date: selectedDate,
-            students: Object.entries(attendanceForm).map(([id, data]) => ({
-                studentId: id,
-                status: data.status,
-                reason: data.reason,
-                classwork: data.classwork,
-                homework: data.homework,
-                makeupDate: data.makeupDate || null,
-                makeupTime: data.makeupTime || ''
-            })),
-            classwork: "",
-            homework: ""
-        };
+  const enrichedMakeup = useMemo(
+    () => makeupRecords.map((record) => {
+      const student = students.find((item) => String(item._id) === String(record.studentId));
+      return { ...record, studentName: student?.username || 'Unknown' };
+    }),
+    [makeupRecords, students]
+  );
 
-        try {
-            const response = await fetch(`${API_BASE}/attendance/mark`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            const data = await response.json();
-            if (data.success) {
-                alert('Attendance Marked!');
-            } else {
-                alert('Failed: ' + data.message);
-            }
-        } catch (error) {
-            console.error(error);
-            alert('Error marking attendance');
-        } finally {
-            setLoading(false);
-        }
-    };
+  const updateField = (studentId, field, value) => {
+    setAttendanceForm((previous) => ({
+      ...previous,
+      [studentId]: { ...(previous[studentId] || {}), [field]: value },
+    }));
+  };
 
-    if (!user || !isAdmin()) return null;
-
-    const { scheduled, others } = getScheduledStudents();
-
-    // Enrich makeup records with student names
-    const enrichedMakeupRecords = makeupRecords.map(r => {
-        const student = students.find(s => s._id === r.studentId?.toString() || s._id === r.studentId);
-        return { ...r, studentName: student?.username || 'Unknown' };
+  const handleMakeupClick = (studentId) => {
+    const current = attendanceForm[studentId] || {};
+    setMakeupModal({
+      open: true,
+      studentId,
+      date: current.makeupDate ? getBDTDate(new Date(current.makeupDate)) : '',
+      time: current.makeupTime || '',
     });
+  };
 
-    return (
-        <div className="min-h-screen bg-base-200 px-2 py-4 pb-24 sm:p-4 md:p-8 font-['Hind_Siliguri']">
-            <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 md:space-y-8">
+  const handleMakeupConfirm = () => {
+    if (!makeupModal.date) {
+      window.alert('Please select a makeup date');
+      return;
+    }
+    setAttendanceForm((previous) => ({
+      ...previous,
+      [makeupModal.studentId]: {
+        ...(previous[makeupModal.studentId] || {}),
+        status: 'makeup',
+        makeupDate: makeupModal.date,
+        makeupTime: makeupModal.time,
+      },
+    }));
+    setMakeupModal({ open: false, studentId: null, date: '', time: '' });
+  };
 
-                {/* Header */}
-                <div className="navbar bg-base-100/60 backdrop-blur-md rounded-xl sm:rounded-2xl shadow-lg border border-white/20 px-3 py-2 sm:px-6 sm:py-4 gap-2">
-                    <div className="flex-1 min-w-0">
-                        <a className="text-lg sm:text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary cursor-pointer truncate">Attendance Tracker</a>
-                    </div>
-                    <div className="flex-none">
-                        <div className="tabs tabs-boxed bg-base-200/50 p-1 rounded-lg sm:rounded-xl">
-                            <a className={`tab tab-sm sm:tab-md px-3 sm:px-6 rounded-lg transition-all ${activeTab === 'daily' ? 'tab-active bg-primary text-white shadow-md' : 'hover:bg-base-300'}`} onClick={() => setActiveTab('daily')}>Daily</a>
-                            <a className={`tab tab-sm sm:tab-md px-3 sm:px-6 rounded-lg transition-all ${activeTab === 'report' ? 'tab-active bg-primary text-white shadow-md' : 'hover:bg-base-300'}`} onClick={() => setActiveTab('report')}>Report</a>
-                        </div>
-                    </div>
+  const handleSave = async () => {
+    if (!dailyLoaded || loading) return;
+    setLoading(true);
+    setPageError('');
+    try {
+      const response = await fetch(`${API_BASE}/attendance/mark`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date: selectedDate,
+          students: Object.entries(attendanceForm).map(([studentId, data]) => ({
+            studentId,
+            status: data.status,
+            reason: data.reason,
+            classwork: data.classwork,
+            homework: data.homework,
+            makeupDate: data.makeupDate || null,
+            makeupTime: data.makeupTime || '',
+          })),
+          classwork: '',
+          homework: '',
+        }),
+      });
+      await readResponse(response);
+      window.alert('Attendance saved!');
+    } catch (error) {
+      console.error('Saving attendance failed:', error);
+      window.alert(`Error saving attendance: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (authLoading) {
+    return <div className="flex justify-center py-16"><IOSSpinner size="lg" /></div>;
+  }
+  if (!user || !admin) return null;
+
+  return (
+    <div className="min-h-screen bg-base-200 pb-24" style={{ fontFamily: "'Hind Siliguri', sans-serif" }}>
+      <div className="max-w-2xl mx-auto px-3 sm:px-4 pt-4">
+        <div className="mb-4">
+          <h1 className="ios-title mb-3">Attendance</h1>
+          <IOSSegmented
+            options={[{ value: 'daily', label: 'Daily' }, { value: 'report', label: 'Report' }]}
+            value={tab}
+            onChange={setTab}
+          />
+        </div>
+
+        {pageError && (
+          <div role="alert" className="mb-3 rounded-xl bg-error/10 p-3 text-sm text-error">
+            {pageError}
+          </div>
+        )}
+
+        {tab === 'daily' && (
+          <>
+            <IOSCard className="p-4 mb-3">
+              <div className="flex items-center gap-3 mb-3">
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(event) => setSelectedDate(event.target.value)}
+                  className="ios-input py-2 font-mono text-[15px] flex-1"
+                />
+                <span className="text-sm font-bold text-base-content/70 whitespace-nowrap">
+                  {BN_DAYS[dayName] || dayName}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 mb-3">
+                {[
+                  { label: 'Present', value: stats.present, color: '#34c759' },
+                  { label: 'Makeup', value: stats.makeup, color: '#5ac8fa' },
+                  { label: 'Absent', value: stats.absent, color: '#ff3b30' },
+                ].map((stat) => (
+                  <div key={stat.label} className="rounded-xl p-2.5 text-center" style={{ background: `${stat.color}15` }}>
+                    <p className="text-xl font-bold" style={{ color: stat.color }}>{bn(stat.value)}</p>
+                    <p className="text-[10px] font-semibold text-base-content/60 mt-0.5">{stat.label}</p>
+                  </div>
+                ))}
+              </div>
+              <IOSButton
+                onClick={handleSave}
+                fullWidth
+                loading={loading}
+                disabled={loading || !dailyLoaded}
+              >
+                Save Attendance
+              </IOSButton>
+            </IOSCard>
+
+            {loading && <div className="flex justify-center py-6"><IOSSpinner /></div>}
+
+            {!loading && enrichedMakeup.length > 0 && (
+              <div className="mb-3">
+                <h2 className="ios-headline px-1 mb-2 flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full bg-info/20 text-info text-xs flex items-center justify-center font-bold">
+                    {bn(enrichedMakeup.length)}
+                  </span>
+                  Makeup Today
+                </h2>
+                <div className="grid grid-cols-1 gap-2">
+                  {enrichedMakeup.map((record, index) => (
+                    <IOSCard key={`${record.studentId}-${record.date}-${index}`} className="p-3 border-l-4 border-info">
+                      <p className="font-bold text-sm">{record.studentName}</p>
+                      <p className="text-[11px] text-base-content/60 mt-0.5">
+                        Original: {formatDate(record.date)}
+                        {record.makeupTime && ` · ${record.makeupTime}`}
+                      </p>
+                    </IOSCard>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {!loading && (
+              <>
+                <div className="mb-3">
+                  <h2 className="ios-headline px-1 mb-2 flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-primary/20 text-primary text-xs flex items-center justify-center font-bold">
+                      {bn(scheduled.length)}
+                    </span>
+                    Scheduled Today
+                  </h2>
+                  {scheduled.length === 0 ? (
+                    <IOSCard className="p-6 text-center">
+                      <p className="text-sm text-base-content/50">No students scheduled today</p>
+                    </IOSCard>
+                  ) : scheduled.map((student) => (
+                    <StudentCard
+                      key={student._id}
+                      student={student}
+                      data={attendanceForm[student._id]}
+                      onChange={(field, value) => updateField(student._id, field, value)}
+                      onMakeupClick={handleMakeupClick}
+                    />
+                  ))}
                 </div>
 
-                {/* DAILY TAB */}
-                {activeTab === 'daily' && (
-                    <div className="space-y-8">
-                        {/* Top Controls Bar */}
-                        <div className="flex flex-col md:flex-row gap-3 sm:gap-6 items-center justify-between bg-base-100 p-3 sm:p-4 md:p-6 rounded-xl sm:rounded-2xl shadow-xl border border-white/10">
-                            <div className="flex items-center gap-3 sm:gap-6 w-full md:w-auto">
-                                <div className="form-control flex-1 md:flex-none md:w-auto">
-                                    <input
-                                        type="date"
-                                        className="input input-md sm:input-lg input-bordered font-mono bg-base-200/50 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 ring-primary/50 w-full"
-                                        value={selectedDate}
-                                        onChange={(e) => setSelectedDate(e.target.value)}
-                                    />
-                                </div>
-                                <div className="hidden md:block h-12 w-px bg-base-300"></div>
-                                <div className="text-lg sm:text-2xl font-bold text-base-content/70 whitespace-nowrap">
-                                    {new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long' })}
-                                </div>
-                            </div>
-
-                            <button
-                                className="btn btn-primary btn-md sm:btn-lg w-full md:w-auto min-w-0 sm:min-w-[200px] shadow-lg shadow-primary/30 rounded-lg sm:rounded-xl hover:-translate-y-1 transition-transform"
-                                onClick={handleMarkAttendance}
-                                disabled={loading}
-                            >
-                                {loading ? <span className="loading loading-spinner"></span> : 'SAVE ATTENDANCE'}
-                            </button>
-                        </div>
-
-                        {/* Summary Stats */}
-                        <div className="stats stats-vertical sm:stats-horizontal shadow-lg w-full bg-base-100 border border-white/10 overflow-hidden rounded-xl sm:rounded-2xl">
-                            <div className="stat py-3 sm:py-4 px-4 sm:px-6 hover:bg-base-200/50 transition-colors">
-                                <div className="stat-title font-bold text-success/80 text-xs sm:text-sm">Present</div>
-                                <div className="stat-value text-success text-2xl sm:text-3xl">
-                                    {Object.values(attendanceForm).filter(r => r.status === 'present').length}
-                                </div>
-                                <div className="stat-desc font-medium text-xs">Students present today</div>
-                            </div>
-                            <div className="stat py-3 sm:py-4 px-4 sm:px-6 hover:bg-base-200/50 transition-colors">
-                                <div className="stat-title font-bold text-info/80 text-xs sm:text-sm">Makeup</div>
-                                <div className="stat-value text-info text-2xl sm:text-3xl">
-                                    {Object.values(attendanceForm).filter(r => r.status === 'makeup').length}
-                                </div>
-                                <div className="stat-desc font-medium text-xs">Rescheduled classes</div>
-                            </div>
-                            <div className="stat py-3 sm:py-4 px-4 sm:px-6 hover:bg-base-200/50 transition-colors">
-                                <div className="stat-title font-bold text-error/80 text-xs sm:text-sm">Absent</div>
-                                <div className="stat-value text-error text-2xl sm:text-3xl">
-                                    {Object.values(attendanceForm).filter(r => r.status === 'absent').length}
-                                </div>
-                                <div className="stat-desc font-medium text-xs">Students absent</div>
-                            </div>
-                        </div>
-
-                        {/* Makeup Classes Scheduled for Today */}
-                        {enrichedMakeupRecords.length > 0 && (
-                            <div className="animate-fade-in-up">
-                                <h2 className="text-xl font-bold mb-4 flex items-center gap-3">
-                                    <span className="badge badge-info badge-lg shadow-md">{enrichedMakeupRecords.length}</span>
-                                    <span className="bg-clip-text text-transparent bg-gradient-to-r from-info to-blue-500">Makeup Classes Today</span>
-                                </h2>
-                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                                    {enrichedMakeupRecords.map((record, i) => (
-                                        <MakeupClassCard key={i} record={record} />
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Scheduled Section */}
-                        <div className="animate-fade-in-up delay-100">
-                            <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 flex items-center gap-2 sm:gap-3">
-                                <span className="badge badge-primary badge-md sm:badge-lg shadow-md">{scheduled.length}</span>
-                                <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">Scheduled Today</span>
-                            </h2>
-                            {scheduled.length === 0 ? (
-                                <div className="alert bg-base-100 shadow-md border-l-4 border-primary">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="stroke-current shrink-0 w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                    <span>No students scheduled for this day. Relax!</span>
-                                </div>
-                            ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
-                                    {scheduled.map(student => (
-                                        <StudentCard
-                                            key={student._id}
-                                            student={student}
-                                            attendanceForm={attendanceForm}
-                                            updateStudentField={updateStudentField}
-                                            onMakeupClick={handleMakeupClick}
-                                        />
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Others Section */}
-                        <div className="collapse collapse-arrow bg-base-100 shadow-lg rounded-2xl border border-white/10 overflow-hidden animate-fade-in-up delay-200">
-                            <input type="checkbox" />
-                            <div className="collapse-title text-xl font-bold p-6">
-                                Show Other Students ({others.length})
-                            </div>
-                            <div className="collapse-content p-6 pt-0">
-                                <div className="form-control mb-6">
-                                    <input
-                                        type="text"
-                                        placeholder="Search student..."
-                                        className="input input-lg input-bordered w-full rounded-xl focus:outline-none focus:ring-2 ring-primary/30"
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                    />
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                                    {others.map(student => (
-                                        <StudentCard
-                                            key={student._id}
-                                            student={student}
-                                            attendanceForm={attendanceForm}
-                                            updateStudentField={updateStudentField}
-                                            onMakeupClick={handleMakeupClick}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
+                <IOSCard className="overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setOthersOpen((open) => !open)}
+                    aria-expanded={othersOpen}
+                    className="w-full flex items-center justify-between p-3.5 ios-pressable"
+                  >
+                    <span className="font-semibold text-sm text-base-content/80">
+                      Other Students ({bn(others.length)})
+                    </span>
+                    <span
+                      className="text-base-content/40 text-sm transition-transform"
+                      style={{ transform: othersOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                      aria-hidden="true"
+                    >
+                      ▼
+                    </span>
+                  </button>
+                  {othersOpen && (
+                    <div className="p-3 border-t border-base-content/10 ios-fade">
+                      <input
+                        type="text"
+                        placeholder="Search student…"
+                        aria-label="Search students"
+                        className="ios-input py-2 text-[13px] mb-2.5"
+                        value={searchTerm}
+                        onChange={(event) => setSearchTerm(event.target.value)}
+                      />
+                      {others.length === 0 ? (
+                        <p className="text-center text-xs text-base-content/40 py-4">No students found</p>
+                      ) : others.map((student) => (
+                        <StudentCard
+                          key={student._id}
+                          student={student}
+                          data={attendanceForm[student._id]}
+                          onChange={(field, value) => updateField(student._id, field, value)}
+                          onMakeupClick={handleMakeupClick}
+                        />
+                      ))}
                     </div>
-                )}
+                  )}
+                </IOSCard>
+              </>
+            )}
+          </>
+        )}
 
-                {/* REPORT TAB */}
-                {activeTab === 'report' && (
-                    <div className="space-y-6">
-                        <div className="flex justify-center gap-4 bg-base-100 p-6 rounded-2xl shadow-lg border border-white/10">
-                            <select
-                                className="select select-bordered select-lg rounded-xl w-full max-w-xs focus:ring-2 ring-primary/30"
-                                value={month}
-                                onChange={(e) => setMonth(e.target.value)}
-                            >
-                                {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m, i) => (
-                                    <option key={m} value={i}>{m}</option>
-                                ))}
-                            </select>
-                            <select
-                                className="select select-bordered select-lg rounded-xl w-full max-w-xs focus:ring-2 ring-primary/30"
-                                value={year}
-                                onChange={(e) => setYear(e.target.value)}
-                            >
-                                <option value="2025">2025</option>
-                                <option value="2026">2026</option>
-                                <option value="2027">2027</option>
-                            </select>
-                        </div>
+        {tab === 'report' && (
+          <>
+            <IOSCard className="p-3 mb-3">
+              <div className="grid grid-cols-2 gap-2">
+                <select
+                  className="ios-input appearance-none text-[14px]"
+                  value={month}
+                  onChange={(event) => setMonth(Number(event.target.value))}
+                  aria-label="Report month"
+                >
+                  {MONTHS.map((name, index) => <option key={name} value={index}>{name}</option>)}
+                </select>
+                <select
+                  className="ios-input appearance-none text-[14px]"
+                  value={year}
+                  onChange={(event) => setYear(Number(event.target.value))}
+                  aria-label="Report year"
+                >
+                  {Array.from({ length: 5 }, (_, index) => year - 2 + index)
+                    .map((value) => <option key={value} value={value}>{value}</option>)}
+                </select>
+              </div>
+            </IOSCard>
 
-                        <div className="card bg-base-100 shadow-xl border border-white/10 overflow-hidden">
-                            <div className="overflow-x-auto">
-                                <table className="table table-zebra w-full text-center">
-                                    <thead className="bg-base-200/80 backdrop-blur text-base-content/80 text-sm uppercase tracking-wide">
-                                        <tr>
-                                            <th className="text-left pl-8 py-4">Student</th>
-                                            <th>Present</th>
-                                            <th>Makeup</th>
-                                            <th>Absent</th>
-                                            <th>Attended / Expected</th>
-                                            <th className="bg-primary/5">Extra Classes</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="text-base">
-                                        {loading ? (
-                                            <tr><td colSpan="6" className="py-20"><span className="loading loading-spinner loading-lg text-primary"></span></td></tr>
-                                        ) : reportData.map((data, idx) => (
-                                            <tr
-                                                key={idx}
-                                                className="hover cursor-pointer transition-colors hover:bg-base-200/50"
-                                                onClick={() => {
-                                                    setSelectedStudentHistory(data);
-                                                    document.getElementById('history_modal').showModal();
-                                                }}
-                                            >
-                                                <td className="text-left pl-8 py-4">
-                                                    <div className="font-bold text-lg">{data.student.username}</div>
-                                                    {data.student.joinDate && (
-                                                        <div className="text-xs text-base-content/40 font-mono">
-                                                            Joined: {new Date(data.student.joinDate).toLocaleDateString('en-GB')}
-                                                        </div>
-                                                    )}
-                                                </td>
-                                                <td className="text-success font-bold text-lg">{data.totalPresent}</td>
-                                                <td className="text-info font-bold text-lg">{data.totalMakeup}</td>
-                                                <td className="text-error font-bold text-lg">{data.totalAbsent}</td>
-                                                <td className="font-bold text-lg">
-                                                    {data.totalAttended} <span className="opacity-40 text-sm font-normal">/ {data.expectedClasses}</span>
-                                                </td>
-                                                <td className={`bg-primary/5 font-bold text-lg ${data.extraClasses >= 0 ? 'text-primary' : 'text-error'}`}>
-                                                    {data.extraClasses > 0 ? `+${data.extraClasses}` : data.extraClasses < 0 ? `${data.extraClasses}` : '0'}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                        {!loading && reportData.length === 0 && (
-                                            <tr><td colSpan="6" className="py-12 opacity-50 text-lg">No records found for this month</td></tr>
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
+            {loading && <div className="flex justify-center py-10"><IOSSpinner size="lg" /></div>}
+            {!loading && reportData.length === 0 && (
+              <IOSCard className="p-8 text-center">
+                <p className="text-sm text-base-content/50">No records for this month</p>
+              </IOSCard>
+            )}
+            {!loading && reportData.length > 0 && (
+              <IOSCard className="divide-y divide-base-content/10 overflow-hidden">
+                {reportData.map((item, index) => (
+                  <button
+                    type="button"
+                    key={item.student?._id || index}
+                    onClick={() => setHistorySheet({ student: item.student, history: item.history })}
+                    className="w-full flex items-center gap-3 p-3.5 text-left ios-pressable hover:bg-base-content/5"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-sm truncate">{item.student?.username || 'Unknown'}</p>
+                      <p className="text-[11px] text-base-content/40 mt-0.5">
+                        P {bn(item.totalPresent)} · M {bn(item.totalMakeup)} · A {bn(item.totalAbsent)}
+                      </p>
+                      <p className="text-[11px] text-base-content/60 mt-0.5">
+                        Attended: {bn(item.totalAttended)} / {bn(item.expectedClasses)}
+                      </p>
                     </div>
-                )}
-
-                {/* History Modal */}
-                <dialog id="history_modal" className="modal modal-bottom sm:modal-middle backdrop-blur-sm">
-                    <div className="modal-box bg-base-100 shadow-2xl rounded-2xl border border-white/10">
-                        <h3 className="font-bold text-xl mb-6 flex items-center gap-2">
-                            <span className="text-primary">📜</span> Attendance History: <span className="text-base-content">{selectedStudentHistory?.student?.username}</span>
-                        </h3>
-                        <div className="overflow-y-auto max-h-96 custom-scrollbar pr-2">
-                            <table className="table table-sm w-full">
-                                <thead className="sticky top-0 bg-base-100 z-10">
-                                    <tr>
-                                        <th>Date</th>
-                                        <th>Status</th>
-                                        <th>Info</th>
-                                        <th className="text-right">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {selectedStudentHistory?.history?.length > 0 ? (
-                                        selectedStudentHistory.history.map((record, i) => (
-                                            <tr key={i} className="hover">
-                                                <td className="font-mono">{new Date(record.date).toLocaleDateString('en-GB')}</td>
-                                                <td>
-                                                    <span className={`badge badge-sm font-bold ${record.status === 'present' ? 'badge-success text-white' :
-                                                        record.status === 'makeup' ? 'badge-info text-white' :
-                                                            record.status === 'absent' ? 'badge-error text-white' :
-                                                                record.status === 'late' ? 'badge-warning text-white' : 'badge-ghost'
-                                                        }`}>
-                                                        {record.status?.toUpperCase()}
-                                                    </span>
-                                                </td>
-                                                <td className="text-xs max-w-[150px] truncate">
-                                                    {record.status === 'makeup' && record.makeupDate && (
-                                                        <div className="text-info font-bold">→ {new Date(record.makeupDate).toLocaleDateString('en-GB')}</div>
-                                                    )}
-                                                    {record.reason && <div className="opacity-70 italic truncate" title={record.reason}>{record.reason}</div>}
-                                                </td>
-                                                <td className="text-right">
-                                                    <button
-                                                        className="btn btn-xs btn-outline btn-primary rounded-md"
-                                                        onClick={() => {
-                                                            const targetDate = new Date(record.date).toLocaleDateString('en-CA', { timeZone: 'Asia/Dhaka' });
-                                                            setSelectedDate(targetDate);
-                                                            setActiveTab('daily');
-                                                            document.getElementById('history_modal').close();
-                                                        }}
-                                                    >
-                                                        EDIT
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))
-                                    ) : (
-                                        <tr><td colSpan="4" className="text-center py-4 text-base-content/50">No records found</td></tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                        <div className="modal-action mt-6">
-                            <form method="dialog">
-                                <button className="btn rounded-xl">Close</button>
-                            </form>
-                        </div>
+                    <div className="text-right">
+                      <p className={`text-lg font-bold ${item.extraClasses >= 0 ? 'text-primary' : 'text-error'}`}>
+                        {item.extraClasses > 0 ? `+${bn(item.extraClasses)}` : bn(item.extraClasses)}
+                      </p>
+                      <p className="text-[10px] text-base-content/40">Extra</p>
                     </div>
-                </dialog>
+                  </button>
+                ))}
+              </IOSCard>
+            )}
+          </>
+        )}
+      </div>
 
-                {/* Makeup Schedule Modal */}
-                {makeupModal.open && (
-                    <dialog className="modal modal-open backdrop-blur-sm">
-                        <div className="modal-box bg-base-100 shadow-2xl rounded-2xl border border-white/10">
-                            <h3 className="font-bold text-xl mb-2 flex items-center gap-2 text-info">
-                                📅 Schedule Makeup Class
-                            </h3>
-                            <p className="text-sm text-base-content/60 mb-6">
-                                কবে এবং কখন makeup class নেওয়া হবে সেটা সিলেক্ট করুন
-                            </p>
-                            <div className="space-y-4">
-                                <div className="form-control">
-                                    <label className="label">
-                                        <span className="label-text font-bold">Makeup Date</span>
-                                    </label>
-                                    <input
-                                        type="date"
-                                        className="input input-bordered w-full rounded-xl"
-                                        value={makeupModal.date}
-                                        onChange={(e) => setMakeupModal(prev => ({ ...prev, date: e.target.value }))}
-                                    />
-                                </div>
-                                <div className="form-control">
-                                    <label className="label">
-                                        <span className="label-text font-bold">Time Slot</span>
-                                    </label>
-                                    <select
-                                        className="select select-bordered w-full rounded-xl"
-                                        value={makeupModal.time}
-                                        onChange={(e) => setMakeupModal(prev => ({ ...prev, time: e.target.value }))}
-                                    >
-                                        <option value="">Select Time</option>
-                                        {timeSlots.map(slot => (
-                                            <option key={slot._id} value={slot.label}>{slot.label}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-                            <div className="modal-action mt-8">
-                                <button
-                                    className="btn rounded-xl"
-                                    onClick={() => setMakeupModal({ open: false, studentId: null, date: '', time: '' })}
-                                >Cancel</button>
-                                <button
-                                    className="btn btn-info text-white rounded-xl px-6 shadow-lg shadow-info/30"
-                                    onClick={handleMakeupConfirm}
-                                >Confirm Makeup</button>
-                            </div>
-                        </div>
-                        <form method="dialog" className="modal-backdrop">
-                            <button onClick={() => setMakeupModal({ open: false, studentId: null, date: '', time: '' })}>close</button>
-                        </form>
-                    </dialog>
-                )}
-            </div>
-        </div >
-    );
-};
+      <IOSSheet
+        open={Boolean(historySheet)}
+        onClose={() => setHistorySheet(null)}
+        title={historySheet?.student?.username || 'History'}
+        maxHeight="88vh"
+      >
+        <div className="p-4">
+          {historySheet?.history?.length ? (
+            <IOSCard className="divide-y divide-base-content/10 overflow-hidden">
+              {historySheet.history.map((record, index) => (
+                <div key={`${record.date}-${index}`} className="flex items-center gap-2 p-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-mono">{formatDate(record.date)}</p>
+                    {record.status === 'makeup' && record.makeupDate && (
+                      <p className="text-[10px] text-info">→ {formatDate(record.makeupDate)}</p>
+                    )}
+                    {record.reason && <p className="text-[11px] text-base-content/50 truncate">{record.reason}</p>}
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                    record.status === 'present' ? 'bg-success/15 text-success'
+                      : record.status === 'makeup' ? 'bg-info/15 text-info'
+                        : record.status === 'absent' ? 'bg-error/15 text-error'
+                          : 'bg-base-content/10 text-base-content/60'
+                  }`}>
+                    {record.status}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedDate(getBDTDate(new Date(record.date)));
+                      setTab('daily');
+                      setHistorySheet(null);
+                    }}
+                    className="text-[11px] text-primary font-semibold ios-pressable"
+                  >
+                    Edit
+                  </button>
+                </div>
+              ))}
+            </IOSCard>
+          ) : <p className="text-center text-sm text-base-content/50 py-6">No records</p>}
+        </div>
+      </IOSSheet>
 
-export default AttendancePage;
+      <IOSSheet
+        open={makeupModal.open}
+        onClose={() => setMakeupModal({ open: false, studentId: null, date: '', time: '' })}
+        title="Schedule Makeup"
+      >
+        <div className="p-4 space-y-3">
+          <div>
+            <label htmlFor="makeup-date" className="block text-[12px] font-semibold text-base-content/60 uppercase mb-1.5 px-1">
+              Date
+            </label>
+            <input
+              id="makeup-date"
+              type="date"
+              className="ios-input"
+              value={makeupModal.date}
+              onChange={(event) => setMakeupModal((current) => ({ ...current, date: event.target.value }))}
+            />
+          </div>
+          <div>
+            <label htmlFor="makeup-time" className="block text-[12px] font-semibold text-base-content/60 uppercase mb-1.5 px-1">
+              Time Slot
+            </label>
+            <select
+              id="makeup-time"
+              className="ios-input appearance-none"
+              value={makeupModal.time}
+              onChange={(event) => setMakeupModal((current) => ({ ...current, time: event.target.value }))}
+            >
+              <option value="">Select</option>
+              {timeSlots.map((slot) => <option key={slot._id} value={slot.label}>{slot.label}</option>)}
+            </select>
+          </div>
+          <IOSButton onClick={handleMakeupConfirm} fullWidth size="lg">
+            Confirm Makeup
+          </IOSButton>
+        </div>
+      </IOSSheet>
+    </div>
+  );
+}

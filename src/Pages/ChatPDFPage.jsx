@@ -1,9 +1,18 @@
-import React, { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { v4 as uuidv4 } from "uuid";
 import MathRenderer from "../Components/MathRenderer/MathRenderer";
+import IOSButton from "../Components/ios/iOSButton";
+import IOSCard from "../Components/ios/iOSCard";
 
-// Use a server-side proxy to avoid exposing token or token-source URL to the client.
 const API_URL = "https://geminiai-render.onrender.com/api/ai-free-chatpdf";
+const TOKEN_URL = "https://geminiai-render.onrender.com/api/ai-free/ai-free";
+const QUESTION_TYPES = [
+  { value: 'জ্ঞানমূলক', label: 'জ্ঞানমূলক', icon: '📌' },
+  { value: 'অনুধাবন', label: 'অনুধাবন', icon: '💡' },
+  { value: 'বহুনির্বাচনী', label: 'বহুনির্বাচনী', icon: '📝' },
+  { value: 'গাণিতিক প্রশ্ন', label: 'গাণিতিক', icon: '🧮' },
+  { value: 'সৃজনশীল', label: 'সৃজনশীল', icon: '🎯' },
+];
 
 const ChatPDFPage = ({
   questionTypeOverride = undefined,
@@ -15,20 +24,38 @@ const ChatPDFPage = ({
   const [answer, setAnswer] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [mapping, setMapping] = useState([]);
   const [file, setFile] = useState(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
-  const fileInputRef = React.useRef();
+  const [tokenLoading, setTokenLoading] = useState(true);
+  const [tokenError, setTokenError] = useState("");
+  const fileInputRef = useRef(null);
   // conversation_id and idToken should persist for the session (until page refresh)
   const [conversationId] = useState(() => uuidv4());
   const [idToken, setIdToken] = useState(null);
 
   // Fetch idToken on page load/refresh
   useEffect(() => {
-    fetch("https://geminiai-render.onrender.com/api/ai-free/ai-free")
-      .then(res => res.json())
-      .then(data => setIdToken(data.idToken || null))
-      .catch(() => setIdToken(null));
+    const controller = new AbortController();
+    const fetchToken = async () => {
+      setTokenLoading(true);
+      setTokenError("");
+      try {
+        const response = await fetch(TOKEN_URL, { signal: controller.signal });
+        if (!response.ok) throw new Error(`Token request failed (${response.status})`);
+        const data = await response.json();
+        if (!data.idToken) throw new Error('Token response did not include an ID token');
+        setIdToken(data.idToken);
+      } catch (requestError) {
+        if (requestError.name === 'AbortError') return;
+        console.error("Error fetching ChatPDF token:", requestError);
+        setIdToken(null);
+        setTokenError("AI token লোড করা যায়নি। পৃষ্ঠাটি refresh করে আবার চেষ্টা করুন।");
+      } finally {
+        if (!controller.signal.aborted) setTokenLoading(false);
+      }
+    };
+    fetchToken();
+    return () => controller.abort();
   }, []);
   useEffect(() => {
     return () => {
@@ -46,31 +73,21 @@ const ChatPDFPage = ({
   // Removed mappingLoading and mapping fetch for class/subject/chapter
 
   // Removed classes, subjects, chapters variables
-  const questionTypes = [
-    { value: 'জ্ঞানমূলক', label: 'জ্ঞানমূলক' },
-    { value: 'অনুধাবন', label: 'অনুধাবন' },
-    { value: 'বহুনির্বাচনী', label: 'বহুনির্বাচনী' },
-    { value: 'গাণিতিক প্রশ্ন', label: 'গাণিতিক প্রশ্ন' },
-    { value: 'সৃজনশীল', label: 'সৃজনশীল' }
-  ];
-
   const handleFileChange = (e) => {
     if (answer) setAnswer("");
-    const selected = e.target.files[0];
+    setError("");
+    const selected = e.target.files?.[0] || null;
     setFile(selected);
-    if (selected && selected.type.startsWith('image/')) {
-      if (imagePreviewUrl) {
-        URL.revokeObjectURL(imagePreviewUrl);
-      }
-      const previewUrl = URL.createObjectURL(selected);
-      setImagePreviewUrl(previewUrl);
-    } else {
-      if (imagePreviewUrl) {
-        URL.revokeObjectURL(imagePreviewUrl);
-      }
-      setImagePreviewUrl(null);
-    }
+    setImagePreviewUrl(selected?.type.startsWith('image/') ? URL.createObjectURL(selected) : null);
   };
+
+  const removeFile = () => {
+    setFile(null);
+    setImagePreviewUrl(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const canSubmit = !loading && !tokenLoading && Boolean(idToken) && (question.trim() || file);
 
   const getPromptForQuestionType = (type, userQuestion, contextPrompt = null) => {
     const safeQuestion = userQuestion && userQuestion.trim() ? userQuestion : "ছবিতে দেওয়া প্রশ্নটি দেখুন।";
@@ -94,24 +111,25 @@ const ChatPDFPage = ({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
     if (!questionType) {
       setError("প্রশ্নের ধরণ সিলেক্ট করুন।");
-      setLoading(false);
       return;
     }
     if (!question.trim() && !file) {
       setError("প্রশ্ন লিখুন অথবা ফাইল দিন।");
-      setLoading(false);
+      return;
+    }
+    if (!idToken) {
+      setError(tokenError || "AI token প্রস্তুত নয়। পৃষ্ঠাটি refresh করে আবার চেষ্টা করুন।");
       return;
     }
     setLoading(true);
-    setError("");
     setAnswer("");
     try {
-      const message_id = uuidv4();
       const formData = new FormData();
       formData.append("conversation_id", conversationId);
-      formData.append("message_id", message_id);
+      formData.append("message_id", uuidv4());
       const prompt = getPromptForQuestionType(questionType, question);
       formData.append("content", prompt);
       formData.append("model", "gemini-2.5-flash");
@@ -124,121 +142,150 @@ const ChatPDFPage = ({
         body: formData,
         headers: idToken ? { "authorization": `Bearer ${idToken}` } : {},
       });
-      if (!response.ok) {
-        setLoading(false);
-        if (imagePreviewUrl) {
-          URL.revokeObjectURL(imagePreviewUrl);
-        }
-        setImagePreviewUrl(null);
-        throw new Error("API Error: " + response.status);
-      }
+      if (!response.ok) throw new Error("API Error: " + response.status);
+      if (!response.body) throw new Error("AI response did not include a readable stream.");
       const reader = response.body.getReader();
       let answerText = "";
+      let buffer = "";
       const decoder = new TextDecoder('utf-8');
+      const readLine = (line) => {
+        let content = line.trim();
+        if (!content || content.startsWith(':')) return;
+        if (content.startsWith('data:')) content = content.slice(5).trim();
+        if (!content || content === '[DONE]') return;
+
+        let event;
+        try {
+          event = JSON.parse(content);
+        } catch (parseError) {
+          throw new Error("AI response stream was not valid JSON.", { cause: parseError });
+        }
+        if (event.type === "text_delta" && event.data) answerText += event.data;
+      };
+
       while (true) {
         const { done, value } = await reader.read();
+        buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+        const lines = buffer.split(/\r?\n/);
+        buffer = lines.pop() || "";
+        lines.forEach(readLine);
         if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        try {
-          const obj = JSON.parse(chunk);
-          if (obj.type === "text_delta" && obj.data) {
-            answerText += obj.data;
-          }
-        } catch {}
       }
-      if (answerText) {
-        setAnswer(answerText);
-      } else {
-        setAnswer("");
-      }
-      setFile(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      if (imagePreviewUrl) {
-        URL.revokeObjectURL(imagePreviewUrl);
-      }
-      setImagePreviewUrl(null);
+      if (buffer.trim()) readLine(buffer);
+      setAnswer(answerText || 'কোনো উত্তর পাওয়া যায়নি।');
+      removeFile();
     } catch (err) {
-      setError(err.message);
+      console.error("ChatPDF request failed:", err);
+      setError(err.message || "সমস্যা হয়েছে, আবার চেষ্টা করুন");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="container mx-auto p-4 max-w-3xl" style={{ fontFamily: 'Hind Siliguri, sans-serif' }}>
-      <h1 className="text-2xl font-extrabold mb-4 text-center sm:text-left">ChatPDF</h1>
-      <form 
-        className="bg-white dark:bg-base-200 rounded shadow p-3 sm:p-8 mb-6" 
-        onSubmit={handleSubmit}
-        style={{ contain: 'layout', willChange: 'contents' }}
-      >
-        {!hideSelectors ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
-            {/* শ্রেণি, বিষয়, অধ্যায় dropdowns removed as per user request */}
-            <select className="select select-bordered w-full text-sm" value={questionType} onChange={e => {
-              setQuestionType(e.target.value);
-              if (answer) setAnswer('');
-            }}>
-              <option value="">প্রশ্নের ধরণ</option>
-              {questionTypes.map((type, i) => <option key={i} value={type.value}>{type.label}</option>)}
-            </select>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
-            {/* শ্রেণি, বিষয়, অধ্যায় input fields removed as per user request */}
-            <select
-              className="select select-bordered w-full text-sm"
-              style={{ fontFamily: 'Hind Siliguri, sans-serif' }}
-              value={questionType}
-              onChange={e => setQuestionType(e.target.value)}
-            >
-              <option value="">প্রশ্নের ধরণ</option>
-              {questionTypes.map((type, i) => <option key={i} value={type.value}>{type.label}</option>)}
-            </select>
-          </div>
+    <main className="mx-auto min-h-screen w-full max-w-3xl px-4 py-8 sm:px-6" style={{ fontFamily: 'Hind Siliguri, sans-serif' }}>
+      <header className="mb-7 text-center sm:text-left">
+        <p className="mb-2 text-sm font-semibold text-primary">পড়াশোনার সহায়ক</p>
+        <h1 className="text-3xl font-bold tracking-tight text-base-content">ChatPDF</h1>
+        <p className="mt-2 text-base-content/65">প্রশ্ন লিখুন অথবা ছবি/PDF যোগ করে উত্তর নিন।</p>
+      </header>
+
+      <form onSubmit={handleSubmit} className="space-y-5">
+        {(!hideSelectors || questionTypeOverride === undefined) && (
+          <section aria-label="প্রশ্নের ধরণ" className="flex flex-wrap gap-2">
+            {QUESTION_TYPES.map(({ value, label, icon }) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => {
+                  setQuestionType(value);
+                  if (answer) setAnswer("");
+                }}
+                aria-pressed={questionType === value}
+                className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
+                  questionType === value
+                    ? "border-primary bg-primary text-primary-content"
+                    : "border-base-300 bg-base-100 text-base-content hover:border-primary/50"
+                }`}
+              >
+                <span aria-hidden="true" className="mr-1.5">{icon}</span>{label}
+              </button>
+            ))}
+          </section>
         )}
-        <div className="mb-4">
+
+        <IOSCard className="space-y-4 p-4 sm:p-6">
+          <label htmlFor="chatpdf-question" className="block text-sm font-semibold text-base-content">
+            আপনার প্রশ্ন
+          </label>
           <textarea
-            className="textarea textarea-bordered w-full text-sm"
-            rows={4}
-            placeholder="প্রশ্ন লিখুন..."
+            id="chatpdf-question"
+            className="min-h-36 w-full resize-y rounded-2xl border border-base-300 bg-base-100 p-4 text-base text-base-content outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+            placeholder="এখানে প্রশ্ন লিখুন..."
             value={question}
-            onChange={(e) => setQuestion(e.target.value)}
+            onChange={(event) => setQuestion(event.target.value)}
           />
-        </div>
-        <div className="mb-4">
-          <label className="block mb-1 font-semibold text-sm">অথবা ফাইল আপলোড করুন:</label>
-          <input type="file" className="file-input file-input-bordered w-full text-sm" onChange={handleFileChange} ref={fileInputRef} />
-          {imagePreviewUrl && <div className="mt-2"><img src={imagePreviewUrl} alt="Uploaded" className="max-h-32 w-auto rounded shadow mx-auto block" /></div>}
-          {file && !file.type.startsWith('image/') && <div className="mt-2 text-xs text-gray-600">ফাইল যুক্ত হয়েছে: {file.name}</div>}
-        </div>
-        <button
-          type="submit"
-          className="btn btn-primary w-full text-sm sm:text-base"
-          disabled={loading || (!question.trim() && !file)}
-        >
-          {loading ? "লোড হচ্ছে..." : "উত্তর জানুন"}
-        </button>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <label
+              htmlFor="chatpdf-file"
+              className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-base-300 px-4 py-2 text-sm font-medium text-base-content transition hover:bg-base-200"
+            >
+              <span aria-hidden="true">＋</span>
+              ছবি বা PDF যোগ করুন
+            </label>
+            <input
+              id="chatpdf-file"
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,.pdf,application/pdf"
+              className="sr-only"
+              onChange={handleFileChange}
+            />
+            <span className="text-xs text-base-content/55">ছবি বা PDF</span>
+          </div>
+
+          {file && (
+            <div className="flex items-start gap-3 rounded-2xl bg-base-200/70 p-3">
+              {imagePreviewUrl ? (
+                <img src={imagePreviewUrl} alt="আপলোড করা ছবির প্রিভিউ" className="h-16 w-16 rounded-xl object-cover" />
+              ) : (
+                <span aria-hidden="true" className="grid h-16 w-16 shrink-0 place-items-center rounded-xl bg-base-300 text-2xl">📄</span>
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-base-content">{file.name}</p>
+                <p className="mt-1 text-xs text-base-content/60">{(file.size / (1024 * 1024)).toFixed(2)} MB</p>
+              </div>
+              <button
+                type="button"
+                onClick={removeFile}
+                aria-label="ফাইল সরান"
+                className="rounded-full px-3 py-1 text-sm text-base-content/65 hover:bg-base-300"
+              >
+                সরান
+              </button>
+            </div>
+          )}
+
+          {tokenLoading && <p role="status" className="text-sm text-base-content/60">AI প্রস্তুত হচ্ছে...</p>}
+          {tokenError && <p role="alert" className="text-sm text-error">{tokenError}</p>}
+          {error && <p role="alert" className="text-sm text-error">{error}</p>}
+
+          <IOSButton type="submit" className="w-full" disabled={!canSubmit || !questionType}>
+            {loading ? "উত্তর তৈরি হচ্ছে..." : "উত্তর জানুন"}
+          </IOSButton>
+        </IOSCard>
       </form>
-      {error && <div className="text-red-500 mb-2">{error}</div>}
+
       {answer && (
-        <div className="bg-base-100 rounded shadow p-3 sm:p-4 text-base sm:text-lg text-base-content overflow-hidden">
-          <span className="font-bold">উত্তর:</span>
-          <div 
-            className="answer-content overflow-x-auto"
-            style={{
-              lineHeight: '1.8', 
-              wordSpacing: '0.1em',
-              marginTop: '0.5rem',
-              contain: 'layout style paint',
-              willChange: 'contents'
-            }}
-          >
+        <IOSCard className="mt-6 p-4 sm:p-6">
+          <h2 className="mb-3 text-lg font-bold text-base-content">উত্তর</h2>
+          <div className="answer-content overflow-x-auto text-base text-base-content" style={{ lineHeight: 1.8, wordSpacing: '0.1em' }}>
             {memoizedAnswerContent}
           </div>
-        </div>
+        </IOSCard>
       )}
-    </div>
+    </main>
   );
 };
 

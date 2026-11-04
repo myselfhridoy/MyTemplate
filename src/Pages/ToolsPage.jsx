@@ -1,136 +1,140 @@
-import React, { useState } from "react";
-import DesmosGraphPage from "./DesmosGraphPage";
-import BoardResultPage from "./BoardResultPage";
+import React, { useState } from 'react';
+import DesmosGraphPage from './DesmosGraphPage';
+import BoardResultPage from './BoardResultPage';
+import { iOSCard as IOSCard } from '../Components/ios/iOSCard';
 
-const CopyTelegramLink = () => {
+const TOOLS = [
+  { value: 'board-result', label: 'বোর্ড পরীক্ষার ফলাফল', emoji: '🎓', desc: 'বোর্ড রেজাল্ট চেক করুন', color: '#ff2d55' },
+  { value: 'desmos', label: 'গ্রাফ ক্যালকুলেটর', emoji: '📈', desc: 'Desmos graph calculator', color: '#007aff' },
+  { value: 'telegram', label: 'টেলিগ্রাম বট', emoji: '💬', desc: 'HMTutoringAI Bot', color: '#34c759' },
+  { value: 'facebook', label: 'Facebook পেজ', emoji: '📘', desc: 'আমাদের Facebook পেজ', color: '#5ac8fa' },
+];
+
+export default function ToolsPage() {
+  const [selected, setSelected] = useState('');
   const [copied, setCopied] = useState(false);
-  const link = "https://t.me/HMTutoringAI_bot";
 
-  const handleCopy = async () => {
+  const copyTelegramLink = async () => {
+    const link = 'https://t.me/HMTutoringAI_bot';
     try {
-      if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
+      if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(link);
       } else {
-        const ta = document.createElement("textarea");
-        ta.value = link;
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand("copy");
-        document.body.removeChild(ta);
+        const textArea = document.createElement('textarea');
+        textArea.value = link;
+        textArea.style.position = 'fixed';
+        textArea.style.opacity = '0';
+        document.body.appendChild(textArea);
+        textArea.select();
+        const didCopy = document.execCommand('copy');
+        document.body.removeChild(textArea);
+        if (!didCopy) throw new Error('Clipboard copy was not permitted.');
       }
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error("Copy failed", err);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      console.error('Unable to copy Telegram link:', error);
     }
   };
 
-  return (
+  const telegramCard = React.createElement(
+    IOSCard,
+    { className: 'p-5 text-center' },
     <>
-      <button className="btn btn-ghost" onClick={handleCopy} title="Copy Telegram link">
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 24 24" fill="none">
-          <path d="M3 12v8a2 2 0 0 0 2 2h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          <path d="M21 3v8a2 2 0 0 1-2 2h-8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          <path d="M7 12l10-8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-        Copy Link
-      </button>
-      {copied && <span className="ml-2 text-green-600">Copied!</span>}
+      <div className="text-4xl mb-3">💬</div>
+      <h2 className="ios-headline mb-2">H.M. Tutoring Bot</h2>
+      <p className="ios-subhead mb-4">Open in Telegram app or browser</p>
+      <div className="space-y-2">
+        <a href="tg://resolve?domain=HMTutoringAI_bot" className="ios-btn ios-btn-primary w-full">
+          Open in App
+        </a>
+        <a
+          href="https://t.me/HMTutoringAI_bot"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="ios-btn ios-btn-secondary w-full"
+        >
+          Open in Browser
+        </a>
+        <button type="button" onClick={copyTelegramLink} className="ios-btn ios-btn-ghost w-full">
+          {copied ? 'Copied!' : 'Copy Link'}
+        </button>
+      </div>
     </>
   );
-};
 
-const toolOptions = [
-  { value: "", label: "টুল সিলেক্ট করুন" },
-  { value: "board-result", label: "বোর্ড পরীক্ষার ফলাফল" },
-  { value: "desmos", label: "গ্রাফ ক্যালকুলেটর" },
-  { value: "telegram", label: "টেলিগ্রাম বট" }
-  ,{ value: "facebook", label: "Facebook পেজ" }
-  
-];
-
-const ToolsPage = () => {
-  const [selectedTool, setSelectedTool] = useState("");
+  const facebookCard = React.createElement(
+    IOSCard,
+    { className: 'p-5 text-center' },
+    <>
+      <div className="text-4xl mb-3">📘</div>
+      <h2 className="ios-headline mb-2">H.M. Tutoring</h2>
+      <p className="ios-subhead mb-4">Our official Facebook page</p>
+      <a
+        href="https://www.facebook.com/HMTutoring.Official/"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="ios-btn ios-btn-primary w-full"
+      >
+        Open Facebook
+      </a>
+    </>
+  );
 
   return (
-    <div className="container mx-auto p-4" style={{ fontFamily: "'Hind Siliguri', 'Kalpurush', 'Noto Sans Bengali', 'SolaimanLipi', 'Arial', sans-serif" }}>
-      <h1 className="text-2xl font-extrabold mb-4 text-center">প্রয়োজনীয় টুলস</h1>
-      <div className="flex justify-center mb-8">
-        <select
-          className="select select-bordered"
-          value={selectedTool}
-          onChange={e => setSelectedTool(e.target.value)}
-          style={{ minWidth: 180 }}
-        >
-          {toolOptions.map(opt => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
-          ))}
-        </select>
-      </div>
-      {selectedTool === "desmos" && (
-        <div className="mt-2">
-          <DesmosGraphPage />
-        </div>
-      )}
-      {selectedTool === "telegram" && (
-        <div className="mt-2 flex flex-col items-center">
-          <div className="bg-base-100 rounded shadow p-4 text-center max-w-md">
-            <h2 className="text-lg font-bold mb-2">টেলিগ্রাম বট</h2>
-            <p className="mb-3">H.M. Tutoring AI-এর টেলিগ্রাম বট ব্যবহার করতে নিচের অপশনগুলো দেখুন:</p>
-            <div className="flex flex-col sm:flex-row gap-2 justify-center items-center">
-              <a
-                href="tg://resolve?domain=HMTutoringAI_bot"
-                className="btn btn-info flex items-center"
-                title="Open in Telegram app"
+    <div className="min-h-screen bg-base-200 pb-24">
+      <div className="max-w-2xl mx-auto px-4 pt-4">
+        <h1 className="ios-title mb-1">Tools</h1>
+        <p className="ios-subhead mb-5">প্রয়োজনীয় টুলস</p>
+
+        {!selected && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {TOOLS.map((tool) => (
+              <button
+                key={tool.value}
+                type="button"
+                onClick={() => setSelected(tool.value)}
+                className="ios-card ios-pressable p-4 text-left w-full flex items-center gap-3"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 240 240" fill="none">
-                  <circle cx="120" cy="120" r="120" fill="#0088cc" />
-                  <path d="M49 118l144-46c6-2 9 1 8 7l-26 122c-2 8-8 10-16 6l-44-32-21 21c-2 2-4 4-8 4l3-44L188 94" fill="#fff" />
+                <div
+                  className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0"
+                  style={{ background: `${tool.color}20`, color: tool.color }}
+                  aria-hidden="true"
+                >
+                  {tool.emoji}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-[15px] truncate">{tool.label}</p>
+                  <p className="text-xs text-base-content/50 mt-0.5 truncate">{tool.desc}</p>
+                </div>
+                <svg className="w-4 h-4 text-base-content/30 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
                 </svg>
-                Open in App
-              </a>
-
-              <a
-                href="https://t.me/HMTutoringAI_bot"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn btn-primary"
-                title="Open in browser"
-              >
-                Open in Browser
-              </a>
-            </div>
-
-            <div className="mt-3 flex gap-2 justify-center items-center">
-              <CopyTelegramLink />
-            </div>
-            <p className="text-sm text-gray-500 mt-3">Tip: If the app link doesn't open, use the browser link above.</p>
+              </button>
+            ))}
           </div>
-        </div>
-      )}
-      {selectedTool === "facebook" && (
-        <div className="mt-2 flex flex-col items-center">
-          <div className="bg-base-100 rounded shadow p-4 text-center max-w-md">
-            <h2 className="text-lg font-bold mb-2">H.M. Tutoring — Facebook</h2>
-            <p className="mb-3">Visit our official Facebook page for updates, posts and community discussions.</p>
-            <a
-              href="https://www.facebook.com/HMTutoring.Official/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn btn-primary"
+        )}
+
+        {selected && (
+          <div>
+            <button
+              type="button"
+              onClick={() => setSelected('')}
+              className="mb-4 flex items-center gap-1 text-primary font-semibold text-sm ios-pressable"
             >
-              Open Facebook Page
-            </a>
+              <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+              Back
+            </button>
+
+            {selected === 'desmos' && <DesmosGraphPage />}
+            {selected === 'board-result' && <BoardResultPage />}
+            {selected === 'telegram' && telegramCard}
+            {selected === 'facebook' && facebookCard}
           </div>
-        </div>
-      )}
-      {selectedTool === "board-result" && (
-        <div className="mt-2">
-          <BoardResultPage />
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
-};
-
-export default ToolsPage;
+}

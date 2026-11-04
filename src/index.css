@@ -1,24 +1,306 @@
 @import "tailwindcss";
-@plugin "daisyui";
+@plugin "daisyui" {
+  themes: light --default, dark --prefersdark;
+}
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  @apply bg-base-100 text-base-content;
+  --ios-blue: #007aff;
+  --ios-green: #34c759;
+  --ios-indigo: #5856d6;
+  --ios-orange: #ff9500;
+  --ios-pink: #ff2d55;
+  --ios-purple: #af52de;
+  --ios-red: #ff3b30;
+  --ios-teal: #5ac8fa;
+  --ios-yellow: #ffcc00;
+  --ios-gray: #8e8e93;
+  --ios-gray2: #aeaeb2;
+  --ios-gray3: #c7c7cc;
+  --ios-gray4: #d1d1d6;
+  --ios-gray5: #e5e5ea;
+  --ios-gray6: #f2f2f7;
+  --ios-radius-sm: 8px;
+  --ios-radius-md: 12px;
+  --ios-radius-lg: 16px;
+  --ios-radius-xl: 22px;
+  --ios-radius-pill: 999px;
+  --ios-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --ios-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);
+  --ios-shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.06);
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+[data-theme="dark"] {
+  --ios-gray6: #1c1c1e;
+  --ios-gray5: #2c2c2e;
+  --ios-gray4: #3a3a3c;
+  --ios-gray3: #48484a;
+  --ios-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --ios-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --ios-shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Hind Siliguri', 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior-y: none;
 }
 
 body {
   margin: 0;
-  font-family: 'Hind Siliguri', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  background: var(--color-base-100, #fff);
+  color: var(--color-base-content, #1c1c1e);
 }
 
-/* MathJax container — prevent overflow on mobile, hide scrollbar */
+input,
+select,
+textarea {
+  font-size: 16px !important;
+}
+
+@media (min-width: 768px) {
+  input,
+  select,
+  textarea {
+    font-size: inherit !important;
+  }
+}
+
+.ios-app-main {
+  padding-top: calc(3.5rem + var(--safe-top));
+}
+
+.safe-top {
+  padding-top: var(--safe-top);
+}
+
+.ios-card,
+.ios-inset-list {
+  background: var(--color-base-100, #fff);
+  border-radius: var(--ios-radius-lg);
+  box-shadow: var(--ios-shadow-sm);
+  overflow: hidden;
+}
+
+.ios-inset-list > * + * {
+  border-top: 1px solid var(--color-base-300, #e5e5ea);
+  margin-left: 16px;
+}
+
+.ios-list-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--color-base-100, #fff);
+  transition: background 0.15s ease;
+  cursor: pointer;
+  min-height: 48px;
+}
+
+.ios-list-item:active {
+  background: var(--color-base-200, #f2f2f7);
+}
+
+.ios-segmented {
+  display: inline-flex;
+  background: var(--color-base-300, #e5e5ea);
+  border-radius: var(--ios-radius-md);
+  padding: 2px;
+  position: relative;
+}
+
+.ios-segmented button {
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--color-base-content, #1c1c1e) 70%, transparent);
+  background: transparent;
+  border: none;
+  border-radius: calc(var(--ios-radius-md) - 2px);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex: 1;
+  white-space: nowrap;
+}
+
+.ios-segmented button.active {
+  background: var(--color-base-100, #fff);
+  color: var(--color-base-content, #1c1c1e);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.ios-glass {
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  background: color-mix(in srgb, var(--color-base-100, #fff) 72%, transparent);
+}
+
+.ios-tabbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 40;
+  padding-bottom: var(--safe-bottom);
+  height: calc(56px + var(--safe-bottom));
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  border-top: 0.5px solid var(--color-base-300, #e5e5ea);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  background: color-mix(in srgb, var(--color-base-100, #fff) 85%, transparent);
+}
+
+.ios-tabbar-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  flex: 1;
+  padding: 6px 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--ios-gray);
+  transition: color 0.15s ease;
+  cursor: pointer;
+  background: none;
+  border: none;
+}
+
+.ios-tabbar-item.active {
+  color: var(--ios-blue);
+}
+
+.ios-title {
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  line-height: 1.1;
+}
+
+.ios-title-lg {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+}
+
+.ios-headline {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+}
+
+.ios-subhead {
+  font-size: 15px;
+  font-weight: 400;
+  color: color-mix(in srgb, var(--color-base-content, #1c1c1e) 60%, transparent);
+}
+
+.ios-caption {
+  font-size: 13px;
+  color: color-mix(in srgb, var(--color-base-content, #1c1c1e) 50%, transparent);
+}
+
+@keyframes ios-sheet-slide-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+@keyframes ios-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes ios-pop-in {
+  0% { transform: scale(0.9); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.ios-sheet { animation: ios-sheet-slide-up 0.28s cubic-bezier(0.32, 0.72, 0, 1); }
+.ios-fade { animation: ios-fade-in 0.2s ease; }
+.ios-pop { animation: ios-pop-in 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+
+.ios-pressable {
+  transition: transform 0.1s ease, opacity 0.1s ease;
+}
+
+.ios-pressable:active {
+  transform: scale(0.97);
+  opacity: 0.85;
+}
+
+.ios-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: ios-spin 0.7s linear infinite;
+  display: inline-block;
+}
+
+@keyframes ios-spin { to { transform: rotate(360deg); } }
+
+.ios-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 20px;
+  border-radius: var(--ios-radius-md);
+  font-weight: 600;
+  font-size: 17px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ios-btn:active { transform: scale(0.97); }
+.ios-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+.ios-btn-primary { background: var(--ios-blue); color: white; }
+.ios-btn-secondary { background: var(--color-base-300, #e5e5ea); color: var(--color-base-content, #1c1c1e); }
+.ios-btn-ghost { background: transparent; color: var(--ios-blue); }
+.ios-btn-danger { background: var(--ios-red); color: white; }
+
+.ios-input {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: var(--ios-radius-md);
+  background: var(--color-base-200, #f2f2f7);
+  border: 1px solid transparent;
+  font-size: 17px;
+  font-family: inherit;
+  color: var(--color-base-content, #1c1c1e);
+  transition: all 0.15s ease;
+}
+
+.ios-input:focus {
+  outline: none;
+  border-color: var(--ios-blue);
+  background: var(--color-base-100, #fff);
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.12);
+}
+
+.ios-input::placeholder {
+  color: color-mix(in srgb, var(--color-base-content, #1c1c1e) 40%, transparent);
+}
+
 mjx-container {
   overflow-x: auto !important;
   max-width: 100% !important;
@@ -27,59 +309,22 @@ mjx-container {
   -ms-overflow-style: none;
 }
 
-mjx-container::-webkit-scrollbar {
+mjx-container::-webkit-scrollbar,
+.math-markdown-content::-webkit-scrollbar,
+.markdown-content::-webkit-scrollbar,
+.answer-content::-webkit-scrollbar {
   display: none;
 }
 
-/* Make Bengali text inside MathJax render with the same Bengali font stack */
 mjx-container mjx-mtext,
 mjx-container mjx-utext,
 mjx-container [data-mjx-texclass="ORD"] mjx-mtext {
   font-family: 'Hind Siliguri', 'Noto Sans Bengali', sans-serif !important;
 }
 
-/* MathJax inline math styling for better text flow */
-.answer-content .MathJax {
-  display: inline !important;
-  vertical-align: baseline !important;
-  margin: 0 1px !important;
-}
-
-.answer-content .MathJax_Display,
-.answer-content mjx-container[display="true"],
-.answer-content .katex-display {
-  display: block !important;
-  /* Ensure block for display math */
-  overflow-x: auto;
-  overflow-y: hidden;
-  padding-bottom: 4px;
-  max-width: 100%;
-  text-align: left !important;
-  margin: 0 1px !important;
-}
-
-.answer-content mjx-container {
-  display: inline !important;
-  /* Default to inline for containers */
-  vertical-align: baseline !important;
-  margin: 0 1px !important;
-}
-
-.answer-content pre {
-  overflow-x: auto;
-  max-width: 100%;
-}
-
-.answer-content .katex {
-  max-width: 100%;
-}
-
-.answer-content::-webkit-scrollbar {
-  display: none;
-}
-
-/* Force answer-content to contain all children */
-.answer-content {
+.answer-content,
+.math-markdown-content,
+.markdown-content {
   max-width: 100% !important;
   overflow-x: auto;
   overflow-wrap: anywhere;
@@ -88,11 +333,51 @@ mjx-container [data-mjx-texclass="ORD"] mjx-mtext {
   -ms-overflow-style: none;
 }
 
-.answer-content>* {
+.answer-content > *,
+.math-markdown-content > *,
+.markdown-content > * {
   max-width: 100% !important;
 }
 
-/* Markdown table wrapping for board/cq and other rendered content */
+.answer-content .MathJax,
+.answer-content mjx-container {
+  display: inline !important;
+  vertical-align: baseline !important;
+  margin: 0 1px !important;
+}
+
+.answer-content .MathJax_Display,
+.answer-content mjx-container[display="true"],
+.answer-content .katex-display,
+.math-markdown-content .katex-display,
+.markdown-content .katex-display {
+  display: block !important;
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+  padding-bottom: 4px;
+  text-align: left !important;
+  margin: 0 1px !important;
+  scrollbar-width: none;
+}
+
+.math-markdown-content .katex,
+.markdown-content .katex,
+.answer-content .katex,
+.math-markdown-content .katex-html,
+.markdown-content .katex-html,
+.answer-content .katex-html {
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.answer-content pre {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
 .math-markdown-content table,
 .answer-content table {
   width: 100% !important;
@@ -121,69 +406,49 @@ mjx-container [data-mjx-texclass="ORD"] mjx-mtext {
   .answer-content td {
     padding: 0.25rem 0.35rem !important;
   }
+
+  .answer-content pre {
+    font-size: 0.65rem;
+    padding: 0.5rem;
+  }
+
+  .answer-content mjx-container,
+  .answer-content .MathJax {
+    font-size: 0.85rem !important;
+  }
+
+  .suggestion-card:hover {
+    transform: none;
+    box-shadow: none;
+  }
 }
 
-/* === PuterChat UI Redesign Animations === */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
 
 @keyframes shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-
-  100% {
-    background-position: 200% 0;
-  }
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
 
 @keyframes float {
-
-  0%,
-  100% {
-    transform: translateY(0px);
-  }
-
-  50% {
-    transform: translateY(-8px);
-  }
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
 }
 
 @keyframes glow-pulse {
-
-  0%,
-  100% {
-    box-shadow: 0 0 8px rgba(124, 58, 237, 0.3);
-  }
-
-  50% {
-    box-shadow: 0 0 20px rgba(124, 58, 237, 0.6), 0 0 40px rgba(37, 99, 235, 0.2);
-  }
+  0%, 100% { box-shadow: 0 0 8px rgba(124, 58, 237, 0.3); }
+  50% { box-shadow: 0 0 20px rgba(124, 58, 237, 0.6), 0 0 40px rgba(37, 99, 235, 0.2); }
 }
 
 @keyframes fade-in-up {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes typing-dot {
-
-  0%,
-  60%,
-  100% {
-    transform: translateY(0);
-    opacity: 0.4;
-  }
-
-  30% {
-    transform: translateY(-6px);
-    opacity: 1;
-  }
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-6px); opacity: 1; }
 }
 
 .puter-shimmer {
@@ -192,17 +457,9 @@ mjx-container [data-mjx-texclass="ORD"] mjx-mtext {
   animation: shimmer 1.8s ease-in-out infinite;
 }
 
-.puter-float {
-  animation: float 4s ease-in-out infinite;
-}
-
-.puter-glow {
-  animation: glow-pulse 2.5s ease-in-out infinite;
-}
-
-.puter-fade-in {
-  animation: fade-in-up 0.4s ease-out forwards;
-}
+.puter-float { animation: float 4s ease-in-out infinite; }
+.puter-glow { animation: glow-pulse 2.5s ease-in-out infinite; }
+.puter-fade { animation: fade-in-up 0.4s ease-out forwards; }
 
 .suggestion-card {
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -213,42 +470,19 @@ mjx-container [data-mjx-texclass="ORD"] mjx-mtext {
   box-shadow: 0 8px 25px rgba(124, 58, 237, 0.15);
 }
 
-/* Typing dots stagger */
-.typing-dot-1 {
-  animation: typing-dot 1.4s ease-in-out infinite;
-}
+.typing-dot-1 { animation: typing-dot 1.4s ease-in-out infinite; }
+.typing-dot-2 { animation: typing-dot 1.4s ease-in-out 0.2s infinite; }
+.typing-dot-3 { animation: typing-dot 1.4s ease-in-out 0.4s infinite; }
 
-.typing-dot-2 {
-  animation: typing-dot 1.4s ease-in-out 0.2s infinite;
-}
-
-.typing-dot-3 {
-  animation: typing-dot 1.4s ease-in-out 0.4s infinite;
-}
-
-/* PuterChat scrollbar styling */
-.puter-scrollbar::-webkit-scrollbar {
-  width: 4px;
-}
-
-.puter-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-
+.puter-scrollbar::-webkit-scrollbar { width: 4px; }
+.puter-scrollbar::-webkit-scrollbar-track { background: transparent; }
 .puter-scrollbar::-webkit-scrollbar-thumb {
   background: rgba(124, 58, 237, 0.2);
   border-radius: 10px;
 }
+.puter-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(124, 58, 237, 0.4); }
 
-.puter-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(124, 58, 237, 0.4);
-}
-
-/* PuterChat sidebar session active indicator */
-.puter-session-active {
-  position: relative;
-}
-
+.puter-session-active { position: relative; }
 .puter-session-active::before {
   content: '';
   position: absolute;
@@ -261,116 +495,19 @@ mjx-container [data-mjx-texclass="ORD"] mjx-mtext {
   border-radius: 0 4px 4px 0;
 }
 
-/* Force white text in user message bubbles (overrides MathRenderer hardcoded colors) */
 .puter-user-msg,
 .puter-user-msg * {
-  color: #ffffff !important;
+  color: #fff !important;
 }
 
 .puter-user-msg .MathJax,
 .puter-user-msg mjx-container {
-  color: #ffffff !important;
+  color: #fff !important;
 }
 
 .puter-user-msg strong,
 .puter-user-msg h3,
 .puter-user-msg code {
-  color: #ffffff !important;
+  color: #fff !important;
   background: rgba(255, 255, 255, 0.12) !important;
-}
-
-/* Mobile-specific adjustments */
-@media (max-width: 640px) {
-  .answer-content pre {
-    font-size: 0.65rem;
-    padding: 0.5rem;
-  }
-
-  .answer-content mjx-container {
-    font-size: 0.85rem !important;
-  }
-
-  .answer-content .MathJax {
-    font-size: 0.85rem !important;
-  }
-
-  .suggestion-card:hover {
-    transform: none;
-    box-shadow: none;
-  }
-}
-
-/* ========== Math / KaTeX overflow containment ========== */
-
-/* MathRenderer & KatexRenderer wrappers — contain all math overflow */
-.math-markdown-content,
-.markdown-content,
-.answer-content {
-  max-width: 100% !important;
-  overflow-x: auto;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-.math-markdown-content::-webkit-scrollbar,
-.markdown-content::-webkit-scrollbar,
-.answer-content::-webkit-scrollbar {
-  display: none;
-}
-
-/* KaTeX inline math — prevent overflow */
-.math-markdown-content .katex,
-.markdown-content .katex {
-  max-width: 100%;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-.math-markdown-content .katex::-webkit-scrollbar,
-.markdown-content .katex::-webkit-scrollbar {
-  display: none;
-}
-
-/* KaTeX display math ($$...$$) — scrollable but no scrollbar */
-.math-markdown-content .katex-display,
-.markdown-content .katex-display,
-.answer-content .katex-display {
-  overflow-x: auto;
-  overflow-y: hidden;
-  max-width: 100%;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-  padding-bottom: 4px;
-}
-
-.math-markdown-content .katex-display::-webkit-scrollbar,
-.markdown-content .katex-display::-webkit-scrollbar,
-.answer-content .katex-display::-webkit-scrollbar {
-  display: none;
-}
-
-/* KaTeX .katex-html — the actual rendered math wrapper */
-.math-markdown-content .katex-html,
-.markdown-content .katex-html,
-.answer-content .katex-html {
-  max-width: 100%;
-  overflow-x: auto;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-.math-markdown-content .katex-html::-webkit-scrollbar,
-.markdown-content .katex-html::-webkit-scrollbar,
-.answer-content .katex-html::-webkit-scrollbar {
-  display: none;
-}
-
-/* All children of math wrappers should respect max-width */
-.math-markdown-content > *,
-.markdown-content > * {
-  max-width: 100% !important;
 }

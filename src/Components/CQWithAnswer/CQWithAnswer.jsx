@@ -2,12 +2,11 @@ import React from 'react';
 import { MathJax } from 'better-react-mathjax';
 import { useState } from 'react';
 
-const CQWithAnswer = ({ data, showUddipak = true }) => {
-  if (!data || !data.উদ্দীপক) return null;
-
+const CQWithAnswer = ({ data, showUddipak = true, showSource = false }) => {
   // Bengali numerals for any number
   const getBengaliNum = (num) => String(num).split('').map(d => '০১২৩৪৫৬৭৮৯'[d] ?? d).join('');
   const [openIdx, setOpenIdx] = useState(null);
+  if (!data || !data.উদ্দীপক) return null;
 
   // Helper to render mixed text and math
   const renderWithMathJax = (text) => {
@@ -44,7 +43,7 @@ const CQWithAnswer = ({ data, showUddipak = true }) => {
               {data.index ? `${getBengaliNum(data.index)}। ` : ''}{data.উদ্দীপক.title || 'Untitled'}
             </h2>
             {/* কার্ড টাইটেলের পাশে সোর্স */}
-            {typeof data.showSource !== 'undefined' && data.showSource && (
+            {showSource && (
               <span className="text-sm text-gray-500 font-normal">সোর্স: {data.source || 'N/A'}</span>
             )}
           </div>
